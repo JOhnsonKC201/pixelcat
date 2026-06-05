@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+
+# Electron / runtime logs
+*.log
+*.out
+*.err
+run*.log
+
+# Local preview / debug artifacts
+_*.png
+_render.png
+.playwright-mcp/
+
+# OS
+.DS_Store
+Thumbs.db

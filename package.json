@@ -1,0 +1,16 @@
+{
+  "name": "pixelcat",
+  "version": "0.1.0",
+  "description": "A pixel cat that lives on your desktop",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "autostart:off": "electron . --autostart=off"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.5"
+  }
+}
