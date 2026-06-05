@@ -63,6 +63,7 @@ function createWindow() {
   try {
     const { uIOhook } = require('uiohook-napi');
     uIOhook.on('keydown', () => { if (win && !win.isDestroyed()) win.webContents.send('keydown'); });
+    uIOhook.on('wheel', () => { if (win && !win.isDestroyed()) win.webContents.send('scroll'); });
     uIOhook.start();
     hookStarted = true;
   } catch (e) {

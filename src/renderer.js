@@ -321,6 +321,8 @@ let hearts = [], lastHeart = 0;
 let stretchT0 = -1, nextStretch = 0;
 let agentState = 'idle', doneHopT0 = -1, doneHopPending = false;
 const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
+// paper unroll (09)
+let paperLen = 0, paperUntil = 0, scrollPulses = 0;
 
 let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
@@ -338,6 +340,21 @@ if (window.cat) {
     if (s === 'done') { doneHopPending = true; agentState = 'idle'; }
     else agentState = s === 'thinking' ? 'thinking' : 'idle';
   });
+  if (window.cat.onScroll) window.cat.onScroll(() => { scrollPulses++; });
+}
+
+// Unspooling roll of paper (drawn in front of the cat while you scroll).
+function drawPaper(cx, topY, len, t) {
+  const w = 14, x = Math.round(cx - w / 2), sway = Math.round(Math.sin(t / 160) * 1.5);
+  topY = Math.round(topY);
+  ctx.fillStyle = '#fbfbf7'; ctx.fillRect(x + sway, topY, w, len);
+  ctx.fillStyle = '#e6e6df'; ctx.fillRect(x + sway, topY, 1, len); ctx.fillRect(x + sway + w - 1, topY, 1, len);
+  ctx.fillStyle = '#c9c9bf';
+  for (let yy = topY + 6; yy < topY + len - 2; yy += 5) ctx.fillRect(x + sway + 2, yy, w - 5, 1);
+  ctx.fillStyle = '#fbfbf7'; for (let i = 0; i < w; i += 3) ctx.fillRect(x + sway + i, topY + len, 2, i % 2 ? 2 : 3);
+  ctx.fillStyle = '#3a3f48'; ctx.fillRect(x - 2, topY - 6, w + 4, 7);          // roll body
+  ctx.fillStyle = '#dadbd0'; ctx.fillRect(x - 1, topY - 5, w + 2, 5);
+  ctx.fillStyle = '#9aa0a8'; ctx.fillRect(x + w / 2 - 1, topY - 4, 2, 3);      // core
 }
 
 // hunt/pet tuning
@@ -358,6 +375,12 @@ function draw(t) {
 
   if (keyPulse) { lastKeyAt = t; heat = Math.min(1, heat + 0.12); keyPulse = false; }
   heat = Math.max(0, heat - dt * 0.0009);
+
+  // paper unroll: scrolling grows the paper; it retracts when you stop.
+  if (scrollPulses > 0) { paperUntil = t + 700; paperLen = Math.min(70, paperLen + scrollPulses * 7); scrollPulses = 0; }
+  if (FORCED_STATE === 'paper') paperLen = 50;
+  else if (t > paperUntil) paperLen = Math.max(0, paperLen - dt * 0.06);
+  const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
 
   // Mouse-hunt is OFF — the cat stays put and never chases the cursor.
   // (Crouch/chase code remains for `?state=hunt` previews; re-enable by
@@ -467,7 +490,7 @@ function draw(t) {
       drawTapPaw(ox + 13.7 * CELL, py - rp * amp, pal);
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL + tb);
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
-    } else if (!grabbing && (calm || petting || stretching || thinking || hopActive)) {
+    } else if (!grabbing && (calm || petting || stretching || thinking || hopActive || paperActive)) {
       const wig = petting ? Math.round(Math.sin(t / 55) * 1) : 0;       // purr wiggle
       const emode = (petting || stretching) ? 'happy' : 'open';
       const eLook = thinking ? { x: 0, y: -0.5 } : look;
@@ -486,6 +509,7 @@ function draw(t) {
       if (petting && t - lastHeart > 430) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 18, y: oy - 2, t0: t }); lastHeart = t; }
       if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
+      if (paperActive && !petting && !stretching) drawPaper(pos.x, pos.y - 36, Math.round(paperLen), t);
       if (t < labelUntil) {
         ctx.globalAlpha = Math.min(1, (labelUntil - t) / 300); ctx.font = 'bold 10px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
         const name = P.name, w = ctx.measureText(name).width + 10, bx = pos.x, by = oy + SH + 14;
