@@ -21,6 +21,10 @@ when you drag it.
 - **Typing reaction** — when you type (in *any* app), the cat **taps its front
   paws**; type fast and it **overheats** (turns red with steam), then cools down.
   Powered by a system-wide keyboard hook (`uiohook-napi`).
+- **Stretch reminder** — every so often the cat does a big, happy **stretch**.
+- **AI agent reactions** — shows a thinking "…" bubble while a coding agent
+  (Claude Code, Codex, Cursor, …) is working, and does a happy **hop** when it
+  finishes. See [AI agent reactions](#ai-agent-reactions) for setup.
 - **Polished pixel art** — white sticker outline (pops on any wallpaper), soft
   top-lit shading, whiskers, ground shadow, sparkly eyes.
 - **Desktop-pet overlay** — a full-screen, transparent, click-through layer, so
@@ -73,6 +77,37 @@ pixelcat/
 - Mochi-drag is a spring system (a pinned handle + a trailing body point) with a
   3-band stretch that keeps the head and feet rigid.
 
+## AI agent reactions
+
+The cat can react to a coding agent's work status. Any tool can signal it by
+running the bundled helper, which writes a tiny status file the cat watches
+(`%TEMP%/comnyang-agent.state`):
+
+```bash
+node agent-hook.js thinking   # cat shows a thinking "…" bubble
+node agent-hook.js done       # cat does a happy hop
+node agent-hook.js idle       # back to normal
+```
+
+To wire it to **Claude Code**, add hooks to `~/.claude/settings.json` (use the
+full path to `agent-hook.js`):
+
+```jsonc
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "node C:/Users/johns/pixelcat/agent-hook.js thinking" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node C:/Users/johns/pixelcat/agent-hook.js done" }] }
+    ]
+  }
+}
+```
+
+Other tools (Codex, Cursor, custom scripts) can call the same helper from their
+own start/finish hooks.
+
 ## Tech
 
 Electron · HTML canvas · [`uiohook-napi`](https://github.com/SnosMe/uiohook-napi)
@@ -82,7 +117,8 @@ Electron · HTML canvas · [`uiohook-napi`](https://github.com/SnosMe/uiohook-na
 
 - A **mouse-hunt** mode (cat crouches and chases the cursor) is implemented but
   currently disabled; re-enable via the velocity trigger in `renderer.js`.
-- Future: tray-menu pattern picker, sound, multi-monitor roaming.
+- Future: Pomodoro timer, stretch/break scheduling UI, pinned messages,
+  paper-unroll on scroll, tray-menu pattern picker, sound, multi-monitor roaming.
 
 ---
 

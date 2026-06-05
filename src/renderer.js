@@ -272,6 +272,25 @@ function renderTyping(t, palRGB, pal, overheat, blinking, look) {
 function drawShadow(cx, cy, alpha, rx) {
   ctx.fillStyle = `rgba(0,0,0,${alpha})`; ctx.beginPath(); ctx.ellipse(cx, cy + 2, rx || 24, 5, 0, 0, Math.PI * 2); ctx.fill();
 }
+// Thinking indicator: three dots that pulse near the head (AI agent working).
+function drawThinkBubble(x, y, t) {
+  for (let i = 0; i < 3; i++) {
+    const a = (Math.sin(t / 170 - i * 0.9) + 1) / 2;
+    ctx.globalAlpha = 0.35 + a * 0.6; ctx.fillStyle = '#3a3f4b';
+    ctx.fillRect(Math.round(x + i * 6), Math.round(y - a * 2), 4, 4);
+  }
+  ctx.globalAlpha = 1;
+}
+// Little "!" + sparkles above the head when an AI agent finishes a task.
+function drawDoneSpark(x, y, t) {
+  ctx.fillStyle = '#ffd54a';
+  ctx.fillRect(x - 1, y - 7, 2, 5); ctx.fillRect(x - 1, y - 1, 2, 2);   // exclamation
+  ctx.fillStyle = '#fff3b0';
+  const tw = (Math.sin(t / 90) + 1) / 2;
+  ctx.globalAlpha = 0.5 + tw * 0.5;
+  ctx.fillRect(x + 9, y - 5, 2, 2); ctx.fillRect(x - 11, y - 2, 2, 2);  // sparkles
+  ctx.globalAlpha = 1;
+}
 // A small front paw with toe beans, for the sit-and-tap typing motion.
 function drawTapPaw(x, y, pal) {
   ctx.fillStyle = pal.O; ctx.fillRect(x - 5, y - 4, 10, 8);
@@ -298,6 +317,10 @@ let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null;
 let hearts = [], lastHeart = 0;
+// stretch reminder (08) + AI-agent thinking/done (10/11)
+let stretchT0 = -1, nextStretch = 0;
+let agentState = 'idle', doneHopT0 = -1, doneHopPending = false;
+const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
 
 let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
@@ -311,6 +334,10 @@ let grabbing = false;
 if (window.cat) {
   window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; });
   if (window.cat.onKey) window.cat.onKey(() => { keyPulse = true; });
+  if (window.cat.onAgent) window.cat.onAgent((s) => {
+    if (s === 'done') { doneHopPending = true; agentState = 'idle'; }
+    else agentState = s === 'thinking' ? 'thinking' : 'idle';
+  });
 }
 
 // hunt/pet tuning
@@ -414,6 +441,17 @@ function draw(t) {
     const eyeMode = petting ? 'happy' : 'open';
     const bob = Math.round(Math.sin(t / (typing ? 220 : 600)) * 2);
 
+    // --- idle reactions: periodic stretch + AI-agent thinking/done ----------
+    if (nextStretch === 0) nextStretch = t + STRETCH_INTERVAL;
+    const idleNow = calm && !petting && !typing && agentState === 'idle';
+    if (FORCED_STATE !== 'stretch' && idleNow && t > nextStretch) { stretchT0 = t; nextStretch = t + STRETCH_INTERVAL; }
+    const stretching = FORCED_STATE === 'stretch' || (stretchT0 >= 0 && t - stretchT0 < STRETCH_MS);
+    const thinking = FORCED_STATE === 'think' || agentState === 'thinking';
+    if (doneHopPending) { doneHopT0 = t; doneHopPending = false; }
+    let hop = 0, hopActive = false;
+    if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22; hopActive = true; }
+    else if (doneHopT0 >= 0 && t - doneHopT0 < DONE_MS) { hop = Math.sin(((t - doneHopT0) / DONE_MS) * Math.PI) * 22; hopActive = true; }
+
     if (typing || FORCED_STATE === 'typing' || FORCED_STATE === 'overheat') {
       // Simple: stay sitting and tap the front paws up/down (small motion).
       const tb = Math.round(Math.sin(t / 240) * 2);
@@ -429,15 +467,25 @@ function draw(t) {
       drawTapPaw(ox + 13.7 * CELL, py - rp * amp, pal);
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL + tb);
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
-    } else if (calm || petting) {
+    } else if (!grabbing && (calm || petting || stretching || thinking || hopActive)) {
       const wig = petting ? Math.round(Math.sin(t / 55) * 1) : 0;       // purr wiggle
-      const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH);
-      drawShadow(ox + SW / 2, oy + SH, 0.18);
+      const emode = (petting || stretching) ? 'happy' : 'open';
+      const eLook = thinking ? { x: 0, y: -0.5 } : look;
+      let sx = 1, sy = 1;
+      if (stretching) {
+        const se = clamp((t - (FORCED_STATE === 'stretch' ? t - STRETCH_MS / 2 : stretchT0)) / STRETCH_MS, 0, 1);
+        const k = Math.sin(se * Math.PI); sy = 1 + k * 0.32; sx = 1 + k * 0.10;
+      }
+      const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop);
+      drawShadow(pos.x + wig, pos.y, 0.18);
       octx.clearRect(0, 0, oc.width, oc.height);
-      drawCat(octx, spriteSit, t, palRGB, { bob, blinking, look, eyeMode });
-      ctx.drawImage(oc, 0, 0, SW, SH, ox, oy, SW, SH);
+      drawCat(octx, spriteSit, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode });
+      if (sx !== 1 || sy !== 1) { ctx.save(); ctx.translate(pos.x + wig, pos.y - hop); ctx.scale(sx, sy); ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH); ctx.restore(); }
+      else { ctx.drawImage(oc, 0, 0, SW, SH, ox, oy, SW, SH); }
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
       if (petting && t - lastHeart > 430) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 18, y: oy - 2, t0: t }); lastHeart = t; }
+      if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
+      if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
       if (t < labelUntil) {
         ctx.globalAlpha = Math.min(1, (labelUntil - t) / 300); ctx.font = 'bold 10px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
         const name = P.name, w = ctx.measureText(name).width + 10, bx = pos.x, by = oy + SH + 14;

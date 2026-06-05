@@ -1,9 +1,15 @@
 const { app, BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+
+// AI-agent status file: hooks (e.g. Claude Code) write 'thinking' | 'done' here
+// and the cat reacts. See README "AI agent reactions".
+const AGENT_FILE = path.join(os.tmpdir(), 'comnyang-agent.state');
 
 let win;
 let cursorTimer;
+let agentTimer;
 let hookStarted = false;
 let ignoring = true;                                   // current click-through state
 let origin = { x: 0, y: 0 };                           // overlay top-left in screen px
@@ -92,6 +98,16 @@ function createWindow() {
       win.setIgnoreMouseEvents(wantIgnore, { forward: true });
     }
   }, 16);
+
+  // Watch the AI-agent status file; forward changes to the renderer.
+  let lastAgent = '';
+  try { lastAgent = fs.readFileSync(AGENT_FILE, 'utf8').trim(); } catch (e) { /* none yet */ }
+  agentTimer = setInterval(() => {
+    if (!win || win.isDestroyed()) return;
+    let s = 'idle';
+    try { s = (fs.readFileSync(AGENT_FILE, 'utf8').trim() || 'idle'); } catch (e) { s = 'idle'; }
+    if (s !== lastAgent) { lastAgent = s; win.webContents.send('agent', s); }
+  }, 300);
 }
 
 // Renderer reports the cat's interactive bbox (overlay-local px) + drag state.
@@ -108,6 +124,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (cursorTimer) clearInterval(cursorTimer);
+  if (agentTimer) clearInterval(agentTimer);
   if (hookStarted) { try { require('uiohook-napi').uIOhook.stop(); } catch (e) { /* ignore */ } }
   app.quit();
 });
