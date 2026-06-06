@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self';" />
+  <style>
+    :root { --bg:#1d1f26; --panel:#262932; --line:#363a45; --fg:#eceef3; --muted:#9aa0ad; --accent:#e8943c; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg); color: var(--fg);
+      font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+      padding: 16px; user-select: none;
+    }
+    h1 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+    h1 .paw { color: var(--accent); }
+    .row { margin-bottom: 14px; }
+    label.lbl { display: block; color: var(--muted); margin-bottom: 5px; font-size: 12px; }
+    input[type=text], input[type=number], input[type=time], select {
+      width: 100%; background: var(--panel); color: var(--fg);
+      border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font: inherit; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    .inline { display: flex; align-items: center; gap: 8px; }
+    .inline input[type=number] { width: 72px; }
+    .check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .check input { width: 16px; height: 16px; accent-color: var(--accent); }
+    .hr { height: 1px; background: var(--line); margin: 16px 0; border: 0; }
+    .rem-add { display: flex; gap: 6px; }
+    .rem-add input[type=time] { width: 96px; flex: none; }
+    .rem-add input[type=text] { flex: 1; }
+    button {
+      background: var(--accent); color: #1d1f26; border: 0; border-radius: 6px;
+      padding: 7px 12px; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    button.ghost { background: var(--panel); color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+    button:active { transform: translateY(1px); }
+    ul#reminders { list-style: none; margin: 8px 0 0; padding: 0; }
+    ul#reminders li {
+      display: flex; align-items: center; gap: 8px; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px;
+    }
+    ul#reminders .t { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; }
+    ul#reminders .m { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    ul#reminders .x { color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 15px; }
+    ul#reminders .x:hover { color: #ff6b78; }
+    .empty { color: var(--muted); font-size: 12px; font-style: italic; }
+    .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+    .hint { color: var(--muted); font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1><span class="paw">🐾</span> pixelcat settings</h1>
+
+  <div class="row">
+    <label class="lbl" for="name">Your name (the cat calls you by it)</label>
+    <input type="text" id="name" maxlength="24" placeholder="e.g. John" />
+  </div>
+
+  <div class="row">
+    <label class="lbl" for="pattern">Coat</label>
+    <select id="pattern"></select>
+  </div>
+
+  <div class="row inline">
+    <label class="lbl" for="breakMinutes" style="margin:0;">Break / stretch every</label>
+    <input type="number" id="breakMinutes" min="0" max="240" step="1" />
+    <span class="hint">minutes (0 = off)</span>
+  </div>
+
+  <div class="row check"><input type="checkbox" id="huntOn" /><label for="huntOn">Hunt the cursor when the mouse moves fast</label></div>
+  <div class="row check"><input type="checkbox" id="soundOn" /><label for="soundOn">Sound (meow &amp; purr)</label></div>
+
+  <hr class="hr" />
+
+  <div class="row">
+    <label class="lbl">Reminders — the cat meows your message at a set time</label>
+    <div class="rem-add">
+      <input type="time" id="newTime" />
+      <input type="text" id="newMsg" maxlength="80" placeholder="Drink water, {name}!" />
+      <button id="addReminder">Add</button>
+    </div>
+    <ul id="reminders"></ul>
+  </div>
+
+  <div class="foot">
+    <button class="ghost" id="testSound">Test meow</button>
+    <span class="hint">Changes save automatically</span>
+  </div>
+
+  <script src="patterns.js"></script>
+  <script src="settings-renderer.js"></script>
+</body>
+</html>

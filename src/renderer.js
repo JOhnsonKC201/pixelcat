@@ -78,15 +78,13 @@ function composeSit() {
   const CX = 12;
   ellipse(CX, 24, 7.5, 4.6, 'C'); ellipse(CX, 16, 5.2, 7.5, 'C'); ellipse(CX, 8, 6.3, 5.8, 'C');
   ellipse(10.5, 23, 1.7, 5.6, 'C'); ellipse(13.5, 23, 1.7, 5.6, 'C');
-  // smoother tail: curls off the lower-right and sweeps up
-  [[17, 25], [19, 24], [20.5, 21.5], [20.5, 18.5], [19.3, 16], [18, 14]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+  // tail is drawn procedurally in the renderer (animated sway) — not baked here
   for (let r = 17; r <= 28; r++) setCell(12, r, '.');
   for (let r = 27; r <= 28; r++) { setCell(11, r, '.'); setCell(13, r, '.'); }
   triangle(7, 1, 5, 7, 9, 7, 'K'); triangle(17, 1, 15, 7, 19, 7, 'K');
   triangle(7, 3, 6, 7, 8, 7, 'I'); triangle(17, 3, 16, 7, 18, 7, 'I');
   ellipse(CX, 12, 3, 2, 'W', ['C']); ellipse(CX, 17, 2.7, 7.5, 'W', ['C']);
   ellipse(10.5, 27, 2, 1.6, 'W', ['C']); ellipse(13.5, 27, 2, 1.6, 'W', ['C']);
-  ellipse(18, 14, 1.3, 1.3, 'W', ['C']);
   ellipse(9, 8.2, 2, 2.4, 'E'); ellipse(15, 8.2, 2, 2.4, 'E');
   setCell(12, 11, 'N'); setCell(11, 11, 'N');
   [[11, 6], [12, 7], [13, 6]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); }); // subtle brow
@@ -119,32 +117,10 @@ function composeHunt() {
   ellipse(9, 12, 2.4, 2.4, 'X', ['C', 'K']); ellipse(21, 13, 2.2, 2.2, 'X', ['C', 'K']);
 }
 
-// --- kneading body (front-facing, leaning forward; NO front legs) -----------
-function composeType() {
-  const CX = 13;
-  ellipse(CX, 13, 7, 5.5, 'C');          // body
-  ellipse(18.5, 11, 3.6, 3.6, 'C');      // raised rear haunch (back-right)
-  ellipse(CX, 7, 6, 5, 'C');             // head, leaning forward
-  [[21, 9], [22, 6], [22, 3]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C')); // tail up
-  triangle(8, 2, 6, 6, 11, 6, 'K'); triangle(18, 2, 15, 6, 20, 6, 'K');
-  triangle(8, 3.5, 7, 6, 10, 6, 'I'); triangle(18, 3.5, 16, 6, 19, 6, 'I');
-  ellipse(CX, 10, 2.4, 1.6, 'W', ['C']);                 // muzzle
-  ellipse(CX, 14, 2.8, 3, 'W', ['C']);                   // chest
-  ellipse(10, 20, 1.7, 1.4, 'W', ['C']); ellipse(16, 20, 1.7, 1.4, 'W', ['C']); // back paws
-  ellipse(22, 3, 1.1, 1.1, 'W', ['C']);                  // tail tip
-  ellipse(10, 7, 2, 2.3, 'E'); ellipse(16, 7, 2, 2.3, 'E');
-  setCell(13, 10, 'N'); setCell(12, 10, 'N');
-  [[11, 4], [12, 5], [13, 4], [14, 5], [15, 4]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); });
-  for (let r = 12; r < 18; r += 2) for (let c = 4; c < GC; c++) if (G[r][c] === 'C' && c % 2 === 0) G[r][c] = 'K';
-  ellipse(9, 13, 2, 2.4, 'X', ['C', 'K']); ellipse(18, 15, 2, 2, 'X', ['C', 'K']);
-}
-
 const spriteSit = buildSprite(24, 30, composeSit);
 const spriteHunt = buildSprite(30, 20, composeHunt);
-const spriteType = buildSprite(26, 22, composeType);
 const SW = spriteSit.SW, SH = spriteSit.SH;     // sit dims (mochi uses these)
 const HW = spriteHunt.SW, HH = spriteHunt.SH;   // hunt dims
-const TW = spriteType.SW, TH = spriteType.SH;   // kneading dims
 
 // offscreen buffer big enough for either sprite
 const oc = document.createElement('canvas');
@@ -223,24 +199,6 @@ function drawCat(g, sp, t, palRGB, o) {
   }
 }
 
-// --- keyboard-kneading pose: two big pads + front legs pressing them --------
-function drawPad(cx, topY, w, h, lit) {
-  const x0 = Math.round(cx - w / 2), y = Math.round(topY);
-  ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(cx, y + h + 4, w / 2 + 2, 4, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#565c6a'; ctx.fillRect(x0, y + h - 3, w, 7);                 // front/side
-  ctx.fillStyle = lit ? '#eef3ff' : '#c4c8cf'; ctx.fillRect(x0, y, w, h - 2);   // top face
-  ctx.fillStyle = lit ? '#ffffff' : '#e2e5ea'; ctx.fillRect(x0 + 2, y, w - 4, 3); // highlight
-  ctx.fillStyle = '#3a3f48';
-  ctx.fillRect(x0 - 1, y, 1, h + 4); ctx.fillRect(x0 + w, y, 1, h + 4); ctx.fillRect(x0, y - 1, w, 1);
-}
-function drawLeg(sx, sy, px, py, pal) {
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = pal.O; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(px, py); ctx.stroke();
-  ctx.strokeStyle = pal.C; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(px, py); ctx.stroke();
-  ctx.fillStyle = pal.O; ctx.fillRect(px - 7, py - 5, 14, 10);                  // paw
-  ctx.fillStyle = pal.W; ctx.fillRect(px - 6, py - 4, 12, 8);
-  ctx.fillStyle = pal.N; ctx.fillRect(px - 4, py + 1, 3, 2); ctx.fillRect(px + 1, py + 1, 3, 2);
-}
 function drawSteam(t, headCx, earTop) {
   for (let i = 0; i < 4; i++) {
     const ph = (((t + i * 240) % 960) / 960), x = Math.round(headCx + (i - 1.5) * 9), y = Math.round(earTop - 3 - ph * 12), h = Math.max(2, Math.round(5 - ph * 2));
@@ -250,27 +208,31 @@ function drawSteam(t, headCx, earTop) {
   const psz = Math.round(3 + pph * 3); ctx.fillRect(Math.round(headCx - psz / 2), Math.round(earTop - 6 - pph * 10), psz, psz);
   ctx.globalAlpha = 1;
 }
-// Full kneading pose: leaning body, two big pads, front legs pressing alternately.
-function renderTyping(t, palRGB, pal, overheat, blinking, look) {
-  const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH);
-  const sp = overheat ? 42 : 80;
-  const lp = Math.max(0, Math.sin(t / sp)), rp = Math.max(0, Math.sin(t / sp + Math.PI));
-  const padW = 26, padH = 14, padTop = pos.y - 12, lcx = pos.x - 15, rcx = pos.x + 15;
-  const lDep = Math.round(lp * 4), rDep = Math.round(rp * 4);
-  const bob = Math.round(Math.sin(t / 200) * 1.5);
-  drawShadow(pos.x, pos.y + 2, 0.18, 32);
-  octx.clearRect(0, 0, oc.width, oc.height);
-  drawCat(octx, spriteType, t, palRGB, { bob, blinking, look: { x: look.x * 0.3, y: 0.6 } });
-  ctx.drawImage(oc, 0, 0, TW, TH, ox, oy + bob, TW, TH);
-  drawPad(lcx, padTop + lDep, padW, padH, lp > 0.7);
-  drawPad(rcx, padTop + rDep, padW, padH, rp > 0.7);
-  const shY = oy + TH * 0.6 + bob;
-  drawLeg(pos.x - 7, shY, lcx, padTop + lDep - 2, pal);
-  drawLeg(pos.x + 7, shY, rcx, padTop + rDep - 2, pal);
-  if (overheat) drawSteam(t, pos.x, oy + CELL + bob);
-}
 function drawShadow(cx, cy, alpha, rx) {
   ctx.fillStyle = `rgba(0,0,0,${alpha})`; ctx.beginPath(); ctx.ellipse(cx, cy + 2, rx || 24, 5, 0, 0, Math.PI * 2); ctx.fill();
+}
+// Animated tail: a curling, swaying stroke that flicks on idle actions and wags
+// faster while the cat is petted. Drawn behind the body so its root tucks under.
+function drawTail(footX, footY, t, pal, flickT0, petting) {
+  const baseX = footX + SW * 0.20, baseY = footY - SH * 0.24, segLen = SH * 0.052;
+  let flick = 0;
+  if (flickT0 >= 0 && t - flickT0 < 650) { const e = (t - flickT0) / 650; flick = Math.sin(e * Math.PI * 3) * (1 - e) * 0.55; }
+  const wag = Math.sin(t / 540) * 0.10 + (petting ? Math.sin(t / 120) * 0.07 : 0);
+  const pts = []; let x = baseX, y = baseY, ang = -1.15;
+  for (let i = 0; i <= 10; i++) {
+    pts.push([x, y]);
+    const w = i / 10;                                    // tip sways most
+    ang += 0.20 + (wag + flick) * w + Math.sin(t / 430 + i * 0.6) * 0.03 * w;
+    x += Math.cos(ang) * segLen; y += Math.sin(ang) * segLen;
+  }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = pal.O; ctx.lineWidth = 11;
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const p of pts) ctx.lineTo(p[0], p[1]); ctx.stroke();
+  ctx.strokeStyle = pal.C; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const p of pts) ctx.lineTo(p[0], p[1]); ctx.stroke();
+  const tip = pts[pts.length - 1];
+  ctx.fillStyle = pal.O; ctx.beginPath(); ctx.arc(tip[0], tip[1], 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = pal.W; ctx.beginPath(); ctx.arc(tip[0], tip[1], 3.2, 0, Math.PI * 2); ctx.fill();
 }
 // Thinking indicator: three dots that pulse near the head (AI agent working).
 function drawThinkBubble(x, y, t) {
@@ -323,6 +285,15 @@ let agentState = 'idle', doneHopT0 = -1, doneHopPending = false;
 const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
 // paper unroll (09)
 let paperLen = 0, paperUntil = 0, scrollPulses = 0;
+// liveliness: eased gaze, idle micro-actions, animated tail + frame governor
+let smoothLook = { x: 0, y: 0 };
+let lookTarget = null, lookTargetUntil = 0;
+let nextIdleAt = 0, leanTarget = 0, lean = 0, leanUntil = 0, tailFlickT0 = -1;
+let lastDrawn = 0, wantHighFps = true, rafPaused = false;
+// Comnyang-style productivity layer: settings from main + reminder/break bubble
+let config = null;
+let bubbleText = '', bubbleUntil = 0;
+let purring = false;
 
 let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
@@ -334,13 +305,102 @@ let feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 };
 let grabbing = false;
 
 if (window.cat) {
-  window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; });
-  if (window.cat.onKey) window.cat.onKey(() => { keyPulse = true; });
+  window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; resumeRaf(); });
+  if (window.cat.onKey) window.cat.onKey(() => { keyPulse = true; resumeRaf(); });
   if (window.cat.onAgent) window.cat.onAgent((s) => {
     if (s === 'done') { doneHopPending = true; agentState = 'idle'; }
     else agentState = s === 'thinking' ? 'thinking' : 'idle';
   });
   if (window.cat.onScroll) window.cat.onScroll(() => { scrollPulses++; });
+  if (window.cat.onConfig) window.cat.onConfig((c) => {
+    config = c;
+    if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
+    resumeRaf();
+  });
+  if (window.cat.onRemind) window.cat.onRemind((d) => triggerReminder(d && d.message));
+  if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
+}
+
+// Replace {name} (and provide clean fallbacks when no name is set).
+function catName() { return config && config.name ? config.name : ''; }
+function template(msg) {
+  const n = catName();
+  return String(msg || '').replace(/\{name\}/g, n).replace(/\s+([,!?.])/g, '$1').replace(/,\s*!/g, '!').trim();
+}
+// A reminder/break: show a speech bubble, do the big stretch, meow.
+function triggerReminder(message) {
+  bubbleText = template(message) || 'Meow!';
+  bubbleUntil = performance.now() + 5000;
+  stretchT0 = performance.now();
+  if (config && config.soundOn) playMeow();
+  resumeRaf();
+}
+function triggerBreak() {
+  const n = catName();
+  bubbleText = n ? `Break time, ${n}! Stretch with me~` : 'Break time! Stretch with me~';
+  bubbleUntil = performance.now() + 6000;
+  stretchT0 = performance.now();
+  if (config && config.soundOn) playMeow();
+  resumeRaf();
+}
+
+// ---- procedural sound (WebAudio; no asset files) ---------------------------
+let actx = null;
+function audio() {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+  } catch (e) { actx = null; }
+  return actx;
+}
+function playMeow() {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime, g = ac.createGain();
+  g.connect(ac.destination);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.30);
+  for (const [type, detune] of [['triangle', 0], ['sine', 6]]) {
+    const o = ac.createOscillator(); o.type = type; o.detune.value = detune;
+    o.frequency.setValueAtTime(620, t0);
+    o.frequency.linearRampToValueAtTime(720, t0 + 0.10);
+    o.frequency.linearRampToValueAtTime(520, t0 + 0.28);
+    o.connect(g); o.start(t0); o.stop(t0 + 0.32);
+  }
+}
+let purrNodes = null;
+function startPurr() {
+  const ac = audio(); if (!ac || purrNodes) return;
+  const carrier = ac.createOscillator(); carrier.type = 'sawtooth'; carrier.frequency.value = 50;
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 200;
+  const amp = ac.createGain(); amp.gain.value = 0.04;
+  const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 22;
+  const lfoGain = ac.createGain(); lfoGain.gain.value = 0.03;
+  lfo.connect(lfoGain); lfoGain.connect(amp.gain);
+  carrier.connect(lp); lp.connect(amp); amp.connect(ac.destination);
+  carrier.start(); lfo.start();
+  purrNodes = { carrier, lfo, amp };
+}
+function stopPurr() {
+  if (!purrNodes) return;
+  try { purrNodes.carrier.stop(); purrNodes.lfo.stop(); } catch (e) { /* ignore */ }
+  purrNodes = null;
+}
+
+// Speech bubble above the head — same dark-rounded style as the coat label.
+function drawBubble(cx, topY, text, alpha) {
+  ctx.globalAlpha = alpha;
+  ctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const padX = 8, w = Math.min(260, ctx.measureText(text).width + padX * 2), h = 20;
+  const x = Math.round(cx - w / 2), y = Math.round(topY - h);
+  ctx.fillStyle = 'rgba(20,20,24,0.88)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, 6); else ctx.rect(x, y, w, h);
+  ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx - 4, y + h); ctx.lineTo(cx + 4, y + h); ctx.lineTo(cx, y + h + 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillText(text, cx, y + h / 2 + 1);
+  ctx.globalAlpha = 1;
 }
 
 // Unspooling roll of paper (drawn in front of the cat while you scroll).
@@ -365,9 +425,16 @@ function persistPos() { localStorage.setItem('pos', JSON.stringify({ x: pos.x, y
 
 // ---- main loop --------------------------------------------------------------
 function draw(t) {
+  // self-schedule; fully pause when the page is hidden (resumes on visibility)
+  if (!document.hidden) requestAnimationFrame(draw); else { rafPaused = true; return; }
+  // idle throttle: when nothing interactive is happening, render ~33fps not 60
+  if (!wantHighFps && t - lastDrawn < 28) return;
+  lastDrawn = t;
+
   const dt = Math.min(64, t - prevT); prevT = t;
   const step = Math.min(2.5, dt / 16);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  wantHighFps = true; // default high; the fully-idle calm path lowers it below
 
   // cursor velocity (px/ms, smoothed)
   const inst = Math.hypot(cursor.x - prevCursor.x, cursor.y - prevCursor.y) / Math.max(1, dt);
@@ -382,17 +449,22 @@ function draw(t) {
   else if (t > paperUntil) paperLen = Math.max(0, paperLen - dt * 0.06);
   const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
 
-  // Mouse-hunt is OFF — the cat stays put and never chases the cursor.
-  // (Crouch/chase code remains for `?state=hunt` previews; re-enable by
-  //  uncommenting the velocity trigger below.)
-  // const dCur = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5));
-  // if (!grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) huntUntil = t + 1400;
-  const hunting = FORCED_STATE === 'hunt';
+  // Mouse-hunt: when enabled in settings, a fast cursor flick (far enough away)
+  // makes the cat crouch, stalk, and pounce. Off by config -> the cat stays put.
+  const huntOn = !!(config && config.huntOn);
+  const dCur = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5));
+  if (huntOn && !grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) huntUntil = t + 1400;
+  const hunting = FORCED_STATE === 'hunt' || (huntOn && t < huntUntil);
 
   // pet detection (cursor resting on the head, slow, not hunting/grabbing)
   const headBox = { x: pos.x - SW / 2, y: pos.y - SH, w: SW, h: SH * 0.42 };
   const inHead = cursor.x >= headBox.x && cursor.x <= headBox.x + headBox.w && cursor.y >= headBox.y && cursor.y <= headBox.y + headBox.h;
   const petting = FORCED_STATE === 'pet' || (!grabbing && !hunting && inHead && velEMA < 0.25);
+
+  // purr while petted (only when sound is on); start/stop once on the edge
+  const wantPurr = petting && !SHOT && !!(config && config.soundOn);
+  if (wantPurr && !purring) { startPurr(); purring = true; }
+  else if (!wantPurr && purring) { stopPurr(); purring = false; }
 
   let typing, overheat, heatT;
   if (FORCED_STATE === 'overheat') { typing = true; overheat = true; heatT = 1; }
@@ -464,6 +536,26 @@ function draw(t) {
     const eyeMode = petting ? 'happy' : 'open';
     const bob = Math.round(Math.sin(t / (typing ? 220 : 600)) * 2);
 
+    // --- liveliness: eased gaze + periodic idle micro-actions ---------------
+    const restIdle = calm && !petting && !typing && !grabbing && !FORCED_STATE && agentState === 'idle';
+    if (restIdle) {
+      if (nextIdleAt === 0) nextIdleAt = t + 4000 + Math.random() * 6000;
+      if (t > nextIdleAt) {
+        nextIdleAt = t + 5000 + Math.random() * 9000;
+        const roll = Math.random();
+        if (roll < 0.45) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
+        else if (roll < 0.72) { tailFlickT0 = t; }
+        else if (roll < 0.90) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
+        else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
+      }
+    } else { nextIdleAt = 0; }
+    if (lookTarget && t > lookTargetUntil) lookTarget = null;
+    if (t > leanUntil) leanTarget = 0;
+    lean += (leanTarget - lean) * 0.09 * step;
+    const gaze = lookTarget || look;
+    smoothLook.x += (gaze.x - smoothLook.x) * 0.10 * step;
+    smoothLook.y += (gaze.y - smoothLook.y) * 0.10 * step;
+
     // --- idle reactions: periodic stretch + AI-agent thinking/done ----------
     if (nextStretch === 0) nextStretch = t + STRETCH_INTERVAL;
     const idleNow = calm && !petting && !typing && agentState === 'idle';
@@ -491,20 +583,27 @@ function draw(t) {
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL + tb);
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
     } else if (!grabbing && (calm || petting || stretching || thinking || hopActive || paperActive)) {
-      const wig = petting ? Math.round(Math.sin(t / 55) * 1) : 0;       // purr wiggle
+      const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
+      const wig = (petting ? Math.round(Math.sin(t / 55)) : 0) + idleSway;
       const emode = (petting || stretching) ? 'happy' : 'open';
-      const eLook = thinking ? { x: 0, y: -0.5 } : look;
-      let sx = 1, sy = 1;
+      const eLook = thinking ? { x: 0, y: -0.5 } : smoothLook;
+      const breath = Math.sin(t / 1500);                              // gentle breathing
+      let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (stretching) {
         const se = clamp((t - (FORCED_STATE === 'stretch' ? t - STRETCH_MS / 2 : stretchT0)) / STRETCH_MS, 0, 1);
         const k = Math.sin(se * Math.PI); sy = 1 + k * 0.32; sx = 1 + k * 0.10;
       }
       const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop);
       drawShadow(pos.x + wig, pos.y, 0.18);
+      if (!stretching && !thinking) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);
       octx.clearRect(0, 0, oc.width, oc.height);
       drawCat(octx, spriteSit, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode });
-      if (sx !== 1 || sy !== 1) { ctx.save(); ctx.translate(pos.x + wig, pos.y - hop); ctx.scale(sx, sy); ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH); ctx.restore(); }
-      else { ctx.drawImage(oc, 0, 0, SW, SH, ox, oy, SW, SH); }
+      ctx.save();
+      ctx.translate(pos.x + wig, pos.y - hop);
+      if (lean) ctx.rotate(lean);
+      ctx.scale(sx, sy);
+      ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
+      ctx.restore();
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
       if (petting && t - lastHeart > 430) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 18, y: oy - 2, t0: t }); lastHeart = t; }
       if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
@@ -515,6 +614,11 @@ function draw(t) {
         const name = P.name, w = ctx.measureText(name).width + 10, bx = pos.x, by = oy + SH + 14;
         ctx.fillStyle = 'rgba(20,20,24,0.82)'; ctx.fillRect(bx - w / 2, by - 13, w, 13); ctx.fillStyle = '#fff'; ctx.fillText(name, bx, by); ctx.globalAlpha = 1;
       }
+      if (t < bubbleUntil && bubbleText) drawBubble(pos.x, oy - 6, bubbleText, Math.min(1, (bubbleUntil - t) / 400));
+      // fully idle (only breathing/tail)? let the governor drop to ~33fps
+      if (calm && !petting && !stretching && !thinking && !hopActive && !paperActive && !blinking
+          && !lookTarget && t > lookTargetUntil && hearts.length === 0 && t >= bubbleUntil
+          && (tailFlickT0 < 0 || t - tailFlickT0 > 700) && Math.abs(lean) < 0.004) wantHighFps = false;
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
     } else if (grabbing || FORCED_STATE === 'mochi' || ratio > 1.06) {
       drawShadow(feet.x, feet.y, 0.10);
@@ -540,9 +644,15 @@ function draw(t) {
   hearts = hearts.filter((h) => t - h.t0 < 1100);
   for (const h of hearts) { const a = (t - h.t0) / 1100; drawHeart(Math.round(h.x + Math.sin(a * 6) * 4), Math.round(h.y - a * 26), a < 0.5 ? '#ff5a6e' : '#ff8a98', (1 - a) * 0.95); }
 
-  if (t > nextBlink) { blinkUntil = t + 130; nextBlink = t + 2200 + Math.random() * 2600; }
-  requestAnimationFrame(draw);
+  // natural blinking: varied timing with occasional slow/sleepy + double blinks
+  if (t > nextBlink && t > blinkUntil) {
+    const sleepy = Math.random() < 0.22;
+    blinkUntil = t + (sleepy ? 230 : 120);
+    nextBlink = (Math.random() < 0.18) ? t + 360 : t + 2000 + Math.random() * 2800;
+  }
 }
+function resumeRaf() { if (rafPaused) { rafPaused = false; lastDrawn = 0; requestAnimationFrame(draw); } }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resumeRaf(); });
 requestAnimationFrame(draw);
 
 // ---- input ------------------------------------------------------------------
@@ -550,6 +660,7 @@ window.addEventListener('mousemove', (e) => { cursor.x = e.clientX; cursor.y = e
 window.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return;
   cursor.x = e.clientX; cursor.y = e.clientY;
+  audio();                                // real gesture: unlock WebAudio for later meows
   huntUntil = 0; pouncing = false;        // grabbing cancels a hunt
   grabbing = true;
   sendHot(cursor.x - SW, cursor.y - SH, SW * 2, SH * 2, true);
@@ -560,10 +671,13 @@ window.addEventListener('mouseup', () => {
   pos.x = clamp(head.x, 40, canvas.width - 40); pos.y = clamp(head.y + SH, SH + 10, canvas.height - 10);
   persistPos();
 });
-window.addEventListener('dblclick', () => window.cat && window.cat.quit());
+// Double-click opens Settings (Quit lives in the tray now).
+window.addEventListener('dblclick', () => { audio(); if (window.cat && window.cat.openSettings) window.cat.openSettings(); });
 window.addEventListener('contextmenu', (e) => {
   e.preventDefault();
+  audio();
   patternIndex = (patternIndex + 1) % PATTERNS.length;
-  localStorage.setItem('pattern', patternIndex);
+  localStorage.setItem('pattern', patternIndex);            // fast local fallback
+  if (window.cat && window.cat.setPattern) window.cat.setPattern(patternIndex); // sync tray + settings.json
   labelUntil = performance.now() + 1500;
 });

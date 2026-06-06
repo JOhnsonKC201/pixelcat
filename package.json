@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "description": "A pixel cat that lives on your desktop",
   "main": "src/main.js",
+  "author": "JOhnsonKC201",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JOhnsonKC201/pixelcat.git"
+  },
   "scripts": {
     "start": "electron .",
     "autostart:off": "electron . --autostart=off"
