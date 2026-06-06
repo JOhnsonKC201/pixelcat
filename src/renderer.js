@@ -82,32 +82,42 @@ function composeSit(B) {
   const CX = 12;
   const bw = B.bodyW || 1;
   const headRx = B.headRx || 6.3, headRy = B.headRy || 5.8;
-  const earY = B.earApexY == null ? 1 : B.earApexY, eh = B.earHalf || 2;
+  const earY = B.earApexY == null ? 1 : B.earApexY, ew = B.earW || 2.4, eo = B.earOut || 4;
   const eRx = B.eyeRx || 2, eRy = B.eyeRy || 2.4, fluff = !!B.fluff, cheek = B.cheek || 0;
-  // body: lower haunch, mid body, head
-  ellipse(CX, 24, 7.5 * bw, 4.6 + (fluff ? 0.5 : 0), 'C');
+  // body: wide lower haunch (gives a sitting base), mid body, head
+  ellipse(CX, 24, 7.6 * bw, 5 + (fluff ? 0.4 : 0), 'C');
   ellipse(CX, 16, 5.2 * bw, 7.5, 'C');
   ellipse(CX, 8, headRx, headRy, 'C');
   if (cheek) { ellipse(CX - headRx * 0.7, 9.6, 1.7, 2.2, 'C'); ellipse(CX + headRx * 0.7, 9.6, 1.7, 2.2, 'C'); }
   if (fluff) { ellipse(5.4, 10.4, 1.9, 2.4, 'C'); ellipse(18.6, 10.4, 1.9, 2.4, 'C'); } // cheek ruff
-  // front legs + leg gap (fixed regardless of body width)
-  ellipse(10.5, 23, 1.7, 5.6, 'C'); ellipse(13.5, 23, 1.7, 5.6, 'C');
-  for (let r = 17; r <= 28; r++) setCell(12, r, '.');
-  for (let r = 27; r <= 28; r++) { setCell(11, r, '.'); setCell(13, r, '.'); }
-  // ears (apex height + width vary the breed look)
-  triangle(7, earY, 7 - eh, 7, 7 + eh, 7, 'K'); triangle(17, earY, 17 - eh, 7, 17 + eh, 7, 'K');
-  const ii = Math.max(0.8, eh - 1);
-  triangle(7, earY + 2, 7 - ii, 7, 7 + ii, 7, 'I'); triangle(17, earY + 2, 17 - ii, 7, 17 + ii, 7, 'I');
-  if (fluff) { ellipse(7, 6.2, 0.9, 1.4, 'W', ['C', 'K']); ellipse(17, 6.2, 0.9, 1.4, 'W', ['C', 'K']); } // ear tufts
+  // ears — proper cat triangles on top of the head, slight outward tilt
+  triangle(CX - eo - 0.5, earY, CX - eo - ew, 7.6, CX - eo + ew, 6.4, 'K');
+  triangle(CX + eo + 0.5, earY, CX + eo + ew, 7.6, CX + eo - ew, 6.4, 'K');
+  const iw = ew * 0.55;
+  triangle(CX - eo - 0.3, earY + 2, CX - eo - iw, 7.2, CX - eo + iw, 6.6, 'I');
+  triangle(CX + eo + 0.3, earY + 2, CX + eo + iw, 7.2, CX + eo - iw, 6.6, 'I');
+  if (fluff) { ellipse(CX - eo, 6.0, 0.9, 1.4, 'W', ['C', 'K']); ellipse(CX + eo, 6.0, 0.9, 1.4, 'W', ['C', 'K']); } // ear tufts
   // muzzle + chest (fuller chest when fluffy)
-  ellipse(CX, 12, 3, 2, 'W', ['C']); ellipse(CX, 17, fluff ? 3.5 : 2.7, 7.5, 'W', ['C']);
-  ellipse(10.5, 27, 2, 1.6, 'W', ['C']); ellipse(13.5, 27, 2, 1.6, 'W', ['C']);
+  ellipse(CX, 12, 3, 2, 'W', ['C']); ellipse(CX, 17, fluff ? 3.4 : 2.7, 7, 'W', ['C']);
+  // two front legs (narrow columns down the front) + planted paws
+  ellipse(10, 23, 1.6, 5.2, 'C'); ellipse(14, 23, 1.6, 5.2, 'C');
+  ellipse(10, 27.4, 2, 1.7, 'W', ['C']); ellipse(14, 27.4, 2, 1.7, 'W', ['C']);
+  // eyes + nose
   ellipse(9, 8.2, eRx, eRy, 'E'); ellipse(15, 8.2, eRx, eRy, 'E');
   setCell(12, 11, 'N'); setCell(11, 11, 'N');
-  [[11, 6], [12, 7], [13, 6]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); }); // subtle brow
-  for (let r = 0; r < GR; r++) for (let c = 17; c < GC; c++) if (G[r][c] === 'C' && r % 2 === 0) G[r][c] = 'K';
-  [8, 10.5, 13.5, 16].forEach((sc) => { for (let r = 13; r < 26; r += 2) { const c = Math.round(sc); if (G[r][c] === 'C') setCell(c, r, 'K'); } });
+  // tabby markings ONLY on real tabbies (stripes look wrong on calico/solid coats)
+  if (B.tabby) {
+    [[11, 6], [12, 7], [13, 6]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); }); // forehead M
+    for (let r = 0; r < GR; r++) for (let c = 17; c < GC; c++) if (G[r][c] === 'C' && r % 2 === 0) G[r][c] = 'K';
+    [8, 10, 14, 16].forEach((sc) => { for (let r = 13; r < 26; r += 2) { if (G[r][sc] === 'C') setCell(sc, r, 'K'); } });
+  }
+  // tortie/calico colour patches (invisible on coats where patch == coat)
   ellipse(8, 19, 2.2, 3, 'X', ['C', 'K']); ellipse(15, 23, 2.2, 2.3, 'X', ['C', 'K']);
+  // carve sitting-leg outlines LAST so the halo draws them on ANY colour: a gap
+  // between the two front legs, and one between each leg and the outer haunch —
+  // so the silhouette reads as two front paws flanked by the back legs.
+  for (let r = 19; r <= 28; r++) setCell(12, r, '.');                          // between the front legs
+  for (let r = 22; r <= 28; r++) { setCell(8, r, '.'); setCell(16, r, '.'); }  // each front leg vs haunch
 }
 
 // --- hunting crouch (front-facing, low & wide, ears back) -------------------
@@ -136,28 +146,42 @@ function composeHunt() {
 
 // --- kneading body (front-facing, leaning forward; NO front legs — those are -
 //     drawn separately so they can press the keyboard keys) --------------------
-function composeType() {
+function composeType(B) {
+  B = B || {};
   const CX = 13;
-  ellipse(CX, 13, 7, 5.5, 'C');          // body
-  ellipse(18.5, 11, 3.6, 3.6, 'C');      // raised rear haunch (back-right)
-  ellipse(CX, 7, 6, 5, 'C');             // head, leaning forward
+  const bw = B.bodyW || 1;
+  const headRx = B.headRx ? B.headRx * 0.95 : 6, headRy = B.headRy ? B.headRy * 0.9 : 5;
+  const earY = B.earApexY == null ? 1 : B.earApexY, ew = B.earW || 2.4, eo = B.earOut || 4;
+  const eRx = B.eyeRx || 2, eRy = B.eyeRy || 2.3, fluff = !!B.fluff, cheek = B.cheek || 0;
+  // leaning body + raised rear haunch
+  ellipse(CX, 13, 7 * bw, 5.5, 'C');
+  ellipse(18.5, 11, 3.6, 3.6, 'C');
+  ellipse(CX, 7, headRx, headRy, 'C');                   // head, leaning forward
+  if (cheek) { ellipse(CX - headRx * 0.7, 8.4, 1.6, 2, 'C'); ellipse(CX + headRx * 0.7, 8.4, 1.6, 2, 'C'); }
+  if (fluff) { ellipse(CX - headRx * 0.85, 8.8, 1.7, 2.1, 'C'); ellipse(CX + headRx * 0.85, 8.8, 1.7, 2.1, 'C'); }
   [[21, 9], [22, 6], [22, 3]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C')); // tail up
-  triangle(8, 2, 6, 6, 11, 6, 'K'); triangle(18, 2, 15, 6, 20, 6, 'K');
-  triangle(8, 3.5, 7, 6, 10, 6, 'I'); triangle(18, 3.5, 16, 6, 19, 6, 'I');
-  ellipse(CX, 10, 2.4, 1.6, 'W', ['C']);                 // muzzle
-  ellipse(CX, 14, 2.8, 3, 'W', ['C']);                   // chest
-  ellipse(10, 20, 1.7, 1.4, 'W', ['C']); ellipse(16, 20, 1.7, 1.4, 'W', ['C']); // back paws
   ellipse(22, 3, 1.1, 1.1, 'W', ['C']);                  // tail tip
-  ellipse(10, 7, 2, 2.3, 'E'); ellipse(16, 7, 2, 2.3, 'E');
+  // ears — same cat-triangle style as the sit pose, on top of the head
+  triangle(CX - eo - 0.5, earY, CX - eo - ew, 6.6, CX - eo + ew, 5.4, 'K');
+  triangle(CX + eo + 0.5, earY, CX + eo + ew, 6.6, CX + eo - ew, 5.4, 'K');
+  const iw = ew * 0.55;
+  triangle(CX - eo - 0.3, earY + 1.6, CX - eo - iw, 6.2, CX - eo + iw, 5.6, 'I');
+  triangle(CX + eo + 0.3, earY + 1.6, CX + eo + iw, 6.2, CX + eo - iw, 5.6, 'I');
+  if (fluff) { ellipse(CX - eo, 5.2, 0.8, 1.2, 'W', ['C', 'K']); ellipse(CX + eo, 5.2, 0.8, 1.2, 'W', ['C', 'K']); }
+  // muzzle + chest (fuller when fluffy)
+  ellipse(CX, 10, 2.4, 1.6, 'W', ['C']); ellipse(CX, 14, fluff ? 3.2 : 2.8, 3, 'W', ['C']);
+  ellipse(10, 20, 1.7, 1.4, 'W', ['C']); ellipse(16, 20, 1.7, 1.4, 'W', ['C']); // back paws
+  ellipse(10, 7, eRx, eRy, 'E'); ellipse(16, 7, eRx, eRy, 'E');
   setCell(13, 10, 'N'); setCell(12, 10, 'N');
-  [[11, 4], [12, 5], [13, 4], [14, 5], [15, 4]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); });
-  for (let r = 12; r < 18; r += 2) for (let c = 4; c < GC; c++) if (G[r][c] === 'C' && c % 2 === 0) G[r][c] = 'K';
-  ellipse(9, 13, 2, 2.4, 'X', ['C', 'K']); ellipse(18, 15, 2, 2, 'X', ['C', 'K']);
+  if (B.tabby) {
+    [[11, 4], [12, 5], [13, 4], [14, 5], [15, 4]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); });
+    for (let r = 12; r < 18; r += 2) for (let c = 4; c < GC; c++) if (G[r][c] === 'C' && c % 2 === 0) G[r][c] = 'K';
+  }
+  ellipse(9, 13, 2, 2.4, 'X', ['C', 'K']); ellipse(18, 15, 2, 2, 'X', ['C', 'K']); // tortie/calico patches
 }
 
 const spriteHunt = buildSprite(30, 20, composeHunt);
-const spriteType = buildSprite(26, 22, composeType);
-const TW = spriteType.SW, TH = spriteType.SH;   // kneading-pose dims
+const TW = 26 * CELL, TH = 22 * CELL;            // kneading-pose dims (per-coat sprites built below)
 // Sit grid is always 24x30, so SW/SH and the mochi bands stay constant across the
 // per-coat body builds (different shapes, same canvas). The sit sprites themselves
 // are built per coat below, once PATTERNS + their builds are defined.
@@ -192,14 +216,18 @@ const PATTERNS = [
 //   fluffy  = longhair/persian (broad body, cheek ruff, ear tufts, full chest)
 //   standard = the original moggy shape
 const BUILDS = {
-  standard: {},
-  slender: { bodyW: 0.85, headRx: 5.7, headRy: 5.4, earApexY: -1, earHalf: 1.7, eyeRx: 2.1, eyeRy: 2.0 },
-  stocky: { bodyW: 1.18, headRx: 6.9, headRy: 6.3, earApexY: 3.2, earHalf: 2.5, cheek: 1, eyeRx: 2.0, eyeRy: 2.2 },
-  fluffy: { bodyW: 1.12, headRx: 6.6, headRy: 6.0, earApexY: 1, earHalf: 2.1, fluff: true, eyeRx: 2.0, eyeRy: 2.3 },
+  standard: { earApexY: 1, earW: 2.4, earOut: 4 },
+  slender: { bodyW: 0.85, headRx: 5.7, headRy: 5.4, earApexY: -1, earW: 2.3, earOut: 4.2, eyeRx: 2.1, eyeRy: 2.0 },
+  stocky: { bodyW: 1.16, headRx: 6.8, headRy: 6.0, earApexY: 1.4, earW: 2.7, earOut: 3.9, cheek: 1, eyeRx: 2.0, eyeRy: 2.2 },
+  fluffy: { bodyW: 1.08, headRx: 6.4, headRy: 5.9, earApexY: 0.8, earW: 2.5, earOut: 4, fluff: true, eyeRx: 2.0, eyeRy: 2.3 },
 };
 //  Orange    Mackerel  Brown    Siamese   Tuxedo    Black     Gray     White    Cream    Tortie   Calico   Slate
 const PATTERN_BUILD = ['standard', 'slender', 'fluffy', 'slender', 'standard', 'slender', 'stocky', 'fluffy', 'stocky', 'fluffy', 'fluffy', 'slender'];
-const sprites = PATTERN_BUILD.map((b) => buildSprite(24, 30, () => composeSit(BUILDS[b])));
+const TABBY = [true, true, true, false, false, false, false, false, false, false, false, false]; // only Orange/Mackerel/Brown get stripes
+const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeSit({ ...BUILDS[b], tabby: TABBY[i] })));
+// each coat also gets its own typing (kneading) body, so every breed types differently
+const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(26, 22, () => composeType({ ...BUILDS[b], tabby: TABBY[i] })));
+const ARM_THICK = { slender: 6, standard: 7, fluffy: 9, stocky: 9 };  // per-breed front-leg thickness
 let patternIndex = Number(localStorage.getItem('pattern') || 0);
 if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
 const forcedPattern = qp.get('pattern');
@@ -278,17 +306,24 @@ function drawKey(cx, topY, w, h, lit) {
   ctx.fillStyle = '#3a3f48';
   ctx.fillRect(x0 - 1, y, 1, h + 4); ctx.fillRect(x0 + w, y, 1, h + 4); ctx.fillRect(x0, y - 1, w, 1);
 }
-// A short, bent front leg curving from the chest to a paw resting on a key top.
-function drawArm(sx, sy, px, py, pal) {
-  const ex = sx + (px - sx) * 0.5, ey = sy + (py - sy) * 0.35 + 4;   // bowed elbow
+// The cat's real front leg: a thick, fur-coloured limb from the shoulder, bending
+// at an elbow down to a coat-coloured paw with toe beans resting on a key. `thick`
+// scales with the breed so a chonky cat has a chunkier arm than a slender one.
+function drawCatArm(sx, sy, px, py, pal, thick) {
+  const ex = sx + (px - sx) * 0.55, ey = sy + (py - sy) * 0.4 + 3;   // elbow bows outward+down
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = pal.O; ctx.lineWidth = 9;
+  ctx.strokeStyle = pal.O; ctx.lineWidth = thick + 3;                 // fur outline
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(ex, ey, px, py); ctx.stroke();
-  ctx.strokeStyle = pal.C; ctx.lineWidth = 6;
+  ctx.strokeStyle = pal.C; ctx.lineWidth = thick;                     // coat-coloured leg
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(ex, ey, px, py); ctx.stroke();
-  ctx.fillStyle = pal.O; ctx.fillRect(px - 6, py - 4, 12, 7);        // paw on the key
-  ctx.fillStyle = pal.W; ctx.fillRect(px - 5, py - 3, 10, 5);
-  ctx.fillStyle = pal.N; ctx.fillRect(px - 3, py + 1, 2, 2); ctx.fillRect(px + 1, py + 1, 2, 2);
+  // paw resting on the key — coat-coloured (the cat's real paw), not a white hand
+  const pw = thick + 5, ph = Math.round(thick * 0.8) + 3;
+  ctx.fillStyle = pal.O; ctx.fillRect(Math.round(px - pw / 2) - 1, Math.round(py - ph / 2) - 1, pw + 2, ph + 2);
+  ctx.fillStyle = pal.C; ctx.fillRect(Math.round(px - pw / 2), Math.round(py - ph / 2), pw, ph);
+  ctx.fillStyle = pal.O;                                              // toe-bean splits
+  ctx.fillRect(Math.round(px) - 1, Math.round(py - ph / 2), 1, ph);
+  ctx.fillRect(Math.round(px - pw / 2) + 2, Math.round(py - ph / 2), 1, ph - 1);
+  ctx.fillRect(Math.round(px + pw / 2) - 3, Math.round(py - ph / 2), 1, ph - 1);
 }
 // Cat-chaos keystrokes that pop up from a pressed key (pure paw mash, no words).
 const KB_KEYS = 'asdf jkl;gh'.split('');
@@ -308,20 +343,22 @@ function renderKnead(t, palRGB, pal, overheat, blinking, look) {
   const lcx = pos.x - 16, rcx = pos.x + 16;
   const keyTop = pos.y - keyH;             // keyboard sits on the ground line
   const lDep = Math.round(lp * 3), rDep = Math.round(rp * 3);
-  // body hunched ABOVE the keyboard so the keys stay fully visible below it
+  // body hunched ABOVE the keyboard so the keys stay fully visible below it.
+  // Each coat uses its OWN typing body, so every breed types differently.
   const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH - keyH - 1);
+  const thick = ARM_THICK[PATTERN_BUILD[patternIndex]] || 7;
   drawShadow(pos.x, pos.y + 1, 0.18, 32);
   octx.clearRect(0, 0, oc.width, oc.height);
-  drawCat(octx, spriteType, t, palRGB, { bob, blinking, look: { x: look.x * 0.3, y: 0.6 } });
+  drawCat(octx, typeSprites[patternIndex], t, palRGB, { bob, blinking, look: { x: look.x * 0.3, y: 0.6 } });
   ctx.drawImage(oc, 0, 0, TW, TH, ox, oy + bob, TW, TH);
   // a thin keyboard base joining the two keys, then the keys on top
   ctx.fillStyle = '#3a3f48'; ctx.fillRect(Math.round(lcx - keyW / 2 - 2), Math.round(pos.y - 2), Math.round(rcx - lcx + keyW + 4), 5);
   drawKey(lcx, keyTop + lDep, keyW, keyH, lp > 0.7);
   drawKey(rcx, keyTop + rDep, keyW, keyH, rp > 0.7);
-  // bent front legs splaying outward from a narrow chest onto the two keys
-  const chestY = oy + TH * 0.74 + bob;
-  drawArm(pos.x - 4, chestY, lcx, keyTop + lDep, pal);
-  drawArm(pos.x + 4, chestY, rcx, keyTop + rDep, pal);
+  // the cat's real front legs reach from the shoulders onto the two keys
+  const shY = oy + TH * 0.6 + bob, shX = Math.round(thick * 0.5) + 3;
+  drawCatArm(pos.x - shX, shY, lcx, keyTop + lDep, pal, thick);
+  drawCatArm(pos.x + shX, shY, rcx, keyTop + rDep, pal, thick);
   // spawn a chaos glyph on each fresh key-press (the down-stroke edge)
   const lHigh = lp > 0.82, rHigh = rp > 0.82;
   if (lHigh && !lLast) kbChars.push({ x: lcx, y: keyTop - 6, t0: t, ch: catGlyph() });
