@@ -14,6 +14,8 @@ run*.log
 # Local preview / debug artifacts
 _*.png
 _render.png
+_*.js
+_patch.js
 .playwright-mcp/
 
 # OS

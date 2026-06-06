@@ -803,9 +803,10 @@ function draw(t) {
     // --- liveliness: eased gaze + periodic idle micro-actions ---------------
     const restIdle = calm && !petting && !typing && !grabbing && !FORCED_STATE && agentState === 'idle';
     if (restIdle) {
-      if (nextIdleAt === 0) nextIdleAt = t + 4000 + Math.random() * 6000;
+      const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
+      if (nextIdleAt === 0) nextIdleAt = t + (4000 + Math.random() * 6000) * idleScale;
       if (t > nextIdleAt) {
-        nextIdleAt = t + 5000 + Math.random() * 9000;
+        nextIdleAt = t + (5000 + Math.random() * 9000) * idleScale;
         const roll = Math.random();
         if (roll < 0.45) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
         else if (roll < 0.72) { tailFlickT0 = t; }
@@ -828,10 +829,31 @@ function draw(t) {
     const thinking = FORCED_STATE === 'think' || agentState === 'thinking';
     if (doneHopPending) { doneHopT0 = t; doneHopPending = false; }
     let hop = 0, hopActive = false;
-    if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22; hopActive = true; }
-    else if (doneHopT0 >= 0 && t - doneHopT0 < DONE_MS) { hop = Math.sin(((t - doneHopT0) / DONE_MS) * Math.PI) * 22; hopActive = true; }
+    if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
+    else if (doneHopT0 >= 0 && t - doneHopT0 < DONE_MS) { hop = Math.sin(((t - doneHopT0) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
 
-    if (typing || FORCED_STATE === 'typing' || FORCED_STATE === 'overheat') {
+    const sleeping = moodOn && band === 'sleepy' && calm && !petting && !typing && !grabbing
+      && !stretching && !thinking && !hopActive && !paperActive && FORCED_STATE !== 'mochi';
+
+    if (FORCED_STATE === 'sleep' || sleeping) {
+      // ---- SLEEP: curled loaf, eyes closed, "z z z" drifting up -------------
+      const breath = Math.sin(t / 1700);
+      const oy = Math.round(pos.y - SLH);
+      drawShadow(pos.x, pos.y, 0.16, 30);
+      octx.clearRect(0, 0, oc.width, oc.height);
+      drawCat(octx, spriteSleep, t, palRGB, { bob: Math.round(breath * 1.2), blinking: true, look: { x: 0, y: 0 }, eyeMode: 'open' });
+      ctx.save();
+      ctx.translate(pos.x, pos.y);
+      ctx.scale(1, 1 + breath * 0.02);
+      ctx.drawImage(oc, 0, 0, SLW, SLH, -SLW / 2, -SLH, SLW, SLH);
+      ctx.restore();
+      // soft closed-eye curve on the tucked head
+      ctx.strokeStyle = rgbStr(palRGB.O); ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(pos.x - 37, pos.y - 29 + Math.round(breath * 1.2), 4, Math.PI * 0.12, Math.PI * 0.88); ctx.stroke();
+      drawZzz(pos.x + SLW * 0.16, oy + 2, t);
+      wantHighFps = false;   // napping renders at the idle frame rate
+      sendHot(pos.x - SLW / 2 - 6, oy - 6, SLW + 12, SLH + 12, false);
+    } else if (typing || FORCED_STATE === 'typing' || FORCED_STATE === 'overheat') {
       // Cat kneads a big two-key keyboard, paws pressing left/right alternately,
       // mashing out pure cat-chaos (asdf jkl;) that floats up from the keys.
       renderTypeSide(t, palRGB, pal, overheat, blinking, look);
