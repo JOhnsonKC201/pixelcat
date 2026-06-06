@@ -107,7 +107,7 @@ pixelcat/
 
 The cat can react to a coding agent's work status. Any tool can signal it by
 running the bundled helper, which writes a tiny status file the cat watches
-(`%TEMP%/comnyang-agent.state`):
+(`%TEMP%/pixelcat-agent.state`):
 
 ```bash
 node agent-hook.js thinking   # cat shows a thinking "…" bubble

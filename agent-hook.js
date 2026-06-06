@@ -11,5 +11,5 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const state = (process.argv[2] || 'idle').trim();
-try { fs.writeFileSync(path.join(os.tmpdir(), 'comnyang-agent.state'), state); }
+try { fs.writeFileSync(path.join(os.tmpdir(), 'pixelcat-agent.state'), state); }
 catch (e) { /* ignore */ }

@@ -7,7 +7,7 @@ const { PATTERN_NAMES } = require('./patterns');
 
 // AI-agent status file: hooks (e.g. Claude Code) write 'thinking' | 'done' here
 // and the cat reacts. See README "AI agent reactions".
-const AGENT_FILE = path.join(os.tmpdir(), 'comnyang-agent.state');
+const AGENT_FILE = path.join(os.tmpdir(), 'pixelcat-agent.state');
 
 let win;                                               // the overlay (the cat)
 let settingsWin = null;                                // settings window (when open)
@@ -86,14 +86,18 @@ function createWindow() {
   if (!SHOT) win.webContents.on('did-finish-load', () => applyConfigToOverlay());
 
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
-  try {
-    const { uIOhook } = require('uiohook-napi');
-    uIOhook.on('keydown', () => { if (win && !win.isDestroyed()) win.webContents.send('keydown'); });
-    uIOhook.on('wheel', () => { if (win && !win.isDestroyed()) win.webContents.send('scroll'); });
-    uIOhook.start();
-    hookStarted = true;
-  } catch (e) {
-    console.log('[keyhook-error]', e.message);
+  // (Skipped for --shot previews — a screenshot has no need for a global hook,
+  // which also avoids a macOS Accessibility prompt for the preview process.)
+  if (!SHOT) {
+    try {
+      const { uIOhook } = require('uiohook-napi');
+      uIOhook.on('keydown', () => { if (win && !win.isDestroyed()) win.webContents.send('keydown'); });
+      uIOhook.on('wheel', () => { if (win && !win.isDestroyed()) win.webContents.send('scroll'); });
+      uIOhook.start();
+      hookStarted = true;
+    } catch (e) {
+      console.log('[keyhook-error]', e.message);
+    }
   }
 
   if (SHOT) {
@@ -204,6 +208,7 @@ function rebuildTrayMenu() {
     { label: 'Start break now', click: triggerBreak },
     { type: 'separator' },
     { label: 'Coat', submenu: coatItems },
+    { label: 'Follow cursor', type: 'checkbox', checked: !!(cfg && cfg.followCursor), click: () => persistAndBroadcast({ ...cfg, followCursor: !cfg.followCursor }) },
     { label: 'Mouse hunt', type: 'checkbox', checked: !!(cfg && cfg.huntOn), click: () => persistAndBroadcast({ ...cfg, huntOn: !cfg.huntOn }) },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
     { type: 'separator' },
@@ -229,6 +234,13 @@ function triggerBreak() {
   if (win && !win.isDestroyed()) win.webContents.send('break');
   breakAnchor = Date.now();
 }
+// Fill {name} in main (which always has cfg) so reminders are correct even if the
+// overlay hasn't received its config copy yet (e.g. the immediate launch tick).
+function nameFill(msg) {
+  const n = cfg && cfg.name ? cfg.name : '';
+  return String(msg || '').replace(/\{name\}/g, n).replace(/\s+([,!?.])/g, '$1').trim();
+}
+let lastTickAt = 0;
 function tick() {
   if (!cfg || !win || win.isDestroyed()) return;
   const now = new Date();
@@ -236,16 +248,29 @@ function tick() {
   const hhmm = `${hh}:${mm}`;
   const minuteKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${hhmm}`;
   if (minuteKey !== lastMinuteKey) { lastMinuteKey = minuteKey; firedThisMinute = new Set(); }
+  // Catch-up: after a sleep/resume or long stall, also fire any reminders whose
+  // minute we skipped entirely (timers don't run while suspended).
+  const skipped = new Set();
+  if (lastTickAt) {
+    for (let ms = lastTickAt + 60000; ms < now.getTime(); ms += 60000) {
+      const d = new Date(ms);
+      skipped.add(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+    }
+  }
+  lastTickAt = now.getTime();
   for (const r of cfg.reminders) {
     if (r.hhmm === hhmm && !firedThisMinute.has(r.id)) {
       firedThisMinute.add(r.id);
-      win.webContents.send('remind', { message: r.message });
+      win.webContents.send('remind', { message: nameFill(r.message) });
+    } else if (skipped.has(r.hhmm)) {
+      win.webContents.send('remind', { message: nameFill(r.message) });   // missed during sleep/stall
     }
   }
   if (cfg.breakMinutes > 0 && Date.now() - breakAnchor >= cfg.breakMinutes * 60000) triggerBreak();
 }
 function startScheduler() {
   breakAnchor = Date.now();
+  tick();                                    // fire immediately (catch a launch late in the minute)
   scheduleTimer = setInterval(tick, 20000);  // sample each clock-minute ~3x; dedupe handles repeats
 }
 
@@ -291,3 +316,6 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 app.on('before-quit', cleanup);
+// If the user launches a second copy while the pet runs, surface Settings rather
+// than silently doing nothing (the second copy quits via the single-instance lock).
+app.on('second-instance', () => { if (!isSecondary && !SHOT) openSettings(); });

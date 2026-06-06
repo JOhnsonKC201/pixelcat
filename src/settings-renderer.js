@@ -11,9 +11,12 @@ let cfg = null;
 
 function render() {
   if (!cfg) return;
-  $('name').value = cfg.name || '';
+  // Don't stomp the name field while the user is typing in it (a broadcast config
+  // echo would otherwise overwrite it with the normalized value and jump the caret).
+  if (document.activeElement !== $('name')) $('name').value = cfg.name || '';
   $('pattern').value = String(cfg.pattern || 0);
   $('breakMinutes').value = String(cfg.breakMinutes || 0);
+  $('followCursor').checked = !!cfg.followCursor;
   $('huntOn').checked = !!cfg.huntOn;
   $('soundOn').checked = !!cfg.soundOn;
   renderReminders();
@@ -44,12 +47,13 @@ $('name').addEventListener('input', () => {
 });
 $('pattern').addEventListener('change', () => save({ pattern: Number($('pattern').value) }));
 $('breakMinutes').addEventListener('change', () => save({ breakMinutes: Number($('breakMinutes').value) }));
+$('followCursor').addEventListener('change', () => save({ followCursor: $('followCursor').checked }));
 $('huntOn').addEventListener('change', () => save({ huntOn: $('huntOn').checked }));
 $('soundOn').addEventListener('change', () => save({ soundOn: $('soundOn').checked }));
 
 $('addReminder').addEventListener('click', () => {
   const hhmm = $('newTime').value, message = $('newMsg').value.trim();
-  if (!/^\d{2}:\d{2}$/.test(hhmm) || !message) { $('newTime').focus(); return; }
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !message) { $('newTime').focus(); return; }
   const id = `r${Date.now().toString(36)}${Math.floor(performance.now()).toString(36)}`;
   save({ reminders: [...cfg.reminders, { id, hhmm, message }] });
   $('newMsg').value = '';
@@ -58,6 +62,9 @@ $('newMsg').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addRe
 
 // "Test meow" is a real user gesture, so playing audio here always unlocks cleanly.
 $('testSound').addEventListener('click', () => { playTestMeow(); window.settings.testSound(); });
+
+// Esc closes the settings window.
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.settings.close(); });
 
 // External changes (e.g. coat picked from the tray) reflect live.
 window.settings.onConfig((c) => { cfg = c; render(); });

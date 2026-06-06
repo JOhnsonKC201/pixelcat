@@ -15,6 +15,7 @@ const DEFAULTS = {
   breakMinutes: 0,     // 0 = break timer off
   soundOn: true,
   huntOn: true,        // Comnyang hunts the cursor by default; user-toggleable
+  followCursor: true,  // eyes track the cursor; turn off to make the cat ignore it
   reminders: [],       // [{ id, hhmm: 'HH:MM', message }]
 };
 
@@ -42,6 +43,7 @@ function normalize(cfg) {
     breakMinutes: clampInt(c.breakMinutes, 0, 240, 0),
     soundOn: c.soundOn === undefined ? true : !!c.soundOn,
     huntOn: c.huntOn === undefined ? true : !!c.huntOn,
+    followCursor: c.followCursor === undefined ? true : !!c.followCursor,
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;
       const hhmm = String(r.hhmm || '');
@@ -62,10 +64,21 @@ function migrate(cfg) {
 }
 
 function load() {
+  let raw;
   try {
-    const raw = fs.readFileSync(filePath(), 'utf8').replace(/^﻿/, ''); // tolerate editor BOM
+    raw = fs.readFileSync(filePath(), 'utf8').replace(/^﻿/, ''); // tolerate editor BOM
+  } catch (e) {
+    // Missing file -> first run, write defaults. Any OTHER read error (EBUSY/EACCES
+    // from an AV scanner or editor lock) is transient: return defaults but DON'T
+    // overwrite the on-disk file, so real settings are never destroyed.
+    const fresh = normalize(DEFAULTS);
+    if (e && e.code === 'ENOENT') { try { save(fresh); } catch (e2) { /* best effort */ } }
+    return fresh;
+  }
+  try {
     return normalize(migrate(JSON.parse(raw)));
   } catch (e) {
+    // The file exists but is corrupt JSON -> safe to replace with defaults.
     const fresh = normalize(DEFAULTS);
     try { save(fresh); } catch (e2) { /* best effort */ }
     return fresh;
