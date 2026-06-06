@@ -37,6 +37,11 @@ when you drag it.
 - **AI agent reactions** — shows a thinking "…" bubble while a coding agent
   (Claude Code, Codex, Cursor, …) is working, and does a happy **hop** when it
   finishes. See [AI agent reactions](#ai-agent-reactions) for setup.
+- **Moods & energy** — the cat has an energy level (0-100) that builds from what you
+  do and decays when you stop, shifting it through **sleepy -> calm -> playful ->
+  zoomies**. Leave it alone and it curls up and naps (`z z z`); keep it busy and it
+  gets the zoomies, then crashes. A **sudden cursor jolt startles it** (it puffs up,
+  freezes, then bolts or creeps back). Toggle "Mood reactions" in Settings/tray.
 - **Polished pixel art** — white sticker outline (pops on any wallpaper), soft
   top-lit shading, whiskers, ground shadow, sparkly eyes.
 - **Desktop-pet overlay** — a full-screen, transparent, click-through layer, so
@@ -133,6 +138,33 @@ full path to `agent-hook.js`):
 
 Other tools (Codex, Cursor, custom scripts) can call the same helper from their
 own start/finish hooks.
+
+## Moods & energy
+
+The cat tracks an internal **energy** value (0-100) that decays over time and is
+bumped by stimuli (typing, scrolling, fast-mouse play, petting, an AI agent
+finishing). Energy maps to four mood bands that gate and scale every reaction:
+
+| Band | Energy | Behaviour |
+|------|--------|-----------|
+| **Sleepy** | 0-15 | Curls into a loaf and naps (`z z z`); ignores weak input, wakes on a real jolt |
+| **Calm** | 16-50 | Mellow — small, infrequent idle moves |
+| **Playful** | 51-80 | Full reactions (the original feel) |
+| **Zoomies** | 81-100 | Frantic and fast, then a hard crash back toward sleep |
+
+**Startle** fires on an abrupt cursor jump / velocity spike (no mic, fully local):
+the cat flinches and puffs, freezes, then either bolts to a screen edge or creeps
+back. Turn the whole system off with **Mood reactions** (Settings or tray) to get
+the classic always-playful behaviour.
+
+Preview the new poses without running the live overlay:
+
+```powershell
+npx electron . --shot --state=sleep --pattern=black
+npx electron . --shot --state=startle --pattern=orange
+```
+
+(writes `_render.png`; existing states `typing/overheat/mochi/pet/hunt/think/done/paper` still work too.)
 
 ## Tech
 
