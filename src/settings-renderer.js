@@ -18,6 +18,7 @@ function render() {
   $('breakMinutes').value = String(cfg.breakMinutes || 0);
   $('followCursor').checked = !!cfg.followCursor;
   $('huntOn').checked = !!cfg.huntOn;
+  $('moodOn').checked = cfg.moodOn === undefined ? true : !!cfg.moodOn;
   $('soundOn').checked = !!cfg.soundOn;
   renderReminders();
 }
@@ -49,6 +50,7 @@ $('pattern').addEventListener('change', () => save({ pattern: Number($('pattern'
 $('breakMinutes').addEventListener('change', () => save({ breakMinutes: Number($('breakMinutes').value) }));
 $('followCursor').addEventListener('change', () => save({ followCursor: $('followCursor').checked }));
 $('huntOn').addEventListener('change', () => save({ huntOn: $('huntOn').checked }));
+$('moodOn').addEventListener('change', () => save({ moodOn: $('moodOn').checked }));
 $('soundOn').addEventListener('change', () => save({ soundOn: $('soundOn').checked }));
 
 $('addReminder').addEventListener('click', () => {

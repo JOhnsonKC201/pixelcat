@@ -146,42 +146,63 @@ function composeHunt() {
 
 // --- kneading body (front-facing, leaning forward; NO front legs — those are -
 //     drawn separately so they can press the keyboard keys) --------------------
-function composeType(B) {
+function composeTypeSide(B) {
   B = B || {};
-  const CX = 13;
-  const bw = B.bodyW || 1;
-  const headRx = B.headRx ? B.headRx * 0.95 : 6, headRy = B.headRy ? B.headRy * 0.9 : 5;
-  const earY = B.earApexY == null ? 1 : B.earApexY, ew = B.earW || 2.4, eo = B.earOut || 4;
-  const eRx = B.eyeRx || 2, eRy = B.eyeRy || 2.3, fluff = !!B.fluff, cheek = B.cheek || 0;
-  // leaning body + raised rear haunch
-  ellipse(CX, 13, 7 * bw, 5.5, 'C');
-  ellipse(18.5, 11, 3.6, 3.6, 'C');
-  ellipse(CX, 7, headRx, headRy, 'C');                   // head, leaning forward
-  if (cheek) { ellipse(CX - headRx * 0.7, 8.4, 1.6, 2, 'C'); ellipse(CX + headRx * 0.7, 8.4, 1.6, 2, 'C'); }
-  if (fluff) { ellipse(CX - headRx * 0.85, 8.8, 1.7, 2.1, 'C'); ellipse(CX + headRx * 0.85, 8.8, 1.7, 2.1, 'C'); }
-  [[21, 9], [22, 6], [22, 3]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C')); // tail up
-  ellipse(22, 3, 1.1, 1.1, 'W', ['C']);                  // tail tip
-  // ears — same cat-triangle style as the sit pose, on top of the head
-  triangle(CX - eo - 0.5, earY, CX - eo - ew, 6.6, CX - eo + ew, 5.4, 'K');
-  triangle(CX + eo + 0.5, earY, CX + eo + ew, 6.6, CX + eo - ew, 5.4, 'K');
-  const iw = ew * 0.55;
-  triangle(CX - eo - 0.3, earY + 1.6, CX - eo - iw, 6.2, CX - eo + iw, 5.6, 'I');
-  triangle(CX + eo + 0.3, earY + 1.6, CX + eo + iw, 6.2, CX + eo - iw, 5.6, 'I');
-  if (fluff) { ellipse(CX - eo, 5.2, 0.8, 1.2, 'W', ['C', 'K']); ellipse(CX + eo, 5.2, 0.8, 1.2, 'W', ['C', 'K']); }
-  // muzzle + chest (fuller when fluffy)
-  ellipse(CX, 10, 2.4, 1.6, 'W', ['C']); ellipse(CX, 14, fluff ? 3.2 : 2.8, 3, 'W', ['C']);
-  ellipse(10, 20, 1.7, 1.4, 'W', ['C']); ellipse(16, 20, 1.7, 1.4, 'W', ['C']); // back paws
-  ellipse(10, 7, eRx, eRy, 'E'); ellipse(16, 7, eRx, eRy, 'E');
-  setCell(13, 10, 'N'); setCell(12, 10, 'N');
-  if (B.tabby) {
-    [[11, 4], [12, 5], [13, 4], [14, 5], [15, 4]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); });
-    for (let r = 12; r < 18; r += 2) for (let c = 4; c < GC; c++) if (G[r][c] === 'C' && c % 2 === 0) G[r][c] = 'K';
+  const fluff = !!B.fluff;
+  // body (horizontal) + back haunch
+  ellipse(17, 11, 8, 5, 'C');
+  ellipse(23, 11, 4.6, 5, 'C');
+  // neck/shoulder + head (left) + muzzle pointing left
+  ellipse(11, 10, 3, 4, 'C');
+  ellipse(7, 7, 5, 4.6, 'C');
+  ellipse(2.8, 8.4, 2, 1.6, 'C');
+  // two ears on top of the head
+  triangle(5, 1, 2.8, 4.5, 7.4, 4, 'K'); triangle(10, 1.2, 7.8, 4, 12.2, 4.6, 'K');
+  triangle(5, 2.4, 3.7, 4.3, 6.5, 4, 'I'); triangle(10, 2.6, 8.7, 4, 11.3, 4.3, 'I');
+  if (fluff) { ellipse(4.2, 4.4, 0.9, 1.3, 'W', ['C', 'K']); ellipse(10.6, 4.6, 0.9, 1.3, 'W', ['C', 'K']); }
+  // tail up at the back-right
+  [[26.5, 9], [27.6, 6], [27.4, 3]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+  ellipse(27.4, 2.6, 1.1, 1.1, 'W', ['C']);
+  // white chest/belly (front) + baked back leg & paw
+  ellipse(10.5, 14, 2.6, 3, 'W', ['C']);
+  ellipse(22.5, 16.5, 2, 2.6, 'C'); ellipse(22.5, 18.4, 2, 1.3, 'W', ['C']);
+  // side eye + nose at the snout tip
+  ellipse(6.4, 7, 1.5, 1.9, 'E');
+  setCell(1, 8, 'N'); setCell(2, 8, 'N');
+  if (B.tabby) { // vertical body bands + a head stripe
+    [14, 17, 20].forEach((sc) => { for (let r = 6; r < 16; r++) if (G[r][sc] === 'C') setCell(sc, r, 'K'); });
+    [[6, 3], [7, 3], [8, 4]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); });
   }
-  ellipse(9, 13, 2, 2.4, 'X', ['C', 'K']); ellipse(18, 15, 2, 2, 'X', ['C', 'K']); // tortie/calico patches
+  ellipse(18, 13, 2.4, 2.6, 'X', ['C', 'K']); // tortie/calico patch
+}
+
+// --- sleeping curl (a low loaf, head tucked to the front-left, eyes closed) --
+// One shared shape (recoloured per coat at draw time like the others). Eyes are an
+// 'E' cluster on the tucked head so drawCat's closed-eye "happy" arc has a box.
+function composeSleep() {
+  const CX = 14;
+  ellipse(CX + 1, 12.5, 11.5, 4.8, 'C');                 // curled loaf body
+  ellipse(CX + 6, 10, 6.2, 4.4, 'C');                    // raised back/haunch
+  // tail curling up around the front-left of the body
+  [[3.4, 13.5], [2.6, 11.5], [2.8, 9.6], [3.8, 8.2], [5.4, 7.6]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+  ellipse(5.4, 7.6, 1.1, 1.1, 'W', ['C']);               // tail tip
+  ellipse(CX - 6.5, 12.6, 4.6, 3.9, 'C');                // head tucked low at the front
+  // folded ears, low on the head
+  triangle(CX - 9.4, 9.4, CX - 11, 12, CX - 7.4, 11.4, 'K');
+  triangle(CX - 4.6, 9.2, CX - 6.1, 11.8, CX - 2.9, 11.6, 'K');
+  triangle(CX - 9.1, 10, CX - 10.1, 11.7, CX - 8, 11.3, 'I');
+  triangle(CX - 4.7, 9.8, CX - 5.7, 11.6, CX - 3.7, 11.3, 'I');
+  ellipse(CX - 8.4, 14, 2.1, 1.5, 'W', ['C']);           // chin / tucked paw
+  ellipse(CX - 4.8, 15, 2, 1.4, 'W', ['C']);             // tucked front paw
+  ellipse(CX - 7.4, 12.2, 1.2, 1.0, 'E');                // closed eye (one side, tucked)
+  setCell(CX - 9, 13, 'N');                              // nose
+  ellipse(CX + 4, 12.5, 2.4, 2.2, 'X', ['C']);           // patch so tortie/calico read
 }
 
 const spriteHunt = buildSprite(30, 20, composeHunt);
-const TW = 26 * CELL, TH = 22 * CELL;            // kneading-pose dims (per-coat sprites built below)
+const spriteSleep = buildSprite(28, 18, composeSleep);
+const SLW = spriteSleep.SW, SLH = spriteSleep.SH;        // sleeping-pose dims
+const TW = 30 * CELL, TH = 20 * CELL;            // side keyboard-cat dims (per-coat sprites built below)
 // Sit grid is always 24x30, so SW/SH and the mochi bands stay constant across the
 // per-coat body builds (different shapes, same canvas). The sit sprites themselves
 // are built per coat below, once PATTERNS + their builds are defined.
@@ -226,8 +247,8 @@ const PATTERN_BUILD = ['standard', 'slender', 'fluffy', 'slender', 'standard', '
 const TABBY = [true, true, true, false, false, false, false, false, false, false, false, false]; // only Orange/Mackerel/Brown get stripes
 const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeSit({ ...BUILDS[b], tabby: TABBY[i] })));
 // each coat also gets its own typing (kneading) body, so every breed types differently
-const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(26, 22, () => composeType({ ...BUILDS[b], tabby: TABBY[i] })));
-const ARM_THICK = { slender: 6, standard: 7, fluffy: 9, stocky: 9 };  // per-breed front-leg thickness
+// one shared side "keyboard cat" shape, recoloured per coat (+ tabby stripes / fluffy tufts)
+const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(30, 20, () => composeTypeSide({ tabby: TABBY[i], fluff: BUILDS[b].fluff })));
 let patternIndex = Number(localStorage.getItem('pattern') || 0);
 if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
 const forcedPattern = qp.get('pattern');
@@ -331,40 +352,40 @@ function catGlyph() {
   const k = KB_KEYS[Math.floor(Math.random() * KB_KEYS.length)] || 'f';
   return Math.random() < 0.35 ? k.repeat(2 + Math.floor(Math.random() * 3)) : k;  // sometimes a kneaded run
 }
-// Full kneading pose: leaning body over two big keys, front legs pressing them
-// alternately; cat-chaos letters float up from whichever key just got mashed.
+// Side-profile "keyboard cat": the cat stands in profile (facing left) on a
+// keyboard, tail up, its two front paws tapping the keys alternately while
+// cat-chaos letters float up. One shared shape, recoloured per coat.
 let lLast = false, rLast = false;
-function renderKnead(t, palRGB, pal, overheat, blinking, look) {
+function renderTypeSide(t, palRGB, pal, overheat, blinking, look) {
   const sp = overheat ? 42 : 80;
   const lp = Math.max(0, Math.sin(t / sp)), rp = Math.max(0, Math.sin(t / sp + Math.PI));
-  const bob = Math.round(Math.sin(t / 220) * 1.5);
-  // two big keys side by side, fully in front of (below) the cat, spread wide
-  const keyW = 24, keyH = 13;
-  const lcx = pos.x - 16, rcx = pos.x + 16;
-  const keyTop = pos.y - keyH;             // keyboard sits on the ground line
+  const bob = Math.round(Math.sin(t / 240) * 1.2);
+  const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH);
+  // keyboard: a slab the cat stands on + two keys under the front paws
+  const kbX = ox + 5, kbW = TW - 16, slabY = pos.y - 3;
+  const keyW = 16, keyH = 9, keyY = pos.y - keyH;
+  const lcx = ox + 9 * CELL, rcx = ox + 13 * CELL;   // front keys (front-left, under the chest)
   const lDep = Math.round(lp * 3), rDep = Math.round(rp * 3);
-  // body hunched ABOVE the keyboard so the keys stay fully visible below it.
-  // Each coat uses its OWN typing body, so every breed types differently.
-  const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH - keyH - 1);
-  const thick = ARM_THICK[PATTERN_BUILD[patternIndex]] || 7;
-  drawShadow(pos.x, pos.y + 1, 0.18, 32);
+  drawShadow(pos.x, pos.y + 2, 0.18, 40);
+  // body sprite (typing:true -> no whiskers, eye looks down)
   octx.clearRect(0, 0, oc.width, oc.height);
-  drawCat(octx, typeSprites[patternIndex], t, palRGB, { bob, blinking, look: { x: look.x * 0.3, y: 0.6 } });
+  drawCat(octx, typeSprites[patternIndex], t, palRGB, { bob, blinking, typing: true, look });
   ctx.drawImage(oc, 0, 0, TW, TH, ox, oy + bob, TW, TH);
-  // a thin keyboard base joining the two keys, then the keys on top
-  ctx.fillStyle = '#3a3f48'; ctx.fillRect(Math.round(lcx - keyW / 2 - 2), Math.round(pos.y - 2), Math.round(rcx - lcx + keyW + 4), 5);
-  drawKey(lcx, keyTop + lDep, keyW, keyH, lp > 0.7);
-  drawKey(rcx, keyTop + rDep, keyW, keyH, rp > 0.7);
-  // the cat's real front legs reach from the shoulders onto the two keys
-  const shY = oy + TH * 0.6 + bob, shX = Math.round(thick * 0.5) + 3;
-  drawCatArm(pos.x - shX, shY, lcx, keyTop + lDep, pal, thick);
-  drawCatArm(pos.x + shX, shY, rcx, keyTop + rDep, pal, thick);
-  // spawn a chaos glyph on each fresh key-press (the down-stroke edge)
+  // keyboard slab + the two keys
+  ctx.fillStyle = '#3a3f48'; ctx.fillRect(kbX, slabY, kbW, 6);
+  ctx.fillStyle = '#2f343d'; ctx.fillRect(kbX, slabY + 6, kbW, 2);
+  drawKey(lcx, keyY + lDep, keyW, keyH, lp > 0.7);
+  drawKey(rcx, keyY + rDep, keyW, keyH, rp > 0.7);
+  // the cat's two front legs reach down from the chest onto the keys (tapping)
+  const shY = oy + TH * 0.66 + bob;
+  drawCatArm(ox + 10 * CELL, shY, lcx, keyY + lDep, pal, 6);
+  drawCatArm(ox + 12 * CELL, shY, rcx, keyY + rDep, pal, 6);
+  // chaos glyphs on each fresh key-press
   const lHigh = lp > 0.82, rHigh = rp > 0.82;
-  if (lHigh && !lLast) kbChars.push({ x: lcx, y: keyTop - 6, t0: t, ch: catGlyph() });
-  if (rHigh && !rLast) kbChars.push({ x: rcx, y: keyTop - 6, t0: t, ch: catGlyph() });
+  if (lHigh && !lLast) kbChars.push({ x: lcx, y: keyY - 6, t0: t, ch: catGlyph() });
+  if (rHigh && !rLast) kbChars.push({ x: rcx, y: keyY - 6, t0: t, ch: catGlyph() });
   lLast = lHigh; rLast = rHigh;
-  if (overheat) drawSteam(t, pos.x, oy + CELL + bob);
+  if (overheat) drawSteam(t, ox + 7 * CELL, oy + 2 * CELL + bob); // steam above the head (left)
 }
 // Animated tail: a curling, swaying stroke that flicks on idle actions and wags
 // faster while the cat is petted. Drawn behind the body so its root tucks under.
@@ -397,6 +418,18 @@ function drawThinkBubble(x, y, t) {
     ctx.fillRect(Math.round(x + i * 6), Math.round(y - a * 2), 4, 4);
   }
   ctx.globalAlpha = 1;
+}
+// Sleepy "z z z" drifting up from the head while the cat naps.
+function drawZzz(x, y, t) {
+  ctx.fillStyle = '#9aa6c0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < 3; i++) {
+    const ph = ((t / 1100 + i * 0.34) % 1);
+    ctx.globalAlpha = (1 - ph) * 0.9;
+    ctx.font = `bold ${8 + i * 3}px "Segoe UI", system-ui, sans-serif`;
+    ctx.fillText('z', Math.round(x + i * 7 + Math.sin(ph * 6) * 2), Math.round(y - ph * 22));
+  }
+  ctx.globalAlpha = 1;
+  ctx.textBaseline = 'alphabetic';
 }
 // Little "!" + sparkles above the head when an AI agent finishes a task.
 function drawDoneSpark(x, y, t) {
@@ -444,6 +477,11 @@ let lastDrawn = 0, wantHighFps = true, rafPaused = false;
 let config = null;
 let bubbleText = '', bubbleUntil = 0;
 let purring = false;
+// Comnyang mood/energy model: 0-100, decays over time, bumped by stimuli. Bands
+// (sleepy/calm/playful/zoomies) gate + scale every behavior; see bandOf()/intensity.
+let energy = 45;
+let startleT0 = -1, startleUntil = 0, startleMode = 'creep', startleFrom = null, startleTo = null, startleCooldownUntil = -9999;
+let zoomiesT0 = -1, prevBand = '';
 
 let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
@@ -458,8 +496,9 @@ if (window.cat) {
   window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; resumeRaf(); });
   if (window.cat.onKey) window.cat.onKey(() => { keyPulse = true; resumeRaf(); });
   if (window.cat.onAgent) window.cat.onAgent((s) => {
-    if (s === 'done') { doneHopPending = true; agentState = 'idle'; }
-    else agentState = s === 'thinking' ? 'thinking' : 'idle';
+    if (s === 'done') { doneHopPending = true; agentState = 'idle'; energy = clamp(energy + 25, 0, 100); }
+    else { agentState = s === 'thinking' ? 'thinking' : 'idle'; if (s === 'thinking') energy = clamp(energy + 6, 0, 100); }
+    resumeRaf();
   });
   if (window.cat.onScroll) window.cat.onScroll(() => { scrollPulses++; });
   if (window.cat.onConfig) window.cat.onConfig((c) => {
@@ -572,6 +611,14 @@ function drawPaper(cx, topY, len, t) {
 // hunt/pet tuning
 const HUNT_TRIGGER = 0.5, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300;
 
+// mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a calm ~20-30s
+// drift to sleep when nothing is happening, without snoozing the instant you stop.
+const ENERGY_DECAY = 0.0018;
+const SLEEPY_MAX = 15, CALM_MAX = 50, PLAYFUL_MAX = 80;
+const STARTLE_VEL = 3.5, STARTLE_JUMP = 320, STARTLE_MS = 820, ZOOMIES_MS = 2500;
+function bandOf(e) { return e <= SLEEPY_MAX ? 'sleepy' : e <= CALM_MAX ? 'calm' : e <= PLAYFUL_MAX ? 'playful' : 'zoomies'; }
+function addEnergy(n) { energy = clamp(energy + n, 0, 100); }
+
 function restSprings() { head = { x: pos.x, y: pos.y - SH, vx: 0, vy: 0 }; feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 }; }
 function persistPos() { localStorage.setItem('pos', JSON.stringify({ x: pos.x, y: pos.y })); }
 
@@ -588,15 +635,46 @@ function draw(t) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   wantHighFps = true; // default high; the fully-idle calm path lowers it below
 
-  // cursor velocity (px/ms, smoothed)
-  const inst = Math.hypot(cursor.x - prevCursor.x, cursor.y - prevCursor.y) / Math.max(1, dt);
+  // cursor velocity (px/ms, smoothed) + raw single-tick displacement (for startle)
+  const moved = Math.hypot(cursor.x - prevCursor.x, cursor.y - prevCursor.y);
+  const inst = moved / Math.max(1, dt);
   velEMA = velEMA * 0.5 + inst * 0.5; prevCursor = { x: cursor.x, y: cursor.y };
 
-  if (keyPulse) { lastKeyAt = t; heat = Math.min(1, heat + 0.12); keyPulse = false; }
+  // mood/energy: decay toward sleep, derive the active band + an intensity scalar
+  // that scales existing behaviours (calm = mellow, zoomies = frantic). When mood
+  // is off, behave exactly like before (band 'playful', intensity 1).
+  const moodOn = !(config && config.moodOn === false);
+  if (moodOn) energy = clamp(energy - dt * ENERGY_DECAY, 0, 100);
+  const band = moodOn ? bandOf(energy) : 'playful';
+  const intensity = !moodOn ? 1 : band === 'calm' ? 0.6 : band === 'playful' ? 1 : band === 'zoomies' ? 1.5 : 0.4;
+  if (moodOn) {
+    if (band === 'zoomies') { if (zoomiesT0 < 0) zoomiesT0 = t; if (t - zoomiesT0 > ZOOMIES_MS) { energy = 8; zoomiesT0 = -1; } }
+    else zoomiesT0 = -1;
+    if (band !== prevBand) { tailFlickT0 = t; prevBand = band; }   // ear/tail beat on a mood shift
+  }
+
+  if (keyPulse) { lastKeyAt = t; heat = Math.min(1, heat + 0.12); keyPulse = false; addEnergy(6); }
   heat = Math.max(0, heat - dt * 0.0009);
 
+  // STARTLE: an abrupt cursor jump / velocity spike (the "sudden big change") makes
+  // the cat flinch, freeze, then bolt or creep back. Cooldown stops re-fires.
+  if (moodOn && !SHOT && !grabbing && t > startleCooldownUntil && (inst > STARTLE_VEL || moved > STARTLE_JUMP)) {
+    startleT0 = t; startleUntil = t + STARTLE_MS; startleCooldownUntil = t + 1500;
+    startleMode = Math.random() < 0.5 ? 'bolt' : 'creep';
+    startleFrom = { x: pos.x, y: pos.y };
+    const left = pos.x < canvas.width / 2;
+    startleTo = { x: left ? 60 : canvas.width - 60, y: clamp(pos.y, SH + 10, canvas.height - 10) };
+    huntUntil = 0; pouncing = false; addEnergy(35);
+  }
+  // finalize a finished startle: commit position, reset springs
+  if (startleT0 >= 0 && t >= startleUntil) {
+    pos.x = clamp(pos.x, 40, canvas.width - 40); pos.y = clamp(pos.y, SH + 10, canvas.height - 10);
+    persistPos(); restSprings(); startleT0 = -1;
+  }
+  const startleActive = FORCED_STATE === 'startle' || (startleT0 >= 0 && t < startleUntil);
+
   // paper unroll: scrolling grows the paper; it retracts when you stop.
-  if (scrollPulses > 0) { paperUntil = t + 700; paperLen = Math.min(70, paperLen + scrollPulses * 7); scrollPulses = 0; }
+  if (scrollPulses > 0) { paperUntil = t + 700; paperLen = Math.min(70, paperLen + scrollPulses * 7); addEnergy(scrollPulses * 4); scrollPulses = 0; }
   if (FORCED_STATE === 'paper') paperLen = 50;
   else if (t > paperUntil) paperLen = Math.max(0, paperLen - dt * 0.06);
   const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
@@ -607,13 +685,14 @@ function draw(t) {
   const follow = !(config && config.followCursor === false);
   const huntOn = follow && !!(config && config.huntOn);
   const dCur = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5));
-  if (huntOn && !grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) huntUntil = t + 1400;
-  const hunting = FORCED_STATE === 'hunt' || (huntOn && t < huntUntil);
+  if (huntOn && !grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) { huntUntil = t + 1400; addEnergy(0.6 * step); }
+  const hunting = !startleActive && (FORCED_STATE === 'hunt' || (huntOn && t < huntUntil));
 
   // pet detection (cursor resting on the head, slow, not hunting/grabbing)
   const headBox = { x: pos.x - SW / 2, y: pos.y - SH, w: SW, h: SH * 0.42 };
   const inHead = cursor.x >= headBox.x && cursor.x <= headBox.x + headBox.w && cursor.y >= headBox.y && cursor.y <= headBox.y + headBox.h;
-  const petting = FORCED_STATE === 'pet' || (!grabbing && !hunting && inHead && velEMA < 0.25);
+  const petting = FORCED_STATE === 'pet' || (!grabbing && !hunting && !startleActive && inHead && velEMA < 0.25);
+  if (petting) addEnergy(0.6 * step);   // affection nudges mood up toward calm/playful
 
   // purr while petted (only when sound is on); start/stop once on the edge
   const wantPurr = petting && !SHOT && !!(config && config.soundOn);
@@ -623,7 +702,7 @@ function draw(t) {
   let typing, overheat, heatT;
   if (FORCED_STATE === 'overheat') { typing = true; overheat = true; heatT = 1; }
   else if (FORCED_STATE === 'typing') { typing = true; overheat = false; heatT = 0; }
-  else { typing = !grabbing && !hunting && (t - lastKeyAt) < 350; overheat = heat > 0.7; heatT = overheat ? (heat - 0.7) / 0.3 : 0; }
+  else { typing = !grabbing && !hunting && !startleActive && (t - lastKeyAt) < 350 && !(moodOn && band === 'sleepy'); overheat = heat > 0.7; heatT = overheat ? (heat - 0.7) / 0.3 : 0; }
 
   const P = PATTERNS[patternIndex];
   const catSprite = sprites[patternIndex];   // this coat's body build (slender/stocky/fluffy/standard)
@@ -644,7 +723,33 @@ function draw(t) {
     : { x: 0, y: 0.12 };
   const blinking = t < blinkUntil;
 
-  if (hunting) {
+  if (startleActive) {
+    // ---- STARTLE: flinch + puff, freeze, then bolt to an edge or creep back -
+    const se = FORCED_STATE === 'startle' ? ((t % STARTLE_MS) / STARTLE_MS) : clamp((t - startleT0) / STARTLE_MS, 0, 1);
+    let puff = 1, jit = 0;
+    if (se < 0.18) { puff = 1 + 0.20 * Math.sin((se / 0.18) * Math.PI); jit = Math.sin(t / 26) * 2.5; }   // flinch
+    else if (se >= 0.42) {                                                                                 // move phase
+      const m = (se - 0.42) / 0.58;
+      if (startleMode === 'bolt' && startleFrom && startleTo) {
+        const ease = 1 - Math.pow(1 - m, 2);
+        pos.x = startleFrom.x + (startleTo.x - startleFrom.x) * ease;
+        pos.y = startleFrom.y + (startleTo.y - startleFrom.y) * ease;
+      } else { jit = Math.sin(t / 60) * (1 - m) * 3; }                                                     // creep wobble
+    }
+    pos.x = clamp(pos.x, 40, canvas.width - 40); pos.y = clamp(pos.y, SH + 10, canvas.height - 10);
+    restSprings();
+    const oy = Math.round(pos.y - SH);
+    drawShadow(pos.x, pos.y, 0.16);
+    octx.clearRect(0, 0, oc.width, oc.height);
+    drawCat(octx, catSprite, t, palRGB, { bob: 0, blinking, look: { x: 0, y: -0.25 }, eyeMode: 'open' });
+    ctx.save();
+    ctx.translate(pos.x + jit, pos.y);
+    ctx.scale(puff, puff);
+    ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
+    ctx.restore();
+    drawDoneSpark(pos.x + 2, oy - 4, t);   // a startled "!" pops over the head
+    sendHot(pos.x - SW / 2 - 6, oy - 6, SW + 12, SH + 12, false);
+  } else if (hunting) {
     // ---- MOUSE HUNT: stalk toward the cursor, then pounce -------------------
     const dx = cursor.x - pos.x, dy = cursor.y - pos.y, d = Math.hypot(dx, dy) || 1;
     let leap = 0, stretchY = 1;
@@ -729,7 +834,7 @@ function draw(t) {
     if (typing || FORCED_STATE === 'typing' || FORCED_STATE === 'overheat') {
       // Cat kneads a big two-key keyboard, paws pressing left/right alternately,
       // mashing out pure cat-chaos (asdf jkl;) that floats up from the keys.
-      renderKnead(t, palRGB, pal, overheat, blinking, look);
+      renderTypeSide(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - SW / 2 - 6, pos.y - TH - 6, SW + 12, TH + 24, false);
     } else if (!grabbing && (calm || petting || stretching || thinking || hopActive || paperActive)) {
       const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1

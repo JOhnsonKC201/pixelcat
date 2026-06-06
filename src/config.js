@@ -16,6 +16,7 @@ const DEFAULTS = {
   soundOn: true,
   huntOn: true,        // Comnyang hunts the cursor by default; user-toggleable
   followCursor: true,  // eyes track the cursor; turn off to make the cat ignore it
+  moodOn: true,        // energy/mood model (sleepy/calm/playful/zoomies + startle)
   reminders: [],       // [{ id, hhmm: 'HH:MM', message }]
 };
 
@@ -44,6 +45,7 @@ function normalize(cfg) {
     soundOn: c.soundOn === undefined ? true : !!c.soundOn,
     huntOn: c.huntOn === undefined ? true : !!c.huntOn,
     followCursor: c.followCursor === undefined ? true : !!c.followCursor,
+    moodOn: c.moodOn === undefined ? true : !!c.moodOn,
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;
       const hhmm = String(r.hhmm || '');
