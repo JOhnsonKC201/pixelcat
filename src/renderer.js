@@ -144,36 +144,33 @@ function composeHunt() {
   ellipse(9, 12, 2.4, 2.4, 'X', ['C', 'K']); ellipse(21, 13, 2.2, 2.2, 'X', ['C', 'K']);
 }
 
-// --- kneading body (front-facing, leaning forward; NO front legs — those are -
-//     drawn separately so they can press the keyboard keys) --------------------
+// --- "keyboard cat" typing body: a cute front-facing chibi (big head, two big
+//     round eyes, ears, small body, tail up). Front legs + the two stair-stepped
+//     keys + the white googly eyes/whiskers are drawn in renderTypeSide. Grid 26x22.
 function composeTypeSide(B) {
   B = B || {};
   const fluff = !!B.fluff;
-  // body (horizontal) + back haunch
-  ellipse(17, 11, 8, 5, 'C');
-  ellipse(23, 11, 4.6, 5, 'C');
-  // neck/shoulder + head (left) + muzzle pointing left
-  ellipse(11, 10, 3, 4, 'C');
-  ellipse(7, 7, 5, 4.6, 'C');
-  ellipse(2.8, 8.4, 2, 1.6, 'C');
-  // two ears on top of the head
-  triangle(5, 1, 2.8, 4.5, 7.4, 4, 'K'); triangle(10, 1.2, 7.8, 4, 12.2, 4.6, 'K');
-  triangle(5, 2.4, 3.7, 4.3, 6.5, 4, 'I'); triangle(10, 2.6, 8.7, 4, 11.3, 4.3, 'I');
-  if (fluff) { ellipse(4.2, 4.4, 0.9, 1.3, 'W', ['C', 'K']); ellipse(10.6, 4.6, 0.9, 1.3, 'W', ['C', 'K']); }
+  // small body (3/4, slightly right) then the big head on top
+  ellipse(14, 16, 5.2, 4.4, 'C');
+  ellipse(13, 8, 6.6, 6, 'C');
+  // ears
+  triangle(8, 0.5, 5.4, 5.4, 11, 5, 'K'); triangle(18, 0.5, 15, 5, 20.6, 5.4, 'K');
+  triangle(8, 2.3, 6.6, 5, 10, 5, 'I'); triangle(18, 2.3, 16, 5, 19.4, 5, 'I');
+  if (fluff) { ellipse(6.4, 4.6, 0.9, 1.4, 'W', ['C', 'K']); ellipse(19.6, 4.6, 0.9, 1.4, 'W', ['C', 'K']); }
   // tail up at the back-right
-  [[26.5, 9], [27.6, 6], [27.4, 3]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
-  ellipse(27.4, 2.6, 1.1, 1.1, 'W', ['C']);
-  // white chest/belly (front) + baked back leg & paw
-  ellipse(10.5, 14, 2.6, 3, 'W', ['C']);
-  ellipse(22.5, 16.5, 2, 2.6, 'C'); ellipse(22.5, 18.4, 2, 1.3, 'W', ['C']);
-  // side eye + nose at the snout tip
-  ellipse(6.4, 7, 1.5, 1.9, 'E');
-  setCell(1, 8, 'N'); setCell(2, 8, 'N');
-  if (B.tabby) { // vertical body bands + a head stripe
-    [14, 17, 20].forEach((sc) => { for (let r = 6; r < 16; r++) if (G[r][sc] === 'C') setCell(sc, r, 'K'); });
-    [[6, 3], [7, 3], [8, 4]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); });
+  [[20, 14], [21.6, 11], [21.4, 8]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+  ellipse(21.4, 7.6, 1.1, 1.1, 'W', ['C']);
+  // eye markers (overlaid with white googly eyes in render) + muzzle + nose
+  ellipse(10, 8, 2, 2.2, 'E'); ellipse(16, 8, 2, 2.2, 'E');
+  ellipse(13, 11.4, 2.2, 1.5, 'W', ['C']);
+  setCell(13, 11, 'N'); setCell(12, 11, 'N');
+  // white chest
+  ellipse(13, 16, 2.2, 2.8, 'W', ['C']);
+  if (B.tabby) { // forehead M + a few body bands
+    [[12, 3], [13, 3], [14, 4]].forEach(([c, r]) => { if (G[r][c] === 'C') setCell(c, r, 'K'); });
+    for (let r = 13; r < 20; r += 2) for (let c = 9; c < 19; c++) if (G[r][c] === 'C' && c % 2 === 0) setCell(c, r, 'K');
   }
-  ellipse(18, 13, 2.4, 2.6, 'X', ['C', 'K']); // tortie/calico patch
+  ellipse(11, 16, 1.8, 2, 'X', ['C', 'K']); // tortie/calico patch
 }
 
 // --- sleeping curl (a low loaf, head tucked to the front-left, eyes closed) --
@@ -352,40 +349,58 @@ function catGlyph() {
   const k = KB_KEYS[Math.floor(Math.random() * KB_KEYS.length)] || 'f';
   return Math.random() < 0.35 ? k.repeat(2 + Math.floor(Math.random() * 3)) : k;  // sometimes a kneaded run
 }
-// Side-profile "keyboard cat": the cat stands in profile (facing left) on a
-// keyboard, tail up, its two front paws tapping the keys alternately while
-// cat-chaos letters float up. One shared shape, recoloured per coat.
+// Big white "googly" eyes + whiskers overlaid on the typing face (guaranteed
+// white on any coat, unlike the role-based eyes). Pupils drift toward the cursor.
+function drawTypeFace(ox, oy, sp, look) {
+  for (const e of sp.eyes) {
+    if (!isFinite(e.cx) || e.w <= 0) continue;
+    const cx = ox + e.cx, cy = oy + e.cy, r = Math.max(3, e.w * 0.6);
+    ctx.fillStyle = '#1a1c22'; ctx.beginPath(); ctx.arc(cx, cy, r + 1, 0, Math.PI * 2); ctx.fill(); // dark rim
+    ctx.fillStyle = '#f6f5f1'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();     // white
+    ctx.fillStyle = '#1a1c22';
+    ctx.beginPath(); ctx.arc(cx + clamp(look.x, -1, 1) * 1.6, cy + clamp(look.y, -1, 1) * 1.2, Math.max(1.6, r * 0.42), 0, Math.PI * 2); ctx.fill();
+  }
+  // whiskers from the muzzle, both sides
+  const mx = ox + sp.muzzle.x, my = oy + sp.muzzle.y;
+  ctx.strokeStyle = 'rgba(245,245,245,0.7)'; ctx.lineWidth = 1; ctx.lineCap = 'round';
+  for (const dir of [-1, 1]) for (let i = 0; i < 3; i++) {
+    ctx.beginPath(); ctx.moveTo(mx + dir * 5, my + i * 3 - 2); ctx.lineTo(mx + dir * 17, my + i * 5 - 3); ctx.stroke();
+  }
+}
+// "Keyboard cat" typing pose: a cute front-facing chibi standing over two
+// stair-stepped keys, front paws tapping them; cat-chaos letters float up.
 let lLast = false, rLast = false;
 function renderTypeSide(t, palRGB, pal, overheat, blinking, look) {
   const sp = overheat ? 42 : 80;
   const lp = Math.max(0, Math.sin(t / sp)), rp = Math.max(0, Math.sin(t / sp + Math.PI));
   const bob = Math.round(Math.sin(t / 240) * 1.2);
   const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH);
-  // keyboard: a slab the cat stands on + two keys under the front paws
-  const kbX = ox + 5, kbW = TW - 16, slabY = pos.y - 3;
-  const keyW = 16, keyH = 9, keyY = pos.y - keyH;
-  const lcx = ox + 9 * CELL, rcx = ox + 13 * CELL;   // front keys (front-left, under the chest)
+  // two stair-stepped grey keys under the front paws (right one sits a bit higher)
+  const keyW = 17, keyH = 10;
+  const lcx = pos.x - 13, rcx = pos.x + 13;
+  const lY = pos.y - keyH, rY = pos.y - keyH - 4;
   const lDep = Math.round(lp * 3), rDep = Math.round(rp * 3);
-  drawShadow(pos.x, pos.y + 2, 0.18, 40);
-  // body sprite (typing:true -> no whiskers, eye looks down)
+  drawShadow(pos.x, pos.y + 2, 0.18, 36);
+  // body sprite (typing:true -> drawCat skips its own whiskers/eye-look; we overlay)
+  const typeSp = typeSprites[patternIndex];
   octx.clearRect(0, 0, oc.width, oc.height);
-  drawCat(octx, typeSprites[patternIndex], t, palRGB, { bob, blinking, typing: true, look });
+  drawCat(octx, typeSp, t, palRGB, { bob, blinking, typing: true, look });
   ctx.drawImage(oc, 0, 0, TW, TH, ox, oy + bob, TW, TH);
-  // keyboard slab + the two keys
-  ctx.fillStyle = '#3a3f48'; ctx.fillRect(kbX, slabY, kbW, 6);
-  ctx.fillStyle = '#2f343d'; ctx.fillRect(kbX, slabY + 6, kbW, 2);
-  drawKey(lcx, keyY + lDep, keyW, keyH, lp > 0.7);
-  drawKey(rcx, keyY + rDep, keyW, keyH, rp > 0.7);
+  // the two keys
+  drawKey(lcx, lY + lDep, keyW, keyH, lp > 0.7);
+  drawKey(rcx, rY + rDep, keyW, keyH, rp > 0.7);
   // the cat's two front legs reach down from the chest onto the keys (tapping)
-  const shY = oy + TH * 0.66 + bob;
-  drawCatArm(ox + 10 * CELL, shY, lcx, keyY + lDep, pal, 6);
-  drawCatArm(ox + 12 * CELL, shY, rcx, keyY + rDep, pal, 6);
+  const shY = oy + TH * 0.72 + bob;
+  drawCatArm(pos.x - 5, shY, lcx, lY + lDep, pal, 6);
+  drawCatArm(pos.x + 5, shY, rcx, rY + rDep, pal, 6);
+  // big white googly eyes + whiskers over the face
+  drawTypeFace(ox, oy + bob, typeSp, look);
   // chaos glyphs on each fresh key-press
   const lHigh = lp > 0.82, rHigh = rp > 0.82;
-  if (lHigh && !lLast) kbChars.push({ x: lcx, y: keyY - 6, t0: t, ch: catGlyph() });
-  if (rHigh && !rLast) kbChars.push({ x: rcx, y: keyY - 6, t0: t, ch: catGlyph() });
+  if (lHigh && !lLast) kbChars.push({ x: lcx, y: lY - 6, t0: t, ch: catGlyph() });
+  if (rHigh && !rLast) kbChars.push({ x: rcx, y: rY - 6, t0: t, ch: catGlyph() });
   lLast = lHigh; rLast = rHigh;
-  if (overheat) drawSteam(t, ox + 7 * CELL, oy + 2 * CELL + bob); // steam above the head (left)
+  if (overheat) drawSteam(t, pos.x, oy + 2 * CELL + bob); // steam above the head
 }
 // Animated tail: a curling, swaying stroke that flicks on idle actions and wags
 // faster while the cat is petted. Drawn behind the body so its root tucks under.
