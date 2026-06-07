@@ -467,8 +467,9 @@ function drawDoneSpark(x, y, t) {
 }
 function drawHeart(x, y, color, alpha) {
   ctx.globalAlpha = alpha; ctx.fillStyle = color;
-  ctx.fillRect(x - 3, y - 2, 2, 2); ctx.fillRect(x + 1, y - 2, 2, 2);
-  ctx.fillRect(x - 3, y, 6, 2); ctx.fillRect(x - 2, y + 2, 4, 1); ctx.fillRect(x - 1, y + 3, 2, 1);
+  ctx.fillRect(x - 5, y - 4, 3, 3); ctx.fillRect(x + 2, y - 4, 3, 3);    // two top bumps
+  ctx.fillRect(x - 5, y - 1, 10, 3);                                      // wide middle
+  ctx.fillRect(x - 4, y + 2, 8, 2); ctx.fillRect(x - 2, y + 4, 4, 2); ctx.fillRect(x - 1, y + 6, 2, 1);  // taper to a point
   ctx.globalAlpha = 1;
 }
 let lastHot = null;
@@ -484,7 +485,7 @@ let cursor = { x: 0, y: 0 }, prevCursor = { x: 0, y: 0 }, velEMA = 0;
 let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
-let hearts = [], lastHeart = 0;
+let hearts = [], lastHeart = 0, lastBodyTrill = -9999;
 let kbChars = [];   // cat-chaos keystrokes floating up from the keyboard
 // stretch reminder (08) + AI-agent thinking/done (10/11)
 let stretchT0 = -1, nextStretch = 0;
@@ -776,6 +777,17 @@ function draw(t) {
   const petting = FORCED_STATE === 'pet' || t < petBurstUntil || (!grabbing && !hunting && !startleActive && inHead && velEMA < 0.25);
   if (petting) addEnergy(0.6 * step);   // affection nudges mood up toward calm/playful
 
+  // body touch (not the head): the cat leans/arches into your hand, tail up, looks
+  // at you, and trills now and then — a different reaction than the head-pet purr.
+  const bodyBox = { x: pos.x - SW / 2, y: pos.y - SH * 0.58, w: SW, h: SH * 0.58 };
+  const inBody = cursor.x >= bodyBox.x && cursor.x <= bodyBox.x + bodyBox.w && cursor.y >= bodyBox.y && cursor.y <= bodyBox.y + bodyBox.h;
+  const bodyPet = !FORCED_STATE && !petting && !grabbing && !hunting && !startleActive && inBody && velEMA < 0.25;
+  if (bodyPet) {
+    addEnergy(0.5 * step);
+    leanTarget = clamp((cursor.x - pos.x) / 70, -0.13, 0.13); leanUntil = t + 200;   // arch toward the hand
+    if (t - lastBodyTrill > 1500) { lastBodyTrill = t; tailFlickT0 = t; if (config && config.soundOn) playChirp(); }
+  }
+
   // purr while petted (only when sound is on); start/stop once on the edge
   const wantPurr = petting && !SHOT && !!(config && config.soundOn);
   if (wantPurr && !purring) { startPurr(); purring = true; }
@@ -884,7 +896,7 @@ function draw(t) {
     const bob = Math.round(Math.sin(t / (typing ? 220 : 600)) * 2);
 
     // --- liveliness: eased gaze + periodic idle micro-actions ---------------
-    const restIdle = calm && !petting && !typing && !grabbing && !FORCED_STATE && agentState === 'idle';
+    const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && agentState === 'idle';
     if (restIdle) {
       const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
       if (nextIdleAt === 0) nextIdleAt = t + (4000 + Math.random() * 6000) * idleScale;
@@ -982,6 +994,7 @@ function draw(t) {
       ctx.restore();
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
       if (petting && t - lastHeart > 430) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 18, y: oy - 2, t0: t }); lastHeart = t; }
+      else if (bodyPet && t - lastHeart > 950) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 22, y: oy + 6, t0: t }); lastHeart = t; }
       if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
       else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
