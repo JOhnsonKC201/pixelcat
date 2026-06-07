@@ -522,7 +522,7 @@ let paperLen = 0, paperUntil = 0, scrollPulses = 0;
 // liveliness: eased gaze, idle micro-actions, animated tail + frame governor
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
-let nextIdleAt = 0, leanTarget = 0, lean = 0, leanUntil = 0, tailFlickT0 = -1;
+let nextIdleAt = 0, leanTarget = 0, lean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0;
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
 // Comnyang-style productivity layer: settings from main + reminder/break bubble
 let config = null;
@@ -911,10 +911,11 @@ function draw(t) {
       if (nextIdleAt === 0) nextIdleAt = t + (4000 + Math.random() * 6000) * idleScale;
       if (t > nextIdleAt) {
         nextIdleAt = t + (5000 + Math.random() * 9000) * idleScale;
-        const roll = Math.random();
-        if (roll < 0.45) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
-        else if (roll < 0.72) { tailFlickT0 = t; }
-        else if (roll < 0.90) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
+        const roll = Math.random();
+        if (roll < 0.40) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
+        else if (roll < 0.60) { tailFlickT0 = t; }
+        else if (roll < 0.74) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
+        else if (roll < 0.90) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
       }
     } else { nextIdleAt = 0; }
@@ -963,13 +964,15 @@ function draw(t) {
       // the keys, mashing out cat-chaos (asdf jkl;) that floats up.
       renderTypeSide(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - SW / 2 - 6, pos.y - TH - 6, SW + 12, TH + 24, false);
-    } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive)) {
-      const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
+    } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive || FORCED_STATE === 'loaf')) {
+      const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
+      const loafing = FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil);
       const wig = (petting ? Math.round(Math.sin(t / 55)) : 0) + idleSway;
-      const emode = (petting || stretching) ? 'happy' : 'open';
+      const emode = (petting || stretching || loafing) ? 'happy' : 'open';
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : smoothLook;
       const breath = Math.sin(t / 1500);                              // gentle breathing
-      let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
+      let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
+      if (loafing) { sx *= 1.2; sy *= 0.6; }   // squished, content loaf
       if (stretching) {
         const se = FORCED_STATE === 'stretch' ? ((t % STRETCH_MS) / STRETCH_MS) : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
         const k = Math.sin(se * Math.PI); sy = 1 + k * 0.32; sx = 1 + k * 0.10;
