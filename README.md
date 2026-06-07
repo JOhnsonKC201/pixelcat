@@ -49,7 +49,8 @@ when you drag it.
 - **Desktop-pet overlay** — a full-screen, transparent, click-through layer, so the
   cat floats over everything but never blocks your clicks (only the cat itself is
   interactive). It **stays on top of every app** (it re-asserts top-most, even over
-  fullscreen windows), and you can confine it to a **Play area** from the tray.
+  fullscreen windows), and you can confine it to a **Play area** — pick a tray preset
+  or **drag-to-draw** one (tray -> Set play area).
 - **Starts at login** — registers itself in Windows startup.
 
 ## Controls

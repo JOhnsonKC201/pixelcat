@@ -58,3 +58,11 @@ test('shipped integration JSON configs parse', () => {
     assert.doesNotThrow(() => JSON.parse(fs.readFileSync(p, 'utf8')), `valid JSON: ${f}`);
   }
 });
+
+test('install-hook prints a path-filled config for every agent', () => {
+  for (const a of ['claude-code', 'codex', 'cursor', 'antigravity', 'kiro']) {
+    const out = execFileSync('node', [path.join(ROOT, 'scripts', 'install-hook.js'), a], { encoding: 'utf8' });
+    assert.ok(out.includes('agent-hook.js'), `${a}: mentions agent-hook.js`);
+    assert.ok(!out.includes('/ABS/PATH') && !out.includes('/ABSOLUTE/PATH'), `${a}: placeholder path replaced`);
+  }
+});
