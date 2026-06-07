@@ -12,6 +12,16 @@ function populateCoats() {
   const names = (window.PATTERN_NAMES || []).concat(themes.map((t) => t.name));
   names.forEach((name, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = name; sel.appendChild(o); });
   if (cfg) sel.value = String(cfg.pattern || 0); else if (cur) sel.value = cur;
+  drawPreview();
+}
+function drawPreview() {
+  const P = window.PixelcatPreview, cv = $('coatPreview');
+  if (!P || !cv) return;
+  const i = Number($('pattern').value) || 0;
+  let pal, build, tabby;
+  if (i < P.PATTERNS.length) { pal = P.PATTERNS[i]; build = P.PATTERN_BUILD[i]; tabby = P.TABBY[i]; }
+  else { const t = themes[i - P.PATTERNS.length]; if (!t) return; pal = t; build = t.build; tabby = t.tabby; }
+  P.draw(cv, pal, build, tabby);
 }
 function renderThemes() {
   const ul = $('themes'); if (!ul) return; ul.innerHTML = '';
@@ -39,6 +49,7 @@ function render() {
   $('moodOn').checked = cfg.moodOn === undefined ? true : !!cfg.moodOn;
   $('soundOn').checked = !!cfg.soundOn;
   renderReminders();
+  drawPreview();
 }
 function renderReminders() {
   const ul = $('reminders'); ul.innerHTML = '';
@@ -64,7 +75,7 @@ $('name').addEventListener('input', () => {
   clearTimeout(nameTimer);
   nameTimer = setTimeout(() => save({ name: $('name').value }), 300);
 });
-$('pattern').addEventListener('change', () => save({ pattern: Number($('pattern').value) }));
+$('pattern').addEventListener('change', () => { save({ pattern: Number($('pattern').value) }); drawPreview(); });
 $('breakMinutes').addEventListener('change', () => save({ breakMinutes: Number($('breakMinutes').value) }));
 $('followCursor').addEventListener('change', () => save({ followCursor: $('followCursor').checked }));
 $('huntOn').addEventListener('change', () => save({ huntOn: $('huntOn').checked }));

@@ -16,6 +16,7 @@ let tray = null;
 let cfg = null;                                        // current settings (main = source of truth)
 let themesCache = [];                                  // user-defined custom coats (themes.json)
 let cursorTimer;
+let topTimer;                                          // re-asserts always-on-top
 let agentTimer;
 let agentWatcher;
 let scheduleTimer;                                     // break-timer + reminder clock
@@ -173,6 +174,17 @@ function createWindow() {
   screen.on('display-metrics-changed', refit);
   screen.on('display-added', refit);
   screen.on('display-removed', refit);
+
+  // Keep the cat above EVERYTHING. alwaysOnTop at the highest level can still be
+  // stolen by fullscreen apps / other topmost windows, so re-assert it on a timer
+  // (and reclaim the very top with moveTop).
+  const reassertTop = () => {
+    if (!win || win.isDestroyed()) return;
+    try { win.setAlwaysOnTop(true, 'screen-saver'); win.moveTop(); } catch (e) { /* ignore */ }
+  };
+  topTimer = setInterval(reassertTop, 1500);
+  win.on('blur', reassertTop);
+  screen.on('display-metrics-changed', reassertTop);
 }
 
 // ---- settings: load, broadcast, persist ------------------------------------
@@ -304,6 +316,7 @@ let cleanedUp = false;
 function cleanup() {
   if (cleanedUp) return; cleanedUp = true;
   if (cursorTimer) clearInterval(cursorTimer);
+  if (topTimer) clearInterval(topTimer);
   if (agentTimer) clearInterval(agentTimer);
   if (scheduleTimer) clearInterval(scheduleTimer);
   if (agentWatcher) { try { agentWatcher.close(); } catch (e) { /* ignore */ } }
