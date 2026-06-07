@@ -194,6 +194,9 @@ Custom coats live in `themes.json` in your app-data folder
 Every colour role is required and must be a `#rrggbb` hex (invalid themes are
 skipped). Preview one without the overlay: `npx electron . --shot --pattern=galaxy`.
 
+Share coats with **Export…** / **Import…** in the same panel — they write and read a
+JSON file, and imported coats merge into your set by name.
+
 ## Build a standalone app
 
 ```powershell
@@ -206,6 +209,11 @@ symlinks while electron-builder unpacks its bundled signing tools — enable **W
 Developer Mode** (Settings -> Privacy & security -> For developers) *or* run the build
 from an Administrator terminal once. The native `uiohook-napi` module ships N-API
 prebuilds, so `npmRebuild` is disabled in the build config (no Visual Studio needed).
+Run `npm run icon` to regenerate the original procedural app + tray icons.
+
+More touches: the cat **chirps** when an agent finishes and **mrrps** when startled
+(toggle with Sound), and the tray **Mood** submenu has *Sleep now / Zoomies! / Wake up*
+to drive the energy model on demand.
 
 ## Tech
 

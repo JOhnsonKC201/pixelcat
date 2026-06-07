@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('cat', {
   onScroll: (cb) => ipcRenderer.on('scroll', () => cb()),
   onConfig: (cb) => ipcRenderer.on('config', (_e, cfg) => cb(cfg)),
   onThemes: (cb) => ipcRenderer.on('themes', (_e, list) => cb(list)),
+  onMood: (cb) => ipcRenderer.on('mood', (_e, c) => cb(c)),
   onRemind: (cb) => ipcRenderer.on('remind', (_e, data) => cb(data)),
   onBreak: (cb) => ipcRenderer.on('break', () => cb()),
   setHot: (o) => ipcRenderer.send('hot', o),

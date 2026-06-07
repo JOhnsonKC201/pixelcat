@@ -564,6 +564,12 @@ if (window.cat) {
   });
   if (window.cat.onScroll) window.cat.onScroll(() => { scrollPulses++; });
   if (window.cat.onThemes) window.cat.onThemes((list) => { applyThemes(list); resumeRaf(); });
+  if (window.cat.onMood) window.cat.onMood((c) => {
+    if (c === 'sleep') energy = 5;
+    else if (c === 'zoomies') energy = 96;
+    else energy = Math.max(energy, 60);   // wake -> playful
+    resumeRaf();
+  });
   if (window.cat.onConfig) window.cat.onConfig((c) => {
     config = c;
     if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
@@ -639,6 +645,34 @@ function stopPurr() {
   if (!purrNodes) return;
   try { purrNodes.carrier.stop(); purrNodes.lfo.stop(); } catch (e) { /* ignore */ }
   purrNodes = null;
+}
+// Happy little chirp/trill (AI agent finished a task).
+function playChirp() {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime, g = ac.createGain(); g.connect(ac.destination);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.13, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+  const o = ac.createOscillator(); o.type = 'triangle';
+  o.frequency.setValueAtTime(780, t0);
+  o.frequency.linearRampToValueAtTime(1180, t0 + 0.08);
+  o.frequency.linearRampToValueAtTime(1020, t0 + 0.2);
+  o.connect(g); o.start(t0); o.stop(t0 + 0.24);
+  o.onended = () => { try { g.disconnect(); } catch (e) { /* ignore */ } };
+}
+// Startled "mrrp" — a short falling growl (sudden jolt / agent error).
+function playMrrp() {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime, g = ac.createGain(); g.connect(ac.destination);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+  const o = ac.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(520, t0);
+  o.frequency.linearRampToValueAtTime(300, t0 + 0.16);
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1300;
+  o.connect(lp); lp.connect(g); o.start(t0); o.stop(t0 + 0.2);
+  o.onended = () => { try { g.disconnect(); lp.disconnect(); } catch (e) { /* ignore */ } };
 }
 
 // Speech bubble above the head — same dark-rounded style as the coat label.
@@ -728,6 +762,7 @@ function draw(t) {
     const left = pos.x < canvas.width / 2;
     startleTo = { x: left ? 60 : canvas.width - 60, y: clamp(pos.y, SH + 10, canvas.height - 10) };
     huntUntil = 0; pouncing = false; addEnergy(35);
+    if (config && config.soundOn) playMrrp();
   }
   // finalize a finished startle: commit position, reset springs
   if (startleT0 >= 0 && t >= startleUntil) {
@@ -738,6 +773,7 @@ function draw(t) {
     startleT0 = t; startleUntil = t + STARTLE_MS; startleCooldownUntil = t + 1500;
     startleMode = 'creep'; startleFrom = { x: pos.x, y: pos.y }; startleTo = { x: pos.x, y: pos.y };
     errorPending = false;
+    if (config && config.soundOn) playMrrp();
   }
   const startleActive = FORCED_STATE === 'startle' || (startleT0 >= 0 && t < startleUntil);
 
@@ -896,7 +932,7 @@ function draw(t) {
     const stretching = FORCED_STATE === 'stretch' || (stretchT0 >= 0 && t - stretchT0 < STRETCH_MS);
     const thinking = FORCED_STATE === 'think' || agentState === 'thinking';
     const working = FORCED_STATE === 'work' || agentState === 'working';
-    if (doneHopPending) { doneHopT0 = t; doneHopPending = false; }
+    if (doneHopPending) { doneHopT0 = t; doneHopPending = false; if (config && config.soundOn) playChirp(); }
     let hop = 0, hopActive = false;
     if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
     else if (doneHopT0 >= 0 && t - doneHopT0 < DONE_MS) { hop = Math.sin(((t - doneHopT0) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }

@@ -106,6 +106,8 @@ $('addTheme').addEventListener('click', async () => {
   $('tName').value = '';
   populateCoats(); renderThemes();
 });
+$('exportThemes').addEventListener('click', () => window.settings.exportThemes());
+$('importThemes').addEventListener('click', async () => { themes = await window.settings.importThemes(); populateCoats(); renderThemes(); });
 
 // --- local meow preview (same synthesis the overlay uses) -------------------
 let actx = null;

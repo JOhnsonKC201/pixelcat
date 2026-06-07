@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -181,6 +181,9 @@ function broadcastThemes() {
   sendThemes();
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('themes', themesCache);
 }
+function sendMood(cmd) {
+  if (win && !win.isDestroyed() && win.webContents) win.webContents.send('mood', cmd);
+}
 // Single choke-point for every config change: persist, then push the new state to
 // the overlay + the settings window + the tray menu so all surfaces stay in sync.
 function persistAndBroadcast(next) {
@@ -221,6 +224,11 @@ function rebuildTrayMenu() {
     { label: 'Follow cursor', type: 'checkbox', checked: !!(cfg && cfg.followCursor), click: () => persistAndBroadcast({ ...cfg, followCursor: !cfg.followCursor }) },
     { label: 'Mouse hunt', type: 'checkbox', checked: !!(cfg && cfg.huntOn), click: () => persistAndBroadcast({ ...cfg, huntOn: !cfg.huntOn }) },
     { label: 'Mood reactions', type: 'checkbox', checked: !(cfg && cfg.moodOn === false), click: () => persistAndBroadcast({ ...cfg, moodOn: !(cfg && cfg.moodOn !== false) }) },
+    { label: 'Mood', submenu: [
+      { label: 'Sleep now', click: () => sendMood('sleep') },
+      { label: 'Zoomies!', click: () => sendMood('zoomies') },
+      { label: 'Wake up', click: () => sendMood('wake') },
+    ] },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
     { type: 'separator' },
     { label: 'Quit pixelcat', click: () => app.quit() },
@@ -311,6 +319,23 @@ ipcMain.handle('settings:save', (_e, partial) => { persistAndBroadcast({ ...cfg,
 ipcMain.handle('themes:get', () => themesCache);
 ipcMain.handle('themes:add', (_e, t) => { themesCache = themes.save([...themesCache, t]); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
 ipcMain.handle('themes:delete', (_e, name) => { themesCache = themes.save(themesCache.filter((x) => x.name !== name)); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
+ipcMain.handle('themes:export', async () => {
+  const r = await dialog.showSaveDialog(settingsWin || win, { title: 'Export custom coats', defaultPath: 'pixelcat-coats.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
+  if (r.canceled || !r.filePath) return false;
+  try { fs.writeFileSync(r.filePath, JSON.stringify({ themes: themesCache }, null, 2)); return true; } catch (e) { return false; }
+});
+ipcMain.handle('themes:import', async () => {
+  const r = await dialog.showOpenDialog(settingsWin || win, { title: 'Import custom coats', properties: ['openFile'], filters: [{ name: 'JSON', extensions: ['json'] }] });
+  if (r.canceled || !r.filePaths || !r.filePaths[0]) return themesCache;
+  try {
+    const data = JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8').replace(/^﻿/, ''));
+    const incoming = themes.clean(Array.isArray(data) ? data : (data && data.themes));
+    const have = new Set(themesCache.map((t) => t.name.toLowerCase()));
+    themesCache = themes.save(themesCache.concat(incoming.filter((t) => !have.has(t.name.toLowerCase()))));
+    broadcastThemes(); rebuildTrayMenu();
+  } catch (e) { /* ignore bad file */ }
+  return themesCache;
+});
 
 app.whenReady().then(() => {
   if (isSecondary) return;

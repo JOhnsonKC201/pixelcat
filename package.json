@@ -12,7 +12,7 @@
   "scripts": {
     "start": "electron .",
     "autostart:off": "electron . --autostart=off",
-    "icon": "node scripts/make-tray-icon.js && node scripts/make-ico.js",
+    "icon": "node scripts/make-tray-icon.js && node scripts/make-ico.js && node scripts/make-app-icon.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win nsis"
   },
@@ -37,6 +37,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         "nsis"
       ]
