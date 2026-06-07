@@ -587,6 +587,15 @@ function audio() {
   } catch (e) { actx = null; }
   return actx;
 }
+function voiceFor() {
+  const build = (typeof PATTERN_BUILD !== 'undefined' && PATTERN_BUILD[patternIndex]) || 'standard';
+  const base = build === 'slender' ? { pitch: 1.22, dur: 1.25, type: 'sawtooth', gain: 0.95 }
+    : build === 'stocky' ? { pitch: 0.82, dur: 0.92, type: 'triangle', gain: 1.05 }
+    : build === 'fluffy' ? { pitch: 1.0, dur: 1.06, type: 'sine', gain: 0.85 }
+    : { pitch: 1.0, dur: 1.0, type: 'triangle', gain: 1.0 };
+  base.pitch *= 1 + ((patternIndex * 37) % 7 - 3) * 0.012;   // small per-coat individuality
+  return base;
+}
 function playMeow() {
   const ac = audio(); if (!ac) return;
   const t0 = ac.currentTime, g = ac.createGain();
@@ -594,13 +603,13 @@ function playMeow() {
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.04);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.30);
-  let last = null;
-  for (const [type, detune] of [['triangle', 0], ['sine', 6]]) {
+  const v = voiceFor(); let last = null;
+  for (const [type, detune] of [[v.type, 0], ['sine', 6]]) {
     const o = ac.createOscillator(); o.type = type; o.detune.value = detune;
-    o.frequency.setValueAtTime(620, t0);
-    o.frequency.linearRampToValueAtTime(720, t0 + 0.10);
-    o.frequency.linearRampToValueAtTime(520, t0 + 0.28);
-    o.connect(g); o.start(t0); o.stop(t0 + 0.32); last = o;
+    o.frequency.setValueAtTime(620 * v.pitch, t0);
+    o.frequency.linearRampToValueAtTime(720 * v.pitch, t0 + 0.10 * v.dur);
+    o.frequency.linearRampToValueAtTime(520 * v.pitch, t0 + 0.28 * v.dur);
+    o.connect(g); o.start(t0); o.stop(t0 + 0.32 * v.dur); last = o;
   }
   if (last) last.onended = () => { try { g.disconnect(); } catch (e) { /* ignore */ } }; // don't leak the gain node
 }
@@ -632,10 +641,11 @@ function playChirp() {
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(0.13, t0 + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+  const v = voiceFor();
   const o = ac.createOscillator(); o.type = 'triangle';
-  o.frequency.setValueAtTime(780, t0);
-  o.frequency.linearRampToValueAtTime(1180, t0 + 0.08);
-  o.frequency.linearRampToValueAtTime(1020, t0 + 0.2);
+  o.frequency.setValueAtTime(780 * v.pitch, t0);
+  o.frequency.linearRampToValueAtTime(1180 * v.pitch, t0 + 0.08);
+  o.frequency.linearRampToValueAtTime(1020 * v.pitch, t0 + 0.2);
   o.connect(g); o.start(t0); o.stop(t0 + 0.24);
   o.onended = () => { try { g.disconnect(); } catch (e) { /* ignore */ } };
 }
@@ -646,9 +656,10 @@ function playMrrp() {
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.015);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+  const v = voiceFor();
   const o = ac.createOscillator(); o.type = 'sawtooth';
-  o.frequency.setValueAtTime(520, t0);
-  o.frequency.linearRampToValueAtTime(300, t0 + 0.16);
+  o.frequency.setValueAtTime(520 * v.pitch, t0);
+  o.frequency.linearRampToValueAtTime(300 * v.pitch, t0 + 0.16);
   const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1300;
   o.connect(lp); lp.connect(g); o.start(t0); o.stop(t0 + 0.2);
   o.onended = () => { try { g.disconnect(); lp.disconnect(); } catch (e) { /* ignore */ } };
