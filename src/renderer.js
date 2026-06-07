@@ -434,6 +434,20 @@ function drawThinkBubble(x, y, t) {
   }
   ctx.globalAlpha = 1;
 }
+// "Working" spinner near the head while an AI agent is editing/testing/building.
+function drawWorkBubble(x, y, t) {
+  const cx = x + 4, cy = y - 1, R = 4.6, a = t / 260;
+  ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i = 0; i < 8; i++) {
+    const ang = a + i * Math.PI / 4;
+    ctx.globalAlpha = 0.2 + 0.7 * (i / 8); ctx.strokeStyle = '#5a8f5a';
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(ang) * (R - 2), cy + Math.sin(ang) * (R - 2));
+    ctx.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
 // Sleepy "z z z" drifting up from the head while the cat naps.
 function drawZzz(x, y, t) {
   ctx.fillStyle = '#9aa6c0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -479,7 +493,7 @@ let hearts = [], lastHeart = 0;
 let kbChars = [];   // cat-chaos keystrokes floating up from the keyboard
 // stretch reminder (08) + AI-agent thinking/done (10/11)
 let stretchT0 = -1, nextStretch = 0;
-let agentState = 'idle', doneHopT0 = -1, doneHopPending = false;
+let agentState = 'idle', doneHopT0 = -1, doneHopPending = false, errorPending = false;
 const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
 // paper unroll (09)
 let paperLen = 0, paperUntil = 0, scrollPulses = 0;
@@ -511,8 +525,19 @@ if (window.cat) {
   window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; resumeRaf(); });
   if (window.cat.onKey) window.cat.onKey(() => { keyPulse = true; resumeRaf(); });
   if (window.cat.onAgent) window.cat.onAgent((s) => {
-    if (s === 'done') { doneHopPending = true; agentState = 'idle'; energy = clamp(energy + 25, 0, 100); }
-    else { agentState = s === 'thinking' ? 'thinking' : 'idle'; if (s === 'thinking') energy = clamp(energy + 6, 0, 100); }
+    // Map any agent verb to a reaction category (Claude Code/Codex/Cursor hooks can
+    // send natural words like "editing", "testing", "error", "done").
+    const v = String(s || 'idle').toLowerCase();
+    const cat = /(done|stop|complete|finish|success)/.test(v) ? 'done'
+      : /(error|fail|denied|blocked)/.test(v) ? 'error'
+      : /(edit|writ|creat|refactor|test|build|compil|run|install|search|read|tool)/.test(v) ? 'working'
+      : /(think|plan|prompt|start|busy)/.test(v) ? 'thinking'
+      : 'idle';
+    if (cat === 'done') { doneHopPending = true; agentState = 'idle'; energy = clamp(energy + 25, 0, 100); }
+    else if (cat === 'error') { errorPending = true; agentState = 'idle'; energy = clamp(energy + 30, 0, 100); }
+    else if (cat === 'working') { agentState = 'working'; energy = clamp(energy + 8, 0, 100); }
+    else if (cat === 'thinking') { agentState = 'thinking'; energy = clamp(energy + 6, 0, 100); }
+    else agentState = 'idle';
     resumeRaf();
   });
   if (window.cat.onScroll) window.cat.onScroll(() => { scrollPulses++; });
@@ -686,6 +711,11 @@ function draw(t) {
     pos.x = clamp(pos.x, 40, canvas.width - 40); pos.y = clamp(pos.y, SH + 10, canvas.height - 10);
     persistPos(); restSprings(); startleT0 = -1;
   }
+  if (errorPending) {   // an agent error makes the cat flinch in place (no bolt)
+    startleT0 = t; startleUntil = t + STARTLE_MS; startleCooldownUntil = t + 1500;
+    startleMode = 'creep'; startleFrom = { x: pos.x, y: pos.y }; startleTo = { x: pos.x, y: pos.y };
+    errorPending = false;
+  }
   const startleActive = FORCED_STATE === 'startle' || (startleT0 >= 0 && t < startleUntil);
 
   // paper unroll: scrolling grows the paper; it retracts when you stop.
@@ -842,6 +872,7 @@ function draw(t) {
     if (FORCED_STATE !== 'stretch' && idleNow && t > nextStretch) { stretchT0 = t; nextStretch = t + STRETCH_INTERVAL; }
     const stretching = FORCED_STATE === 'stretch' || (stretchT0 >= 0 && t - stretchT0 < STRETCH_MS);
     const thinking = FORCED_STATE === 'think' || agentState === 'thinking';
+    const working = FORCED_STATE === 'work' || agentState === 'working';
     if (doneHopPending) { doneHopT0 = t; doneHopPending = false; }
     let hop = 0, hopActive = false;
     if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
@@ -873,11 +904,11 @@ function draw(t) {
       // the keys, mashing out cat-chaos (asdf jkl;) that floats up.
       renderTypeSide(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - SW / 2 - 6, pos.y - TH - 6, SW + 12, TH + 24, false);
-    } else if (!grabbing && (calm || petting || stretching || thinking || hopActive || paperActive)) {
+    } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive)) {
       const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
       const wig = (petting ? Math.round(Math.sin(t / 55)) : 0) + idleSway;
       const emode = (petting || stretching) ? 'happy' : 'open';
-      const eLook = thinking ? { x: 0, y: -0.5 } : smoothLook;
+      const eLook = (thinking || working) ? { x: 0, y: -0.5 } : smoothLook;
       const breath = Math.sin(t / 1500);                              // gentle breathing
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (stretching) {
@@ -886,7 +917,7 @@ function draw(t) {
       }
       const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop);
       drawShadow(pos.x + wig, pos.y, 0.18);
-      if (!stretching && !thinking) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);
+      if (!stretching && !thinking && !working) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);
       octx.clearRect(0, 0, oc.width, oc.height);
       drawCat(octx, catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode });
       ctx.save();
@@ -898,6 +929,7 @@ function draw(t) {
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
       if (petting && t - lastHeart > 430) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 18, y: oy - 2, t0: t }); lastHeart = t; }
       if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
+      else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
       if (paperActive && !petting && !stretching) drawPaper(pos.x, pos.y - 36, Math.round(paperLen), t);
       if (t < labelUntil) {
@@ -906,7 +938,7 @@ function draw(t) {
         ctx.fillStyle = 'rgba(20,20,24,0.82)'; ctx.fillRect(bx - w / 2, by - 13, w, 13); ctx.fillStyle = '#fff'; ctx.fillText(name, bx, by); ctx.globalAlpha = 1;
       }
       // fully idle (only breathing/tail)? let the governor drop to ~33fps
-      if (calm && !petting && !stretching && !thinking && !hopActive && !paperActive && !blinking
+      if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !blinking
           && !lookTarget && t > lookTargetUntil && hearts.length === 0 && t >= bubbleUntil
           && (tailFlickT0 < 0 || t - tailFlickT0 > 700) && Math.abs(lean) < 0.004) wantHighFps = false;
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);

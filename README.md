@@ -115,8 +115,10 @@ running the bundled helper, which writes a tiny status file the cat watches
 (`%TEMP%/pixelcat-agent.state`):
 
 ```bash
-node agent-hook.js thinking   # cat shows a thinking "…" bubble
-node agent-hook.js done       # cat does a happy hop
+node agent-hook.js thinking   # thinking "…" bubble
+node agent-hook.js editing    # "working" spinner (also: writing/testing/building/running)
+node agent-hook.js error      # the cat startles (flinch)
+node agent-hook.js done       # happy hop
 node agent-hook.js idle       # back to normal
 ```
 
@@ -136,8 +138,14 @@ full path to `agent-hook.js`):
 }
 ```
 
-Other tools (Codex, Cursor, custom scripts) can call the same helper from their
-own start/finish hooks.
+The cat maps any verb to a reaction category, so natural words work (e.g. a
+PreToolUse hook can send the tool name). Other tools (Codex, Cursor, custom
+scripts) can call the same helper from their own start/finish hooks.
+
+The richer status reactions were inspired by the open-source AI desktop pets
+[openpets](https://github.com/alvinunreal/openpets) (MIT) and
+[clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk) (AGPL-3.0) —
+ideas only; all code here is original to pixelcat.
 
 ## Moods & energy
 

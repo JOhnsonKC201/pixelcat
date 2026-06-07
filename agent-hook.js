@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// Signal the desktop cat about AI-agent work status.
-//   node agent-hook.js thinking   -> cat shows a thinking "..." bubble
-//   node agent-hook.js done       -> cat does a happy hop
-//   node agent-hook.js idle       -> back to normal
+// Signal the desktop cat about AI-agent work status. The cat maps the word to a
+// reaction category, so natural verbs work:
+//   thinking | plan | start      -> thinking "..." bubble
+//   editing | writing | testing | building | running -> "working" spinner
+//   error | failed | denied      -> the cat startles (flinch)
+//   done | stop | complete       -> happy hop
+//   idle                         -> back to normal
 //
 // Wire it to Claude Code hooks (in ~/.claude/settings.json), e.g.:
 //   UserPromptSubmit / PreToolUse -> node <path>/agent-hook.js thinking
