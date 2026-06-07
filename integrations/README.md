@@ -12,6 +12,10 @@ node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" <state>
 `agent-hook.js` is **hook-safe**: it drains stdin and prints `{"continue": true}`,
 so it never blocks or alters your agent — it only nudges the cat.
 
+**Quick setup:** run `node scripts/install-hook.js <agent>` (or `npm run hook -- <agent>`)
+to print the config for your agent with the absolute path already filled in — then
+copy it into the location noted at the top of the output.
+
 ## States (the cat maps natural verbs)
 
 | State word | Cat reaction |

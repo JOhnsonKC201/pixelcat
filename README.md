@@ -138,6 +138,9 @@ Mapping: prompt/submit → `thinking`, tool or file edit → `working`, stop/com
 directories — forward slashes on Windows too). The helper is hook-safe: it drains
 stdin and replies `{"continue": true}`, so it never blocks or alters your agent.
 
+Tip: `node scripts/install-hook.js <agent>` (or `npm run hook -- <agent>`) prints the
+config with the absolute path already filled in.
+
 The richer status reactions were inspired by the open-source AI desktop pets
 [openpets](https://github.com/alvinunreal/openpets) (MIT) and
 [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk) (AGPL-3.0) —
@@ -223,6 +226,16 @@ npm run sheet      # writes previews/contact-sheet.png (poses x coats)
 ```
 
 Single poses still preview via `npx electron . --shot --state=<sit|sleep|typing|hunt|loaf|overheat|pet|startle|work> --pattern=<coat>`.
+
+## Development
+
+```powershell
+npm start                 # run the cat
+npm test                  # smoke tests (node --test)
+npm run sheet             # render previews/contact-sheet.png (every pose x coat)
+npm run hook -- cursor    # print a path-filled agent hook config
+npm run icon              # regenerate the tray + app-tile icons
+```
 
 ## Tech
 

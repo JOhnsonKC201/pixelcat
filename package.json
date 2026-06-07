@@ -15,7 +15,9 @@
     "sheet": "electron . --sheet",
     "icon": "node scripts/make-tray-icon.js && node scripts/make-ico.js && node scripts/make-app-icon.js",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis",
+    "test": "node --test",
+    "hook": "node scripts/install-hook.js"
   },
   "devDependencies": {
     "electron": "^33.0.0",
