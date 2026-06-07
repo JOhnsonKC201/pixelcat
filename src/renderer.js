@@ -1049,7 +1049,8 @@ function draw(t) {
       ctx.save();
       ctx.translate(pos.x + wig, pos.y - hop);
       if (lean) ctx.rotate(lean);
-      ctx.scale(sx, sy);
+      const faceLeft = roamUntil > t && roamFrom && roamTo && roamTo.x < roamFrom.x;   // face where it walks
+      ctx.scale(faceLeft ? -sx : sx, sy);
       ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
       ctx.restore();
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
