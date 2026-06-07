@@ -508,6 +508,7 @@ let paperLen = 0, paperUntil = 0, scrollPulses = 0;
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
 let nextIdleAt = 0, leanTarget = 0, lean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0;
+let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null;   // autonomous wandering
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
 // Comnyang-style productivity layer: settings from main + reminder/break bubble
 let config = null;
@@ -924,6 +925,26 @@ function draw(t) {
       feet.vx += ((ftx - feet.x) * FK - feet.vx * FD) * step; feet.vy += ((fty - feet.y) * FK - feet.vy * FD) * step;
       if (grabbing) feet.vy += 2.2 * step;
       feet.x += feet.vx * step; feet.y += feet.vy * step;
+    }
+    // --- autonomous roaming: a real cat wanders. When calm (not busy/asleep), now
+    // and then stroll to a random spot inside the play area with a little hop-walk.
+    if (nextRoam === 0) nextRoam = t + 15000 + Math.random() * 15000;
+    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && band !== 'sleepy' && agentState === 'idle';
+    if (roamIdle && roamUntil < t && t > nextRoam) {
+      roamFrom = { x: pos.x, y: pos.y };
+      const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
+      const ry = playArea ? (playArea.y + Math.random() * playArea.h) * canvas.height : canvas.height * 0.45 + Math.random() * canvas.height * 0.5;
+      roamTo = { x: zoneClampX(rx), y: zoneClampY(ry) };
+      roamUntil = t + 1500; nextRoam = t + 20000 + Math.random() * 25000; tailFlickT0 = t;
+    }
+    if (roamUntil > t && roamFrom && roamTo) {
+      const e = clamp((t - (roamUntil - 1500)) / 1500, 0, 1);
+      const ease = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;   // easeInOut
+      pos.x = roamFrom.x + (roamTo.x - roamFrom.x) * ease;
+      pos.y = roamFrom.y + (roamTo.y - roamFrom.y) * ease - Math.abs(Math.sin(e * Math.PI * 5)) * 3;   // hop-walk
+      restSprings();
+      if (e >= 1) persistPos();
+      wantHighFps = true;
     }
     const axX = feet.x - head.x, axY = feet.y - head.y, len = Math.hypot(axX, axY) || 1, ang = Math.atan2(axY, axX), ratio = len / SH;
     const speed = Math.hypot(head.vx, head.vy) + Math.hypot(feet.vx, feet.vy);
