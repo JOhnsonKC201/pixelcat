@@ -17,6 +17,7 @@ let cfg = null;                                        // current settings (main
 let themesCache = [];                                  // user-defined custom coats (themes.json)
 let cursorTimer;
 let topTimer;                                          // re-asserts always-on-top
+let settingArea = false, areaTimer = null;             // "set play area (drag)" mode
 let agentTimer;
 let agentWatcher;
 let scheduleTimer;                                     // break-timer + reminder clock
@@ -135,6 +136,7 @@ function createWindow() {
       win.webContents.send('cursor', { x: lx, y: ly });
       lastCurX = lx; lastCurY = ly;
     }
+    if (settingArea) return;   // stay interactive while the user drags the play area
     const over = hot.dragging ||
       (lx >= hot.x && lx <= hot.x + hot.w && ly >= hot.y && ly <= hot.y + hot.h);
     const wantIgnore = !over;
@@ -261,6 +263,8 @@ function rebuildTrayMenu() {
       { label: 'Left third', click: () => persistAndBroadcast({ ...cfg, playArea: { x: 0, y: 0, w: 0.34, h: 1 } }) },
       { label: 'Right third', click: () => persistAndBroadcast({ ...cfg, playArea: { x: 0.66, y: 0, w: 0.34, h: 1 } }) },
       { label: 'Bottom-right', click: () => persistAndBroadcast({ ...cfg, playArea: { x: 0.6, y: 0.55, w: 0.4, h: 0.45 } }) },
+      { type: 'separator' },
+      { label: 'Set play area (drag)…', click: startSetArea },
     ] },
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
@@ -333,6 +337,7 @@ let cleanedUp = false;
 function cleanup() {
   if (cleanedUp) return; cleanedUp = true;
   if (cursorTimer) clearInterval(cursorTimer);
+  if (areaTimer) clearTimeout(areaTimer);
   if (topTimer) clearInterval(topTimer);
   if (agentTimer) clearInterval(agentTimer);
   if (scheduleTimer) clearInterval(scheduleTimer);
@@ -343,6 +348,20 @@ function cleanup() {
 
 // Renderer reports the cat's interactive bbox (overlay-local px) + drag state.
 ipcMain.on('hot', (_e, o) => { if (o) hot = o; });
+function startSetArea() {
+  if (!win || win.isDestroyed()) return;
+  settingArea = true;
+  win.setIgnoreMouseEvents(false);
+  win.webContents.send('setarea:start');
+  clearTimeout(areaTimer);
+  areaTimer = setTimeout(endSetArea, 30000);   // safety: never stay click-capturing forever
+}
+function endSetArea() {
+  settingArea = false;
+  clearTimeout(areaTimer); areaTimer = null;
+  if (win && !win.isDestroyed()) win.setIgnoreMouseEvents(true, { forward: true });
+}
+ipcMain.on('setarea:done', (_e, area) => { endSetArea(); if (area && cfg) persistAndBroadcast({ ...cfg, playArea: area }); });
 ipcMain.on('quit', () => app.quit());
 ipcMain.on('sheet:image', (_e, dataUrl) => {
   try {

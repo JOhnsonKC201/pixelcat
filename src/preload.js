@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('cat', {
   onConfig: sub('config', (cfg) => cfg),
   onThemes: sub('themes', (list) => list),
   onMood: sub('mood', (c) => c),
+  onSetArea: sub('setarea:start'),
   onRemind: sub('remind', (d) => d),
   onBreak: sub('break'),
   setHot: (o) => ipcRenderer.send('hot', o),
@@ -23,4 +24,5 @@ contextBridge.exposeInMainWorld('cat', {
   setPattern: (i) => ipcRenderer.send('settings:save-pattern', i),
   quit: () => ipcRenderer.send('quit'),
   sheetImage: (dataUrl) => ipcRenderer.send('sheet:image', dataUrl),
+  setAreaDone: (area) => ipcRenderer.send('setarea:done', area),
 });

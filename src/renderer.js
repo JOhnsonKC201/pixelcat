@@ -528,6 +528,7 @@ pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 let head = { x: pos.x, y: pos.y - SH, vx: 0, vy: 0 };
 let feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 };
 let grabbing = false;
+let settingArea = false, areaDragStart = null, areaRect = null;   // "set play area (drag)" mode
 let petBurstUntil = 0, downAt = 0, downX = 0, downY = 0;   // click-to-pet
 
 if (window.cat) {
@@ -557,6 +558,7 @@ if (window.cat) {
     else energy = Math.max(energy, 60);   // wake -> playful
     resumeRaf();
   });
+  if (window.cat.onSetArea) window.cat.onSetArea(() => { settingArea = true; areaDragStart = null; areaRect = null; resumeRaf(); });
   if (window.cat.onConfig) window.cat.onConfig((c) => {
     if (!c) return;
     config = c;
@@ -1118,8 +1120,32 @@ function draw(t) {
     blinkUntil = t + (sleepy ? 230 : 120);
     nextBlink = (Math.random() < 0.18) ? t + 360 : t + 2000 + Math.random() * 2800;
   }
+  if (settingArea) drawSetArea();
 }
 function resumeRaf() { if (rafPaused) { rafPaused = false; lastDrawn = 0; requestAnimationFrame(draw); } }
+function rectOf(a, b) { return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) }; }
+function finishSetArea(cancel) {
+  let area = null;
+  if (!cancel && areaRect && areaRect.w > 40 && areaRect.h > 40) {
+    area = { x: areaRect.x / canvas.width, y: areaRect.y / canvas.height, w: areaRect.w / canvas.width, h: areaRect.h / canvas.height };
+  }
+  settingArea = false; areaDragStart = null; areaRect = null;
+  if (window.cat && window.cat.setAreaDone) window.cat.setAreaDone(area);
+}
+function drawSetArea() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(10,12,18,0.30)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (areaRect && areaRect.w > 2 && areaRect.h > 2) {
+    ctx.clearRect(areaRect.x, areaRect.y, areaRect.w, areaRect.h);
+    ctx.strokeStyle = '#e8943c'; ctx.lineWidth = 2; ctx.setLineDash([8, 5]);
+    ctx.strokeRect(areaRect.x, areaRect.y, areaRect.w, areaRect.h); ctx.setLineDash([]);
+  }
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 16px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText("Drag to set the cat's play area  -  Esc or right-click to cancel", canvas.width / 2, 42);
+  ctx.restore();
+  wantHighFps = true;
+}
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (purring) { stopPurr(); purring = false; } }  // draw() won't run to stop it
   else resumeRaf();
@@ -1170,8 +1196,12 @@ if (SHEET) {
 }
 
 // ---- input ------------------------------------------------------------------
-window.addEventListener('mousemove', (e) => { cursor.x = e.clientX; cursor.y = e.clientY; });
+window.addEventListener('mousemove', (e) => {
+  cursor.x = e.clientX; cursor.y = e.clientY;
+  if (settingArea && areaDragStart) areaRect = rectOf(areaDragStart, { x: e.clientX, y: e.clientY });
+});
 window.addEventListener('mousedown', (e) => {
+  if (settingArea) { if (e.button !== 0) { finishSetArea(true); return; } areaDragStart = { x: e.clientX, y: e.clientY }; areaRect = null; resumeRaf(); return; }
   if (e.button !== 0) return;
   cursor.x = e.clientX; cursor.y = e.clientY;
   audio();                                // real gesture: unlock WebAudio for later meows
@@ -1181,6 +1211,7 @@ window.addEventListener('mousedown', (e) => {
   sendHot(cursor.x - SW, cursor.y - SH, SW * 2, SH * 2, true);
 });
 window.addEventListener('mouseup', () => {
+  if (settingArea) { finishSetArea(false); return; }
   if (!grabbing) return;
   grabbing = false;
   const tap = performance.now() - downAt < 220 && Math.hypot(cursor.x - downX, cursor.y - downY) < 6;
@@ -1197,6 +1228,7 @@ window.addEventListener('mouseup', () => {
 });
 // Double-click opens Settings (Quit lives in the tray now).
 window.addEventListener('dblclick', () => { audio(); if (window.cat && window.cat.openSettings) window.cat.openSettings(); });
+window.addEventListener('keydown', (e) => { if (settingArea && e.key === 'Escape') finishSetArea(true); });
 window.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   audio();
