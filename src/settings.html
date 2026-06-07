@@ -89,6 +89,13 @@
   <div class="row check"><input type="checkbox" id="huntOn" /><label for="huntOn">Hunt the cursor when the mouse moves fast</label></div>
   <div class="row check"><input type="checkbox" id="moodOn" /><label for="moodOn">Mood reactions (sleeps when idle, zoomies, startle)</label></div>
   <div class="row check"><input type="checkbox" id="soundOn" /><label for="soundOn">Sound (meow &amp; purr)</label></div>
+  <div class="row">
+    <label class="lbl" for="volume">Sound volume <span class="hint" id="volumeVal"></span></label>
+    <input type="range" id="volume" min="0" max="100" step="5" style="width:100%" />
+  </div>
+  <div class="row check"><input type="checkbox" id="roamOn" /><label for="roamOn">Wander (the cat roams its play area)</label></div>
+  <div class="row check"><input type="checkbox" id="reducedMotion" /><label for="reducedMotion">Reduced motion (calmer: no wandering or bouncing)</label></div>
+  <div class="row"><button class="ghost" id="clearArea">Clear play area (use whole screen)</button></div>
 
   <hr class="hr" />
 

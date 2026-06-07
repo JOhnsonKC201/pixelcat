@@ -562,6 +562,7 @@ if (window.cat) {
   if (window.cat.onConfig) window.cat.onConfig((c) => {
     if (!c) return;
     config = c;
+    if (master) master.gain.value = volNow();
     playArea = c.playArea || null;
     pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y); persistPos();
     if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
@@ -595,10 +596,11 @@ function triggerBreak() {
 }
 
 // ---- procedural sound (WebAudio; no asset files) ---------------------------
-let actx = null;
+let actx = null, master = null;
+function volNow() { return (config && typeof config.volume === 'number' ? config.volume : 100) / 100; }
 function audio() {
   try {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.connect(actx.destination); master.gain.value = volNow(); }
     if (actx.state === 'suspended') actx.resume();
   } catch (e) { actx = null; }
   return actx;
@@ -637,7 +639,7 @@ function playMeow() {
   const sum = ac.createGain(); sum.gain.value = 0.9;
   osc.connect(F1); F1.connect(sum); osc.connect(F2); F2.connect(sum);
   const direct = ac.createGain(); direct.gain.value = 0.22; osc.connect(direct); direct.connect(sum);
-  sum.connect(amp); amp.connect(ac.destination);
+  sum.connect(amp); amp.connect(master);
   osc.start(t0); vib.start(t0); osc.stop(t0 + dur + 0.12); vib.stop(t0 + dur + 0.12);
   osc.onended = () => { try { F1.disconnect(); F2.disconnect(); direct.disconnect(); vibGain.disconnect(); amp.disconnect(); sum.disconnect(); } catch (e) { /* ignore */ } };
 }
@@ -650,7 +652,7 @@ function startPurr() {
   const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 22;
   const lfoGain = ac.createGain(); lfoGain.gain.value = 0.03;
   lfo.connect(lfoGain); lfoGain.connect(amp.gain);
-  carrier.connect(lp); lp.connect(amp); amp.connect(ac.destination);
+  carrier.connect(lp); lp.connect(amp); amp.connect(master);
   carrier.start(); lfo.start();
   purrNodes = { carrier, lfo, amp, lfoGain };
 }
@@ -665,7 +667,7 @@ function stopPurr() {
 // Happy little chirp/trill (AI agent finished a task).
 function playChirp() {
   const ac = audio(); if (!ac) return;
-  const t0 = ac.currentTime, g = ac.createGain(); g.connect(ac.destination);
+  const t0 = ac.currentTime, g = ac.createGain(); g.connect(master);
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(0.13, t0 + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
@@ -680,7 +682,7 @@ function playChirp() {
 // Startled "mrrp" — a short falling growl (sudden jolt / agent error).
 function playMrrp() {
   const ac = audio(); if (!ac) return;
-  const t0 = ac.currentTime, g = ac.createGain(); g.connect(ac.destination);
+  const t0 = ac.currentTime, g = ac.createGain(); g.connect(master);
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.015);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
@@ -931,7 +933,7 @@ function draw(t) {
     // --- autonomous roaming: a real cat wanders. When calm (not busy/asleep), now
     // and then stroll to a random spot inside the play area with a little hop-walk.
     if (nextRoam === 0) nextRoam = t + 15000 + Math.random() * 15000;
-    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && band !== 'sleepy' && agentState === 'idle' && !(config && config.roamOn === false);
+    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && band !== 'sleepy' && agentState === 'idle' && !(config && config.roamOn === false) && !(config && config.reducedMotion);
     if (roamIdle && roamUntil < t && t > nextRoam) {
       roamFrom = { x: pos.x, y: pos.y };
       const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
@@ -967,7 +969,7 @@ function draw(t) {
         else if (roll < 0.74) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
         else if (roll < 0.90) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
-        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
+        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4 && !(config && config.reducedMotion)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
       }
     } else { nextIdleAt = 0; }
     if (lookTarget && t > lookTargetUntil) lookTarget = null;

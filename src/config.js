@@ -19,6 +19,8 @@ const DEFAULTS = {
   moodOn: true,        // energy/mood model (sleepy/calm/playful/zoomies + startle)
   playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
   roamOn: true,        // the cat autonomously wanders its play area
+  volume: 100,         // master sound volume 0-100
+  reducedMotion: false,// calm mode: no roaming/bouncing/screen-glow
   reminders: [],       // [{ id, hhmm: 'HH:MM', message }]
 };
 
@@ -57,6 +59,8 @@ function normalize(cfg) {
     moodOn: c.moodOn === undefined ? true : !!c.moodOn,
     playArea: normArea(c.playArea),
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,
+    volume: clampInt(c.volume, 0, 100, 100),
+    reducedMotion: !!c.reducedMotion,
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;
       const hhmm = String(r.hhmm || '');
