@@ -937,7 +937,7 @@ function draw(t) {
       const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
       const ry = playArea ? (playArea.y + Math.random() * playArea.h) * canvas.height : canvas.height * 0.45 + Math.random() * canvas.height * 0.5;
       roamTo = { x: zoneClampX(rx), y: zoneClampY(ry) };
-      roamUntil = t + 1500; nextRoam = t + 20000 + Math.random() * 25000; tailFlickT0 = t;
+      roamUntil = t + 1500; nextRoam = t + 20000 + Math.random() * 25000; tailFlickT0 = t; loafUntil = 0;
     }
     if (roamUntil > t && roamFrom && roamTo) {
       const e = clamp((t - (roamUntil - 1500)) / 1500, 0, 1);
@@ -955,7 +955,7 @@ function draw(t) {
     const bob = Math.round(Math.sin(t / (typing ? 220 : 600)) * 2);
 
     // --- liveliness: eased gaze + periodic idle micro-actions ---------------
-    const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && agentState === 'idle';
+    const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && roamUntil < t && agentState === 'idle';
     if (restIdle) {
       const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
       if (nextIdleAt === 0) nextIdleAt = t + (2600 + Math.random() * 4200) * idleScale;
