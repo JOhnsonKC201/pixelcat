@@ -122,25 +122,21 @@ node agent-hook.js done       # happy hop
 node agent-hook.js idle       # back to normal
 ```
 
-To wire it to **Claude Code**, add hooks to `~/.claude/settings.json` (use the
-full path to `agent-hook.js`):
+Ready-to-use hook configs for **five agents** live in [`integrations/`](integrations/) —
+copy the one for your agent and replace the path with your checkout:
 
-```jsonc
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node C:/Users/johns/pixelcat/agent-hook.js thinking" }] }
-    ],
-    "Stop": [
-      { "hooks": [{ "type": "command", "command": "node C:/Users/johns/pixelcat/agent-hook.js done" }] }
-    ]
-  }
-}
-```
+| Agent | Setup |
+|-------|-------|
+| **Claude Code** | merge [`integrations/claude-code/settings.hooks.json`](integrations/claude-code/) into `~/.claude/settings.json` |
+| **Codex CLI** | merge [`integrations/codex/config.toml`](integrations/codex/) into `~/.codex/config.toml` |
+| **Cursor** | copy [`integrations/cursor/hooks.json`](integrations/cursor/) to `<project>/.cursor/hooks.json` |
+| **Antigravity** | add hooks to `.agents/hooks.json` — see [`integrations/antigravity/`](integrations/antigravity/) |
+| **Kiro** | add hooks via the Agent Hooks UI — see [`integrations/kiro/`](integrations/kiro/) |
 
-The cat maps any verb to a reaction category, so natural words work (e.g. a
-PreToolUse hook can send the tool name). Other tools (Codex, Cursor, custom
-scripts) can call the same helper from their own start/finish hooks.
+Mapping: prompt/submit → `thinking`, tool or file edit → `working`, stop/complete →
+`done`. Use the **absolute path** to `agent-hook.js` (hooks run from varying
+directories — forward slashes on Windows too). The helper is hook-safe: it drains
+stdin and replies `{"continue": true}`, so it never blocks or alters your agent.
 
 The richer status reactions were inspired by the open-source AI desktop pets
 [openpets](https://github.com/alvinunreal/openpets) (MIT) and
