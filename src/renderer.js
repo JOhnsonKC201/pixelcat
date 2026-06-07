@@ -205,7 +205,7 @@ const HW = spriteHunt.SW, HH = spriteHunt.SH;    // hunt dims
 
 // offscreen buffer big enough for either sprite
 const oc = document.createElement('canvas');
-oc.width = Math.max(SW, HW); oc.height = Math.max(SH, HH);
+oc.width = Math.max(SW, HW, TW); oc.height = Math.max(SH, HH, TH);
 const octx = oc.getContext('2d'); octx.imageSmoothingEnabled = false;
 const HEAD_SRC = 14 * CELL, FEET_SRC = 7 * CELL, MID_SRC = SH - HEAD_SRC - FEET_SRC;
 
@@ -477,7 +477,7 @@ function sendHot(x, y, w, h, dragging) {
 let cursor = { x: 0, y: 0 }, prevCursor = { x: 0, y: 0 }, velEMA = 0;
 let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
-let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null;
+let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let hearts = [], lastHeart = 0;
 let kbChars = [];   // cat-chaos keystrokes floating up from the keyboard
 // stretch reminder (08) + AI-agent thinking/done (10/11)
@@ -607,11 +607,14 @@ function startPurr() {
   lfo.connect(lfoGain); lfoGain.connect(amp.gain);
   carrier.connect(lp); lp.connect(amp); amp.connect(ac.destination);
   carrier.start(); lfo.start();
-  purrNodes = { carrier, lfo, amp };
+  purrNodes = { carrier, lfo, amp, lfoGain };
 }
 function stopPurr() {
   if (!purrNodes) return;
-  try { purrNodes.carrier.stop(); purrNodes.lfo.stop(); } catch (e) { /* ignore */ }
+  try {
+    purrNodes.carrier.stop(); purrNodes.lfo.stop();
+    purrNodes.lfoGain.disconnect(); purrNodes.amp.disconnect();
+  } catch (e) { /* ignore */ }
   purrNodes = null;
 }
 // Happy little chirp/trill (AI agent finished a task).
@@ -828,12 +831,13 @@ function draw(t) {
     if (pouncing) {
       const e = clamp((t - pounceT0) / POUNCE_MS, 0, 1);
       const ease = 1 - Math.pow(1 - e, 2);
-      pos.x = pounceFrom.x + (cursor.x - pounceFrom.x) * ease;
-      pos.y = pounceFrom.y + (cursor.y - pounceFrom.y) * ease;
+      const tgt = pounceTarget || cursor;
+      pos.x = pounceFrom.x + (tgt.x - pounceFrom.x) * ease;
+      pos.y = pounceFrom.y + (tgt.y - pounceFrom.y) * ease;
       leap = Math.sin(e * Math.PI) * 18; stretchY = 1 + Math.sin(e * Math.PI) * 0.18;
       if (e >= 1) { pouncing = false; huntUntil = 0; persistPos(); }
     } else if (FORCED_STATE !== 'hunt' && d < POUNCE_RANGE) {
-      pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y };
+      pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: cursor.x, y: cursor.y };
     } else if (FORCED_STATE !== 'hunt') {
       const mv = Math.min(Math.max(0, d - STANDOFF), HUNT_SPEED * step);
       pos.x += dx / d * mv; pos.y += dy / d * mv;

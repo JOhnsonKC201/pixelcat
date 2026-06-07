@@ -156,7 +156,7 @@ function createWindow() {
   try { lastAgent = fs.readFileSync(AGENT_FILE, 'utf8').trim(); } catch (e) { /* none yet */ }
   try {
     agentWatcher = fs.watch(os.tmpdir(), (_ev, fname) => {
-      if (fname === path.basename(AGENT_FILE)) pushAgent();
+      if (!fname || fname === path.basename(AGENT_FILE)) pushAgent();
     });
   } catch (e) {
     agentTimer = setInterval(pushAgent, 500);
@@ -286,7 +286,8 @@ function tick() {
     if (r.hhmm === hhmm && !firedThisMinute.has(r.id)) {
       firedThisMinute.add(r.id);
       win.webContents.send('remind', { message: nameFill(r.message) });
-    } else if (skipped.has(r.hhmm)) {
+    } else if (skipped.has(r.hhmm) && !firedThisMinute.has(r.id)) {
+      firedThisMinute.add(r.id);
       win.webContents.send('remind', { message: nameFill(r.message) });   // missed during sleep/stall
     }
   }

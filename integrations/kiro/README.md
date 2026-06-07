@@ -1,22 +1,43 @@
 # Kiro → pixelcat
 
-Kiro's agent hooks are created through the **Agent Hooks UI**, not a config file.
+Kiro has two surfaces — the **IDE** (UI hooks) and the **CLI** (config file).
 
-1. Open the **Command Palette** (`Ctrl+Shift+P` / `Cmd+Shift+P`) → **"Kiro: Open
-   Kiro Hook UI"** (or the **Agent Hooks** section in the Kiro panel).
+## Kiro IDE (Agent Hooks UI)
+
+1. Open the **Agent Hooks** panel (or Command Palette `Ctrl/Cmd+Shift+P` →
+   "Kiro: Open Kiro Hook UI").
 2. Click **+** → **Manually create a hook**.
-3. Create three hooks, each with **Action = "Run Command"** and the command set to
-   the matching line (replace the path with your checkout; forward slashes on
-   Windows too):
+3. Create three hooks, each with **Action = "Run Command"** (not "Ask Kiro"):
 
-   | Trigger / event | Command |
-   |-----------------|---------|
-   | User prompt submitted | `node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" thinking` |
-   | After tool invocation | `node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" working` |
-   | Agent turn completed   | `node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" done` |
+   | Trigger | Command |
+   |---------|---------|
+   | **Prompt Submit** | `node "/ABS/PATH/pixelcat/agent-hook.js" thinking` |
+   | **Pre Tool Use** | `node "/ABS/PATH/pixelcat/agent-hook.js" working` |
+   | **Agent Stop** | `node "/ABS/PATH/pixelcat/agent-hook.js" done` |
 
-4. **Create Hook** for each.
+4. **Create Hook** for each. (Timeout defaults to 60s.)
 
-If your Kiro version only exposes file-save / on-demand triggers, a single
-"agent turn completed → done" hook still gives you the happy hop. Docs:
-<https://kiro.dev/docs/hooks/>.
+## Kiro CLI (config file)
+
+CLI hooks live in an agent JSON file — local `.kiro/agents/<name>.json` or global
+`~/.kiro/agents/<name>.json`. Add a `hooks` block:
+
+```json
+"hooks": {
+  "userPromptSubmit": [
+    { "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" thinking" }
+  ],
+  "preToolUse": [
+    { "matcher": "*", "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" working" }
+  ],
+  "stop": [
+    { "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" done" }
+  ]
+}
+```
+
+CLI trigger keys: `agentSpawn`, `userPromptSubmit`, `preToolUse`, `postToolUse`,
+`stop` (there is no model-call hook). `matcher` applies to `preToolUse`/`postToolUse`
+(canonical tool names `fs_read`/`fs_write`/`execute_bash`/`use_aws`, or aliases
+`read`/`write`/`shell`/`aws`). Replace `/ABS/PATH/` with your checkout (forward
+slashes on Windows too). Docs: <https://kiro.dev/docs/hooks/> · <https://kiro.dev/docs/cli/hooks/>.
