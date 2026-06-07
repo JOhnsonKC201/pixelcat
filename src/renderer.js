@@ -639,7 +639,7 @@ function playMeow() {
   const direct = ac.createGain(); direct.gain.value = 0.22; osc.connect(direct); direct.connect(sum);
   sum.connect(amp); amp.connect(ac.destination);
   osc.start(t0); vib.start(t0); osc.stop(t0 + dur + 0.12); vib.stop(t0 + dur + 0.12);
-  osc.onended = () => { try { amp.disconnect(); sum.disconnect(); } catch (e) { /* ignore */ } };
+  osc.onended = () => { try { F1.disconnect(); F2.disconnect(); direct.disconnect(); vibGain.disconnect(); amp.disconnect(); sum.disconnect(); } catch (e) { /* ignore */ } };
 }
 let purrNodes = null;
 function startPurr() {
@@ -1211,7 +1211,7 @@ window.addEventListener('mousedown', (e) => {
   sendHot(cursor.x - SW, cursor.y - SH, SW * 2, SH * 2, true);
 });
 window.addEventListener('mouseup', () => {
-  if (settingArea) { finishSetArea(false); return; }
+  if (settingArea) { if (areaDragStart) finishSetArea(false); return; }
   if (!grabbing) return;
   grabbing = false;
   const tap = performance.now() - downAt < 220 && Math.hypot(cursor.x - downX, cursor.y - downY) < 6;

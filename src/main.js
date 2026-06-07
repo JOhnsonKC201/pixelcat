@@ -349,7 +349,7 @@ function cleanup() {
 // Renderer reports the cat's interactive bbox (overlay-local px) + drag state.
 ipcMain.on('hot', (_e, o) => { if (o) hot = o; });
 function startSetArea() {
-  if (!win || win.isDestroyed()) return;
+  if (!win || win.isDestroyed() || settingArea) return;   // ignore re-clicks while already setting
   settingArea = true;
   win.setIgnoreMouseEvents(false);
   win.webContents.send('setarea:start');
