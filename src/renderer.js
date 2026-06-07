@@ -515,7 +515,7 @@ let bubbleText = '', bubbleUntil = 0;
 let purring = false;
 // Comnyang mood/energy model: 0-100, decays over time, bumped by stimuli. Bands
 // (sleepy/calm/playful/zoomies) gate + scale every behavior; see bandOf()/intensity.
-let energy = 45;
+let energy = 62;
 let startleT0 = -1, startleUntil = 0, startleMode = 'creep', startleFrom = null, startleTo = null, startleCooldownUntil = -9999;
 let zoomiesT0 = -1, prevBand = '';
 
@@ -721,11 +721,11 @@ function drawPaper(cx, topY, len, t) {
 }
 
 // hunt/pet tuning
-const HUNT_TRIGGER = 0.5, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300;
+const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300;
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a calm ~20-30s
 // drift to sleep when nothing is happening, without snoozing the instant you stop.
-const ENERGY_DECAY = 0.0018;
+const ENERGY_DECAY = 0.0012;
 const SLEEPY_MAX = 15, CALM_MAX = 50, PLAYFUL_MAX = 80;
 const STARTLE_VEL = 3.5, STARTLE_JUMP = 320, STARTLE_MS = 820, ZOOMIES_MS = 2500;
 function bandOf(e) { return e <= SLEEPY_MAX ? 'sleepy' : e <= CALM_MAX ? 'calm' : e <= PLAYFUL_MAX ? 'playful' : 'zoomies'; }
@@ -935,15 +935,16 @@ function draw(t) {
     const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && agentState === 'idle';
     if (restIdle) {
       const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
-      if (nextIdleAt === 0) nextIdleAt = t + (4000 + Math.random() * 6000) * idleScale;
+      if (nextIdleAt === 0) nextIdleAt = t + (2600 + Math.random() * 4200) * idleScale;
       if (t > nextIdleAt) {
-        nextIdleAt = t + (5000 + Math.random() * 9000) * idleScale;
+        nextIdleAt = t + (3200 + Math.random() * 6000) * idleScale;
         const roll = Math.random();
         if (roll < 0.40) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
         else if (roll < 0.60) { tailFlickT0 = t; }
         else if (roll < 0.74) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
         else if (roll < 0.90) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
+        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
       }
     } else { nextIdleAt = 0; }
     if (lookTarget && t > lookTargetUntil) lookTarget = null;
