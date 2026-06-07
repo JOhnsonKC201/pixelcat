@@ -202,6 +202,17 @@ const TW = 34 * CELL, TH = 18 * CELL;            // side keyboard-cat dims (per-
 // are built per coat below, once PATTERNS + their builds are defined.
 const SW = 24 * CELL, SH = 30 * CELL;            // sit dims (mochi uses these)
 const HW = spriteHunt.SW, HH = spriteHunt.SH;    // hunt dims
+let playArea = null;   // { x,y,w,h } fractions of the screen; the cat stays inside it
+function zoneClampX(v) {
+  if (!playArea) return clamp(v, 40, canvas.width - 40);
+  const a = playArea.x * canvas.width + SW / 2, b = (playArea.x + playArea.w) * canvas.width - SW / 2;
+  return clamp(v, Math.min(a, b), Math.max(a, b));
+}
+function zoneClampY(v) {
+  if (!playArea) return clamp(v, SH + 10, canvas.height - 10);
+  const a = playArea.y * canvas.height + SH, b = (playArea.y + playArea.h) * canvas.height - 10;
+  return clamp(v, Math.min(a, b), Math.max(a, b));
+}
 
 // offscreen buffer big enough for either sprite
 const oc = document.createElement('canvas');
@@ -512,7 +523,7 @@ let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
 if (SHOT) pos = { x: 130, y: 250 };
 else if (!pos || typeof pos.x !== 'number') pos = { x: canvas.width - 80, y: canvas.height - 80 };
-pos.x = clamp(pos.x, 40, canvas.width - 40); pos.y = clamp(pos.y, SH + 10, canvas.height - 10);
+pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 let head = { x: pos.x, y: pos.y - SH, vx: 0, vy: 0 };
 let feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 };
 let grabbing = false;
@@ -548,6 +559,8 @@ if (window.cat) {
   if (window.cat.onConfig) window.cat.onConfig((c) => {
     if (!c) return;
     config = c;
+    playArea = c.playArea || null;
+    pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y); persistPos();
     if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
     resumeRaf();
   });
@@ -750,13 +763,13 @@ function draw(t) {
     startleMode = Math.random() < 0.5 ? 'bolt' : 'creep';
     startleFrom = { x: pos.x, y: pos.y };
     const left = pos.x < canvas.width / 2;
-    startleTo = { x: left ? 60 : canvas.width - 60, y: clamp(pos.y, SH + 10, canvas.height - 10) };
+    startleTo = { x: left ? zoneClampX(60) : zoneClampX(canvas.width - 60), y: zoneClampY(pos.y) };
     huntUntil = 0; pouncing = false; addEnergy(35);
     if (config && config.soundOn) playMrrp();
   }
   // finalize a finished startle: commit position, reset springs
   if (startleT0 >= 0 && t >= startleUntil) {
-    pos.x = clamp(pos.x, 40, canvas.width - 40); pos.y = clamp(pos.y, SH + 10, canvas.height - 10);
+    pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
     persistPos(); restSprings(); startleT0 = -1;
   }
   if (errorPending) {   // an agent error makes the cat flinch in place (no bolt)
@@ -841,7 +854,7 @@ function draw(t) {
         pos.y = startleFrom.y + (startleTo.y - startleFrom.y) * ease;
       } else { jit = Math.sin(t / 60) * (1 - m) * 3; }                                                     // creep wobble
     }
-    pos.x = clamp(pos.x, 40, canvas.width - 40); pos.y = clamp(pos.y, SH + 10, canvas.height - 10);
+    pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
     restSprings();
     const oy = Math.round(pos.y - SH);
     drawShadow(pos.x, pos.y, 0.16);
@@ -872,7 +885,7 @@ function draw(t) {
       const mv = Math.min(Math.max(0, d - STANDOFF), HUNT_SPEED * step);
       pos.x += dx / d * mv; pos.y += dy / d * mv;
     }
-    pos.x = clamp(pos.x, 30, canvas.width - 30); pos.y = clamp(pos.y, HH + 10, canvas.height - 10);
+    pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
     restSprings();
     const creep = Math.round(Math.sin(t / 90) * 1.5);
     const ox = Math.round(pos.x - HW / 2), oy = Math.round(pos.y - HH) - Math.round(leap);
@@ -1143,7 +1156,7 @@ window.addEventListener('mouseup', () => {
     if (config && config.soundOn) playChirp();
     restSprings();
   } else {
-    pos.x = clamp(head.x, 40, canvas.width - 40); pos.y = clamp(head.y + SH, SH + 10, canvas.height - 10);
+    pos.x = zoneClampX(head.x); pos.y = zoneClampY(head.y + SH);
     persistPos();
   }
   resumeRaf();

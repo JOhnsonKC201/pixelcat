@@ -17,6 +17,7 @@ const DEFAULTS = {
   huntOn: true,        // Comnyang hunts the cursor by default; user-toggleable
   followCursor: true,  // eyes track the cursor; turn off to make the cat ignore it
   moodOn: true,        // energy/mood model (sleepy/calm/playful/zoomies + startle)
+  playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
   reminders: [],       // [{ id, hhmm: 'HH:MM', message }]
 };
 
@@ -33,6 +34,13 @@ const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 let idSeq = 0;
 function makeId() { idSeq += 1; return `r${idSeq.toString(36)}${(idSeq * 2654435761 % 0xffffff).toString(36)}`; }
 
+function normArea(a) {
+  if (!a || typeof a !== "object") return null;
+  const f = (v) => (Number.isFinite(+v) ? Math.max(0, Math.min(1, +v)) : null);
+  const x = f(a.x), y = f(a.y), w = f(a.w), h = f(a.h);
+  if (x == null || y == null || w == null || h == null || w < 0.05 || h < 0.05) return null;
+  return { x, y, w: Math.min(w, 1 - x), h: Math.min(h, 1 - y) };
+}
 // Coerce arbitrary input into the strict schema. Bad reminders are dropped.
 function normalize(cfg) {
   const c = (cfg && typeof cfg === 'object') ? cfg : {};
@@ -46,6 +54,7 @@ function normalize(cfg) {
     huntOn: c.huntOn === undefined ? true : !!c.huntOn,
     followCursor: c.followCursor === undefined ? true : !!c.followCursor,
     moodOn: c.moodOn === undefined ? true : !!c.moodOn,
+    playArea: normArea(c.playArea),
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;
       const hhmm = String(r.hhmm || '');
