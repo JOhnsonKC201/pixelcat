@@ -174,6 +174,39 @@ npx electron . --shot --state=startle --pattern=orange
 
 (writes `_render.png`; existing states `typing/overheat/mochi/pet/hunt/think/done/paper` still work too.)
 
+## Custom coats
+
+Design your own coats in **Settings -> Custom coats -> + Add a custom coat**: pick a
+name, a body build (standard / slender / stocky / fluffy), optional tabby stripes,
+and eight colours (coat, marks, white, patch, eyes, nose, inner ear, outline). Your
+coat shows up in the **Coat** dropdown and the tray menu next to the 12 built-ins.
+
+Custom coats live in `themes.json` in your app-data folder
+(`%APPDATA%/pixelcat/themes.json`) and can be hand-edited too:
+
+```json
+{ "themes": [
+  { "name": "Galaxy", "build": "fluffy", "tabby": false,
+    "coat": "#3b2f63", "mark": "#2a2147", "white": "#c9c0e8", "patch": "#7a5cc0",
+    "eye": "#7fd6ff", "nose": "#e0a0c0", "inner": "#9a7ad0", "outline": "#15101f" } ] }
+```
+
+Every colour role is required and must be a `#rrggbb` hex (invalid themes are
+skipped). Preview one without the overlay: `npx electron . --shot --pattern=galaxy`.
+
+## Build a standalone app
+
+```powershell
+npm run pack    # portable build -> dist/win-unpacked/pixelcat.exe (no installer)
+npm run dist    # Windows installer -> dist/pixelcat Setup <version>.exe
+```
+
+`pack` works out of the box. `dist` (the NSIS installer) needs permission to create
+symlinks while electron-builder unpacks its bundled signing tools — enable **Windows
+Developer Mode** (Settings -> Privacy & security -> For developers) *or* run the build
+from an Administrator terminal once. The native `uiohook-napi` module ships N-API
+prebuilds, so `npmRebuild` is disabled in the build config (no Visual Studio needed).
+
 ## Tech
 
 Electron · HTML canvas · [`uiohook-napi`](https://github.com/SnosMe/uiohook-napi)

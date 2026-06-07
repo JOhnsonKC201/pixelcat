@@ -11,12 +11,42 @@
   },
   "scripts": {
     "start": "electron .",
-    "autostart:off": "electron . --autostart=off"
+    "autostart:off": "electron . --autostart=off",
+    "icon": "node scripts/make-tray-icon.js && node scripts/make-ico.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
   },
   "dependencies": {
     "uiohook-napi": "^1.5.5"
+  },
+  "build": {
+    "appId": "com.johnsonkc.pixelcat",
+    "productName": "pixelcat",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "agent-hook.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "pixelcat"
+    }
   }
 }

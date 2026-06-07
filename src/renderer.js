@@ -251,6 +251,28 @@ if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
 const forcedPattern = qp.get('pattern');
 if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
 
+// Custom coats: layer user-defined palettes (from themes.json, sent by main over
+// IPC) on top of the 12 built-ins, building each one's sit + type sprites at
+// runtime. Re-applied wholesale on every update so add/delete just work.
+const BASE_PATTERNS = PATTERNS.length;
+function applyThemes(list) {
+  PATTERNS.length = BASE_PATTERNS; PATTERN_BUILD.length = BASE_PATTERNS; TABBY.length = BASE_PATTERNS;
+  sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS;
+  for (const th of (Array.isArray(list) ? list : [])) {
+    if (!th || !th.name || !th.coat) continue;
+    const build = BUILDS[th.build] ? th.build : 'standard';
+    PATTERNS.push({ name: th.name, coat: th.coat, mark: th.mark || th.coat, white: th.white || th.coat,
+      patch: th.patch || th.coat, eye: th.eye || '#8bbf5a', nose: th.nose || '#e0888f',
+      inner: th.inner || '#f0b6a0', outline: th.outline || '#222831' });
+    PATTERN_BUILD.push(build);
+    TABBY.push(!!th.tabby);
+    sprites.push(buildSprite(24, 30, () => composeSit({ ...BUILDS[build], tabby: !!th.tabby })));
+    typeSprites.push(buildSprite(30, 20, () => composeTypeSide({ tabby: !!th.tabby, fluff: BUILDS[build].fluff })));
+  }
+  if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
+  if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
+}
+
 // ---- colour helpers ---------------------------------------------------------
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 function lerpHex(a, b, t) { const ca = hexToRgb(a), cb = hexToRgb(b), m = (i) => Math.round(ca[i] + (cb[i] - ca[i]) * t); return `rgb(${m(0)},${m(1)},${m(2)})`; }
@@ -541,6 +563,7 @@ if (window.cat) {
     resumeRaf();
   });
   if (window.cat.onScroll) window.cat.onScroll(() => { scrollPulses++; });
+  if (window.cat.onThemes) window.cat.onThemes((list) => { applyThemes(list); resumeRaf(); });
   if (window.cat.onConfig) window.cat.onConfig((c) => {
     config = c;
     if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);

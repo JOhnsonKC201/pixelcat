@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const config = require('./config');
+const themes = require('./themes');
 const { PATTERN_NAMES } = require('./patterns');
 
 // AI-agent status file: hooks (e.g. Claude Code) write 'thinking' | 'done' here
@@ -13,6 +14,7 @@ let win;                                               // the overlay (the cat)
 let settingsWin = null;                                // settings window (when open)
 let tray = null;
 let cfg = null;                                        // current settings (main = source of truth)
+let themesCache = [];                                  // user-defined custom coats (themes.json)
 let cursorTimer;
 let agentTimer;
 let agentWatcher;
@@ -83,7 +85,7 @@ function createWindow() {
 
   // Push current settings to the overlay as soon as (and every time) it loads,
   // so first paint already has the name / coat / sound+hunt flags.
-  if (!SHOT) win.webContents.on('did-finish-load', () => applyConfigToOverlay());
+  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT) applyConfigToOverlay(); });
 
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
   // (Skipped for --shot previews — a screenshot has no need for a global hook,
@@ -172,6 +174,13 @@ function createWindow() {
 function applyConfigToOverlay() {
   if (win && !win.isDestroyed() && win.webContents) win.webContents.send('config', cfg);
 }
+function sendThemes() {
+  if (win && !win.isDestroyed() && win.webContents) win.webContents.send('themes', themesCache);
+}
+function broadcastThemes() {
+  sendThemes();
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('themes', themesCache);
+}
 // Single choke-point for every config change: persist, then push the new state to
 // the overlay + the settings window + the tray menu so all surfaces stay in sync.
 function persistAndBroadcast(next) {
@@ -199,7 +208,8 @@ function createTray() {
 }
 function rebuildTrayMenu() {
   if (!tray) return;
-  const coatItems = PATTERN_NAMES.map((name, i) => ({
+  const allCoats = PATTERN_NAMES.concat(themesCache.map((t) => t.name));
+  const coatItems = allCoats.map((name, i) => ({
     label: name, type: 'radio', checked: cfg && cfg.pattern === i,
     click: () => persistAndBroadcast({ ...cfg, pattern: i }),
   }));
@@ -298,9 +308,13 @@ ipcMain.on('settings:testSound', () => {
 });
 ipcMain.handle('settings:get', () => cfg);
 ipcMain.handle('settings:save', (_e, partial) => { persistAndBroadcast({ ...cfg, ...(partial || {}) }); return cfg; });
+ipcMain.handle('themes:get', () => themesCache);
+ipcMain.handle('themes:add', (_e, t) => { themesCache = themes.save([...themesCache, t]); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
+ipcMain.handle('themes:delete', (_e, name) => { themesCache = themes.save(themesCache.filter((x) => x.name !== name)); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
 
 app.whenReady().then(() => {
   if (isSecondary) return;
+  themesCache = themes.load();
   if (!SHOT) {
     setAutostart(!process.argv.includes('--autostart=off'));
     if (process.argv.includes('--autostart=off')) { console.log('[autostart disabled]'); return app.quit(); }

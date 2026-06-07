@@ -4,10 +4,28 @@
 const $ = (id) => document.getElementById(id);
 let cfg = null;
 
-// Populate the coat dropdown from the shared name list.
-(window.PATTERN_NAMES || []).forEach((name, i) => {
-  const o = document.createElement('option'); o.value = String(i); o.textContent = name; $('pattern').appendChild(o);
-});
+// Populate the coat dropdown from the built-in names plus any custom coats.
+let themes = [];
+function populateCoats() {
+  const sel = $('pattern'); const cur = sel.value;
+  sel.innerHTML = '';
+  const names = (window.PATTERN_NAMES || []).concat(themes.map((t) => t.name));
+  names.forEach((name, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = name; sel.appendChild(o); });
+  if (cfg) sel.value = String(cfg.pattern || 0); else if (cur) sel.value = cur;
+}
+function renderThemes() {
+  const ul = $('themes'); if (!ul) return; ul.innerHTML = '';
+  if (!themes.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'No custom coats yet.'; ul.appendChild(li); return; }
+  for (const t of themes) {
+    const li = document.createElement('li');
+    const sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = t.coat; sw.style.borderColor = t.outline;
+    const m = document.createElement('span'); m.className = 'm'; m.textContent = t.name + ' · ' + t.build + (t.tabby ? ' · tabby' : '');
+    const x = document.createElement('span'); x.className = 'x'; x.textContent = '✕'; x.title = 'Remove';
+    x.onclick = async () => { themes = await window.settings.deleteTheme(t.name); populateCoats(); renderThemes(); };
+    li.append(sw, m, x); ul.appendChild(li);
+  }
+}
+populateCoats();
 
 function render() {
   if (!cfg) return;
@@ -72,6 +90,22 @@ window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.setti
 window.settings.onConfig((c) => { cfg = c; render(); });
 
 window.settings.get().then((c) => { cfg = c; render(); });
+
+// Custom coats: load + live updates from main.
+window.settings.onThemes((list) => { themes = list || []; populateCoats(); renderThemes(); });
+window.settings.getThemes().then((list) => { themes = list || []; populateCoats(); renderThemes(); });
+$('addTheme').addEventListener('click', async () => {
+  const name = $('tName').value.trim();
+  if (!name) { $('tName').focus(); return; }
+  const t = {
+    name, build: $('tBuild').value, tabby: $('tTabby').checked,
+    coat: $('c_coat').value, mark: $('c_mark').value, white: $('c_white').value, patch: $('c_patch').value,
+    eye: $('c_eye').value, nose: $('c_nose').value, inner: $('c_inner').value, outline: $('c_outline').value,
+  };
+  themes = await window.settings.addTheme(t);
+  $('tName').value = '';
+  populateCoats(); renderThemes();
+});
 
 // --- local meow preview (same synthesis the overlay uses) -------------------
 let actx = null;

@@ -10,7 +10,7 @@
     body {
       background: var(--bg); color: var(--fg);
       font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
-      padding: 16px; user-select: none;
+      padding: 16px; user-select: none; overflow-y: auto;
     }
     h1 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
     h1 .paw { color: var(--accent); }
@@ -47,6 +47,20 @@
     .empty { color: var(--muted); font-size: 12px; font-style: italic; }
     .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
     .hint { color: var(--muted); font-size: 11px; }
+    #themes { list-style: none; margin: 8px 0 0; padding: 0; }
+    #themes li { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; }
+    #themes .sw { width: 16px; height: 16px; border-radius: 4px; border: 2px solid #000; flex: none; }
+    #themes .m { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    #themes .x { color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 15px; }
+    #themes .x:hover { color: #ff6b78; }
+    .theme-add { margin-top: 8px; }
+    .theme-add summary { cursor: pointer; color: var(--accent); font-size: 12px; margin-bottom: 8px; }
+    .t-grid { display: flex; gap: 8px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+    .t-grid input[type=text] { flex: 1; min-width: 110px; }
+    .t-check { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .t-colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+    .t-colors label { display: flex; flex-direction: column; font-size: 10px; color: var(--muted); gap: 2px; }
+    .t-colors input[type=color] { width: 100%; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); cursor: pointer; }
   </style>
 </head>
 <body>
@@ -72,6 +86,37 @@
   <div class="row check"><input type="checkbox" id="huntOn" /><label for="huntOn">Hunt the cursor when the mouse moves fast</label></div>
   <div class="row check"><input type="checkbox" id="moodOn" /><label for="moodOn">Mood reactions (sleeps when idle, zoomies, startle)</label></div>
   <div class="row check"><input type="checkbox" id="soundOn" /><label for="soundOn">Sound (meow &amp; purr)</label></div>
+
+  <hr class="hr" />
+
+  <div class="row">
+    <label class="lbl">Custom coats — design your own and pick it from Coat above</label>
+    <ul id="themes"></ul>
+    <details class="theme-add">
+      <summary>+ Add a custom coat</summary>
+      <div class="t-grid">
+        <input type="text" id="tName" maxlength="24" placeholder="Coat name" />
+        <select id="tBuild">
+          <option value="standard">Standard</option>
+          <option value="slender">Slender</option>
+          <option value="stocky">Stocky</option>
+          <option value="fluffy">Fluffy</option>
+        </select>
+        <label class="t-check"><input type="checkbox" id="tTabby" /> Tabby</label>
+      </div>
+      <div class="t-colors">
+        <label>Coat<input type="color" id="c_coat" value="#8d97ac" /></label>
+        <label>Marks<input type="color" id="c_mark" value="#6f7892" /></label>
+        <label>White<input type="color" id="c_white" value="#f2f4f7" /></label>
+        <label>Patch<input type="color" id="c_patch" value="#8d97ac" /></label>
+        <label>Eyes<input type="color" id="c_eye" value="#8bbf5a" /></label>
+        <label>Nose<input type="color" id="c_nose" value="#e0888f" /></label>
+        <label>Inner ear<input type="color" id="c_inner" value="#f0b6a0" /></label>
+        <label>Outline<input type="color" id="c_outline" value="#2e323d" /></label>
+      </div>
+      <button id="addTheme">Add coat</button>
+    </details>
+  </div>
 
   <hr class="hr" />
 
