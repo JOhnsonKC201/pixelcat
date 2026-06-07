@@ -610,21 +610,33 @@ function voiceFor() {
   return base;
 }
 function playMeow() {
+  // A more realistic meow: a sawtooth glottal source with a pitch contour + vibrato,
+  // shaped by two sweeping vowel formants (an "ee" -> "ow" glide = "mee-ow"). All
+  // synthesized (no audio files); voiceFor() gives each breed its own pitch/length.
   const ac = audio(); if (!ac) return;
-  const t0 = ac.currentTime, g = ac.createGain();
-  g.connect(ac.destination);
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.04);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.30);
-  const v = voiceFor(); let last = null;
-  for (const [type, detune] of [[v.type, 0], ['sine', 6]]) {
-    const o = ac.createOscillator(); o.type = type; o.detune.value = detune;
-    o.frequency.setValueAtTime(620 * v.pitch, t0);
-    o.frequency.linearRampToValueAtTime(720 * v.pitch, t0 + 0.10 * v.dur);
-    o.frequency.linearRampToValueAtTime(520 * v.pitch, t0 + 0.28 * v.dur);
-    o.connect(g); o.start(t0); o.stop(t0 + 0.32 * v.dur); last = o;
-  }
-  if (last) last.onended = () => { try { g.disconnect(); } catch (e) { /* ignore */ } }; // don't leak the gain node
+  const v = voiceFor();
+  const t0 = ac.currentTime, dur = 0.6 * v.dur, f = (hz) => hz * v.pitch;
+  const osc = ac.createOscillator(); osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(f(470), t0);
+  osc.frequency.exponentialRampToValueAtTime(f(840), t0 + dur * 0.30);   // rise (mee)
+  osc.frequency.exponentialRampToValueAtTime(f(430), t0 + dur);          // fall (ow)
+  const vib = ac.createOscillator(); vib.type = 'sine'; vib.frequency.value = 6.5;
+  const vibGain = ac.createGain(); vibGain.gain.value = f(15);
+  vib.connect(vibGain); vibGain.connect(osc.frequency);
+  const amp = ac.createGain();
+  amp.gain.setValueAtTime(0.0001, t0);
+  amp.gain.exponentialRampToValueAtTime(0.24, t0 + 0.05);
+  amp.gain.setValueAtTime(0.22, t0 + dur * 0.6);
+  amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.06);
+  const formant = (f1, f2, q) => { const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q; bp.frequency.setValueAtTime(f1, t0); bp.frequency.linearRampToValueAtTime(f2, t0 + dur); return bp; };
+  const F1 = formant(f(640), f(520), 6);     // F1 glides down
+  const F2 = formant(f(2100), f(950), 9);    // F2 ee(high) -> ow(low): the vowel glide
+  const sum = ac.createGain(); sum.gain.value = 0.9;
+  osc.connect(F1); F1.connect(sum); osc.connect(F2); F2.connect(sum);
+  const direct = ac.createGain(); direct.gain.value = 0.22; osc.connect(direct); direct.connect(sum);
+  sum.connect(amp); amp.connect(ac.destination);
+  osc.start(t0); vib.start(t0); osc.stop(t0 + dur + 0.12); vib.stop(t0 + dur + 0.12);
+  osc.onended = () => { try { amp.disconnect(); sum.disconnect(); } catch (e) { /* ignore */ } };
 }
 let purrNodes = null;
 function startPurr() {
