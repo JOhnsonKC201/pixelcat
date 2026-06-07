@@ -355,13 +355,19 @@ let lLast = false, rLast = false;
 // "Keyboard cat" typing render: the sprawled cat on a little laptop keyboard,
 // the two front keys under its paws pressing alternately; chaos letters float up.
 function renderTypeSprawl(t, palRGB, pal, overheat, blinking, look) {
-  const sp = overheat ? 42 : 80;
+  const sp = overheat ? 36 : 60;
   const lp = Math.max(0, Math.sin(t / sp)), rp = Math.max(0, Math.sin(t / sp + Math.PI));
   const bob = Math.round(Math.sin(t / 260) * 1.0);
   const lift = 11;                                   // raise the cat so the keyboard shows below it
   const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH - lift);
   const kbW = 138, kbH = 17, kbX = Math.round(pos.x - kbW / 2), kbY = Math.round(pos.y - kbH);
   drawShadow(pos.x, pos.y + 2, 0.2, kbW / 2 + 8);
+  const glow = 0.12 + 0.05 * Math.sin(t / 170) + 0.02 * Math.sin(t / 53);
+  const gx = pos.x, gy = pos.y - TH * 0.5 - lift;
+  const grd = ctx.createRadialGradient(gx, gy, 6, gx, gy, TW * 0.55);
+  grd.addColorStop(0, 'rgba(150,200,255,' + glow.toFixed(3) + ')');
+  grd.addColorStop(1, 'rgba(150,200,255,0)');
+  ctx.fillStyle = grd; ctx.fillRect(gx - TW * 0.6, gy - TH * 0.6, TW * 1.2, TH * 1.1);
   ctx.fillStyle = '#23262e'; ctx.fillRect(kbX - 2, kbY + kbH - 5, kbW + 4, 7);       // front lip / base
   ctx.fillStyle = '#3a3f4b'; ctx.fillRect(kbX, kbY, kbW, kbH - 3);                    // deck
   ctx.fillStyle = '#4b515f'; ctx.fillRect(kbX + 2, kbY + 1, kbW - 4, 2);             // top highlight
@@ -923,12 +929,14 @@ function draw(t) {
       drawCat(octx, spriteSleep, t, palRGB, { bob: Math.round(breath * 1.2), blinking: true, look: { x: 0, y: 0 }, eyeMode: 'open' });
       ctx.save();
       ctx.translate(pos.x, pos.y);
-      ctx.scale(1, 1 + breath * 0.02);
+      ctx.scale(1 - breath * 0.012, 1 + breath * 0.035);
       ctx.drawImage(oc, 0, 0, SLW, SLH, -SLW / 2, -SLH, SLW, SLH);
       ctx.restore();
       // closed eye on the tucked head — contrast-adaptive so it reads on any coat
       // wrapped tail drawn over the body (two-tone: outline edge reads on any coat)
       const tpts = [[pos.x + 44, pos.y - 58], [pos.x + 52, pos.y - 34], [pos.x + 40, pos.y - 12], [pos.x + 8, pos.y - 6], [pos.x - 20, pos.y - 12], [pos.x - 34, pos.y - 26], [pos.x - 29, pos.y - 39]];
+      const wag = Math.sin(t / 900) * 5;
+      tpts[tpts.length - 1] = [tpts[tpts.length - 1][0] + wag, tpts[tpts.length - 1][1] - Math.abs(wag) * 0.4];
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       strokeSmooth(tpts, rgbStr(palRGB.O), 9);
       strokeSmooth(tpts, rgbStr(palRGB.C), 5);
@@ -939,6 +947,8 @@ function draw(t) {
       ctx.strokeStyle = lum > 110 ? '#2b2d33' : '#ece6df'; ctx.lineWidth = 2; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.arc(pos.x - 31, pos.y - 34 + Math.round(breath * 1.2), 3.4, Math.PI * 0.12, Math.PI * 0.88); ctx.stroke();
       drawZzz(pos.x - 30, oy + 30, t);
+      const sn = (t % 2800) / 2800;
+      if (sn < 0.45) { ctx.globalAlpha = (0.45 - sn) * 0.7; ctx.fillStyle = '#cdd3e0'; ctx.beginPath(); ctx.arc(pos.x - 40 - sn * 12, pos.y - 30 - sn * 7, 2 + sn * 4, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
       wantHighFps = false;   // napping renders at the idle frame rate
       sendHot(pos.x - SLW / 2 - 6, oy - 6, SLW + 12, SLH + 12, false);
     } else if (typing || FORCED_STATE === 'typing' || FORCED_STATE === 'overheat') {
@@ -975,7 +985,12 @@ function draw(t) {
       if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
       else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
-      if (paperActive && !petting && !stretching) drawPaper(pos.x, pos.y - 36, Math.round(paperLen), t);
+      if (paperActive && !petting && !stretching) {
+        drawPaper(pos.x, pos.y - 36, Math.round(paperLen), t);
+        const bat = Math.sin(t / 110) * 6, bx = pos.x - 13, by = pos.y - 42 + bat;
+        ctx.fillStyle = rgbStr(palRGB.O); ctx.beginPath(); ctx.ellipse(bx, by, 5.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = rgbStr(palRGB.C); ctx.beginPath(); ctx.ellipse(bx, by, 4, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+      }
       if (t < labelUntil) {
         ctx.globalAlpha = Math.min(1, (labelUntil - t) / 300); ctx.font = 'bold 10px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
         const name = P.name, w = ctx.measureText(name).width + 10, bx = pos.x, by = oy + SH + 14;
