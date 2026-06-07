@@ -29,11 +29,13 @@ when you drag it.
   speech bubble** to remind you.
 - **Calls you by name** — tell the cat your name in Settings (or use `{name}` in a
   reminder) and it greets you by it.
-- **Sound** — soft, **procedurally synthesized** meow (reminders/breaks) and purr
-  (while petted). No audio files; toggle in Settings.
-- **Settings + tray** — a system-tray icon (coat picker, break/sound/hunt toggles,
-  Quit) and a settings window (**double-click the cat**) for name, timer, and
-  reminders. Everything persists to `settings.json` in your app-data folder.
+- **Sound** — a **realistic synthesized** meow (a formant "mee-ow" glide with
+  vibrato) whose pitch and length vary by **cat species**, plus purr, chirp, and a
+  startled mrrp. No audio files; toggle in Settings.
+- **Settings + tray** — a system-tray icon (coat picker, **Play area**, break /
+  sound / hunt / mood toggles, Quit) and a settings window (**double-click the cat**)
+  for name, timer, reminders, and custom coats (**with a live preview**). Everything
+  persists to `settings.json` in your app-data folder.
 - **AI agent reactions** — shows a thinking "…" bubble while a coding agent
   (Claude Code, Codex, Cursor, …) is working, and does a happy **hop** when it
   finishes. See [AI agent reactions](#ai-agent-reactions) for setup.
@@ -44,9 +46,10 @@ when you drag it.
   freezes, then bolts or creeps back). Toggle "Mood reactions" in Settings/tray.
 - **Polished pixel art** — white sticker outline (pops on any wallpaper), soft
   top-lit shading, whiskers, ground shadow, sparkly eyes.
-- **Desktop-pet overlay** — a full-screen, transparent, click-through layer, so
-  the cat floats over everything but never blocks your clicks (only the cat itself
-  is interactive).
+- **Desktop-pet overlay** — a full-screen, transparent, click-through layer, so the
+  cat floats over everything but never blocks your clicks (only the cat itself is
+  interactive). It **stays on top of every app** (it re-asserts top-most, even over
+  fullscreen windows), and you can confine it to a **Play area** from the tray.
 - **Starts at login** — registers itself in Windows startup.
 
 ## Controls
@@ -55,10 +58,12 @@ when you drag it.
 |--------|--------------|
 | **Drag** the cat (hold left) | Stretches it like mochi; drops where you release |
 | **Right-click** the cat | Cycles to the next coat pattern |
-| **Rest cursor on its head** | Happy eyes + floating hearts (purr) |
+| **Tap the cat** | A quick pet — happy eyes, hearts, a chirp |
+| **Rest cursor on its head** | Happy eyes + floating hearts + purr |
+| **Rest cursor on its body** | Leans/arches into your hand, tail up, trills |
 | **Type** (any app) | Front-paw tapping; fast typing → overheat |
 | **Double-click** the cat | Opens **Settings** (name, timer, reminders, coat) |
-| **Tray icon** | Settings, Start break now, coat picker, sound/hunt toggles, **Quit** |
+| **Tray icon** | Settings, Start break now, coat picker, **Play area**, sound/hunt/mood toggles, **Quit** |
 
 ## Run
 
