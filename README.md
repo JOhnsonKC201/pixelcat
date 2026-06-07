@@ -215,6 +215,19 @@ More touches: the cat **chirps** when an agent finishes and **mrrps** when start
 (toggle with Sound), and the tray **Mood** submenu has *Sleep now / Zoomies! / Wake up*
 to drive the energy model on demand.
 
+## Visual QA (contact sheet)
+
+Because the overlay is GPU-composited (ordinary screenshots can't capture it), poses
+are reviewed with a one-command **contact sheet**: it renders every pose across all
+coats (built-in + custom) into a single labeled image so a redesign can be checked
+on light *and* dark coats at once.
+
+```powershell
+npm run sheet      # writes previews/contact-sheet.png (poses x coats)
+```
+
+Single poses still preview via `npx electron . --shot --state=<sit|sleep|typing|hunt|loaf|overheat|pet|startle|work> --pattern=<coat>`.
+
 ## Tech
 
 Electron · HTML canvas · [`uiohook-napi`](https://github.com/SnosMe/uiohook-napi)

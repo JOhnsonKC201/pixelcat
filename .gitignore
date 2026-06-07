@@ -16,6 +16,7 @@ _*.png
 _render.png
 _*.js
 _patch.js
+previews/
 .playwright-mcp/
 
 # OS

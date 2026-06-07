@@ -31,11 +31,12 @@ let hot = { x: 0, y: 0, w: 0, h: 0, dragging: false }; // cat's interactive regi
 const stateArg = (process.argv.find((a) => a.startsWith('--state=')) || '').split('=')[1] || '';
 const patternArg = (process.argv.find((a) => a.startsWith('--pattern=')) || '').split('=')[1] || '';
 const SHOT = process.argv.includes('--shot');
+const SHEET = process.argv.includes('--sheet');   // contact-sheet QA capture
 
 // Single-instance: the pet is a singleton (login-launch + a manual start would
 // otherwise spawn two overlays, two keyboard hooks, two cursor loops). Preview
 // (--shot) runs are allowed to coexist with a running pet.
-const isSecondary = !SHOT && !app.requestSingleInstanceLock();
+const isSecondary = !SHOT && !SHEET && !app.requestSingleInstanceLock();
 if (isSecondary) app.quit();
 
 // Launch-at-login (unpackaged): run `electron.exe <appDir>` on login.
@@ -54,9 +55,10 @@ function createWindow() {
     skipTaskbar: true, hasShadow: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   };
-  if (SHOT) {
-    // Small focusable window for screenshot previews (no overlay/click-through).
-    Object.assign(opts, { x: b.x + 80, y: b.y + 80, width: 240, height: 360, focusable: true });
+  if (SHOT || SHEET) {
+    // Small focusable window for previews (no overlay/click-through). The sheet
+    // window stays hidden — it exports its canvas via IPC, not a screen capture.
+    Object.assign(opts, { x: b.x + 80, y: b.y + 80, width: 240, height: 360, focusable: true, show: !SHEET });
   } else {
     // Full-display, click-through overlay; non-focusable so it never steals keys.
     Object.assign(opts, { x: b.x, y: b.y, width: b.width, height: b.height, focusable: false, enableLargerThanScreen: true });
@@ -71,6 +73,7 @@ function createWindow() {
   if (stateArg) params.push(`state=${stateArg}`);
   if (patternArg) params.push(`pattern=${patternArg}`);
   if (SHOT) params.push('shot=1');
+  if (SHEET) params.push('sheet=1');
   win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });
 
   // Log GPU/renderer crashes — and, for the live pet, auto-recover by reloading
@@ -85,12 +88,12 @@ function createWindow() {
 
   // Push current settings to the overlay as soon as (and every time) it loads,
   // so first paint already has the name / coat / sound+hunt flags.
-  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT) applyConfigToOverlay(); });
+  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) applyConfigToOverlay(); });
 
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
   // (Skipped for --shot previews — a screenshot has no need for a global hook,
   // which also avoids a macOS Accessibility prompt for the preview process.)
-  if (!SHOT) {
+  if (!SHOT && !SHEET) {
     try {
       const { uIOhook } = require('uiohook-napi');
       uIOhook.on('keydown', () => { if (win && !win.isDestroyed()) win.webContents.send('keydown'); });
@@ -113,6 +116,8 @@ function createWindow() {
     });
     return;
   }
+
+  if (SHEET) return;   // sheet mode: no cursor loop / hooks / scheduler
 
   // Cursor loop: feed local cursor to the renderer AND drive the click-through
   // toggle from here (main's own loop) so a renderer stall can never leave the
@@ -308,6 +313,16 @@ function cleanup() {
 // Renderer reports the cat's interactive bbox (overlay-local px) + drag state.
 ipcMain.on('hot', (_e, o) => { if (o) hot = o; });
 ipcMain.on('quit', () => app.quit());
+ipcMain.on('sheet:image', (_e, dataUrl) => {
+  try {
+    const b64 = String(dataUrl || '').replace(/^data:image\/png;base64,/, '');
+    const dir = path.join(APP_DIR, 'previews');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'contact-sheet.png'), Buffer.from(b64, 'base64'));
+    console.log('[wrote previews/contact-sheet.png]');
+  } catch (e) { console.log('[sheet-error]', e.message); }
+  app.quit();
+});
 ipcMain.on('settings:open', () => openSettings());
 ipcMain.on('settings:save-pattern', (_e, i) => { if (cfg) persistAndBroadcast({ ...cfg, pattern: i }); });
 ipcMain.on('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close(); });
@@ -340,13 +355,13 @@ ipcMain.handle('themes:import', async () => {
 app.whenReady().then(() => {
   if (isSecondary) return;
   themesCache = themes.load();
-  if (!SHOT) {
+  if (!SHOT && !SHEET) {
     setAutostart(!process.argv.includes('--autostart=off'));
     if (process.argv.includes('--autostart=off')) { console.log('[autostart disabled]'); return app.quit(); }
     cfg = config.load();
   }
   createWindow();
-  if (!SHOT) { createTray(); startScheduler(); }
+  if (!SHOT && !SHEET) { createTray(); startScheduler(); }
 });
 
 // Don't quit just because the settings window closed — the overlay is the app.

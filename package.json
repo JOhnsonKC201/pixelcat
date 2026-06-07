@@ -12,6 +12,7 @@
   "scripts": {
     "start": "electron .",
     "autostart:off": "electron . --autostart=off",
+    "sheet": "electron . --sheet",
     "icon": "node scripts/make-tray-icon.js && node scripts/make-ico.js && node scripts/make-app-icon.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win nsis"
