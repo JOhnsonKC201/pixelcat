@@ -509,6 +509,7 @@ pos.x = clamp(pos.x, 40, canvas.width - 40); pos.y = clamp(pos.y, SH + 10, canva
 let head = { x: pos.x, y: pos.y - SH, vx: 0, vy: 0 };
 let feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 };
 let grabbing = false;
+let petBurstUntil = 0, downAt = 0, downX = 0, downY = 0;   // click-to-pet
 
 if (window.cat) {
   window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; resumeRaf(); });
@@ -766,7 +767,7 @@ function draw(t) {
   // pet detection (cursor resting on the head, slow, not hunting/grabbing)
   const headBox = { x: pos.x - SW / 2, y: pos.y - SH, w: SW, h: SH * 0.42 };
   const inHead = cursor.x >= headBox.x && cursor.x <= headBox.x + headBox.w && cursor.y >= headBox.y && cursor.y <= headBox.y + headBox.h;
-  const petting = FORCED_STATE === 'pet' || (!grabbing && !hunting && !startleActive && inHead && velEMA < 0.25);
+  const petting = FORCED_STATE === 'pet' || t < petBurstUntil || (!grabbing && !hunting && !startleActive && inHead && velEMA < 0.25);
   if (petting) addEnergy(0.6 * step);   // affection nudges mood up toward calm/playful
 
   // purr while petted (only when sound is on); start/stop once on the edge
@@ -1090,13 +1091,23 @@ window.addEventListener('mousedown', (e) => {
   audio();                                // real gesture: unlock WebAudio for later meows
   huntUntil = 0; pouncing = false;        // grabbing cancels a hunt
   grabbing = true;
+  downAt = performance.now(); downX = cursor.x; downY = cursor.y;
   sendHot(cursor.x - SW, cursor.y - SH, SW * 2, SH * 2, true);
 });
 window.addEventListener('mouseup', () => {
   if (!grabbing) return;
   grabbing = false;
-  pos.x = clamp(head.x, 40, canvas.width - 40); pos.y = clamp(head.y + SH, SH + 10, canvas.height - 10);
-  persistPos();
+  const tap = performance.now() - downAt < 220 && Math.hypot(cursor.x - downX, cursor.y - downY) < 6;
+  if (tap) {
+    petBurstUntil = performance.now() + 1200;   // happy eyes + hearts + chirp, stay put
+    addEnergy(15);
+    if (config && config.soundOn) playChirp();
+    restSprings();
+  } else {
+    pos.x = clamp(head.x, 40, canvas.width - 40); pos.y = clamp(head.y + SH, SH + 10, canvas.height - 10);
+    persistPos();
+  }
+  resumeRaf();
 });
 // Double-click opens Settings (Quit lives in the tray now).
 window.addEventListener('dblclick', () => { audio(); if (window.cat && window.cat.openSettings) window.cat.openSettings(); });
