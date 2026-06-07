@@ -18,6 +18,7 @@ const DEFAULTS = {
   followCursor: true,  // eyes track the cursor; turn off to make the cat ignore it
   moodOn: true,        // energy/mood model (sleepy/calm/playful/zoomies + startle)
   playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
+  roamOn: true,        // the cat autonomously wanders its play area
   reminders: [],       // [{ id, hhmm: 'HH:MM', message }]
 };
 
@@ -55,6 +56,7 @@ function normalize(cfg) {
     followCursor: c.followCursor === undefined ? true : !!c.followCursor,
     moodOn: c.moodOn === undefined ? true : !!c.moodOn,
     playArea: normArea(c.playArea),
+    roamOn: c.roamOn === undefined ? true : !!c.roamOn,
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;
       const hhmm = String(r.hhmm || '');

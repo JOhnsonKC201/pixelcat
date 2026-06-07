@@ -929,7 +929,7 @@ function draw(t) {
     // --- autonomous roaming: a real cat wanders. When calm (not busy/asleep), now
     // and then stroll to a random spot inside the play area with a little hop-walk.
     if (nextRoam === 0) nextRoam = t + 15000 + Math.random() * 15000;
-    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && band !== 'sleepy' && agentState === 'idle';
+    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && band !== 'sleepy' && agentState === 'idle' && !(config && config.roamOn === false);
     if (roamIdle && roamUntil < t && t > nextRoam) {
       roamFrom = { x: pos.x, y: pos.y };
       const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
