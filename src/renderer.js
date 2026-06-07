@@ -352,20 +352,24 @@ function catGlyph() {
 
 
 let lLast = false, rLast = false;
-// "Keyboard cat" typing render: the sprawled cat on a little keyboard, the two
-// keys under its forepaws pressing alternately, cat-chaos letters floating up.
+// "Keyboard cat" typing render: the sprawled cat on a little laptop keyboard,
+// the two front keys under its paws pressing alternately; chaos letters float up.
 function renderTypeSprawl(t, palRGB, pal, overheat, blinking, look) {
   const sp = overheat ? 42 : 80;
   const lp = Math.max(0, Math.sin(t / sp)), rp = Math.max(0, Math.sin(t / sp + Math.PI));
   const bob = Math.round(Math.sin(t / 260) * 1.0);
-  const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH);
-  const keyW = 15, keyH = 9, lcx = pos.x - 20, rcx = pos.x + 20, keyTop = pos.y - keyH;
-  const lDep = Math.round(lp * 3), rDep = Math.round(rp * 3);
-  drawShadow(pos.x, pos.y + 2, 0.18, 48);
-  ctx.fillStyle = '#343842';
-  ctx.fillRect(Math.round(lcx - keyW / 2 - 6), Math.round(pos.y - 2), Math.round(rcx - lcx + keyW + 12), 5);
-  drawKey(lcx, keyTop + lDep, keyW, keyH, lp > 0.7);
-  drawKey(rcx, keyTop + rDep, keyW, keyH, rp > 0.7);
+  const lift = 11;                                   // raise the cat so the keyboard shows below it
+  const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH - lift);
+  const kbW = 138, kbH = 17, kbX = Math.round(pos.x - kbW / 2), kbY = Math.round(pos.y - kbH);
+  drawShadow(pos.x, pos.y + 2, 0.2, kbW / 2 + 8);
+  ctx.fillStyle = '#23262e'; ctx.fillRect(kbX - 2, kbY + kbH - 5, kbW + 4, 7);       // front lip / base
+  ctx.fillStyle = '#3a3f4b'; ctx.fillRect(kbX, kbY, kbW, kbH - 3);                    // deck
+  ctx.fillStyle = '#4b515f'; ctx.fillRect(kbX + 2, kbY + 1, kbW - 4, 2);             // top highlight
+  ctx.fillStyle = '#2b2f39';                                                          // suggested key dents
+  for (let r = 0; r < 2; r++) for (let kx = kbX + 6; kx < kbX + kbW - 9; kx += 11) ctx.fillRect(kx, kbY + 3 + r * 5, 8, 3);
+  const lcx = pos.x - 22, rcx = pos.x + 22, keyTop = kbY - 3;
+  drawKey(lcx, keyTop + Math.round(lp * 3), 15, 9, lp > 0.7);
+  drawKey(rcx, keyTop + Math.round(rp * 3), 15, 9, rp > 0.7);
   const typeSp = typeSprites[patternIndex];
   octx.clearRect(0, 0, oc.width, oc.height);
   drawCat(octx, typeSp, t, palRGB, { bob, blinking, look });
@@ -421,6 +425,17 @@ function drawWorkBubble(x, y, t) {
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
+}
+// Stroke a smooth curve through points (quadratic via segment midpoints).
+function strokeSmooth(pts, style, width) {
+  ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2;
+    ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
+  }
+  ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+  ctx.stroke();
 }
 // Sleepy "z z z" drifting up from the head while the cat naps.
 function drawZzz(x, y, t) {
@@ -910,10 +925,8 @@ function draw(t) {
       // wrapped tail drawn over the body (two-tone: outline edge reads on any coat)
       const tpts = [[pos.x + 44, pos.y - 58], [pos.x + 52, pos.y - 34], [pos.x + 40, pos.y - 12], [pos.x + 8, pos.y - 6], [pos.x - 20, pos.y - 12], [pos.x - 34, pos.y - 26], [pos.x - 29, pos.y - 39]];
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.strokeStyle = rgbStr(palRGB.O); ctx.lineWidth = 9;
-      ctx.beginPath(); ctx.moveTo(tpts[0][0], tpts[0][1]); for (const q of tpts) ctx.lineTo(q[0], q[1]); ctx.stroke();
-      ctx.strokeStyle = rgbStr(palRGB.C); ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(tpts[0][0], tpts[0][1]); for (const q of tpts) ctx.lineTo(q[0], q[1]); ctx.stroke();
+      strokeSmooth(tpts, rgbStr(palRGB.O), 9);
+      strokeSmooth(tpts, rgbStr(palRGB.C), 5);
       const ttip = tpts[tpts.length - 1];
       ctx.fillStyle = rgbStr(palRGB.O); ctx.beginPath(); ctx.arc(ttip[0], ttip[1], 4, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = rgbStr(palRGB.W); ctx.beginPath(); ctx.arc(ttip[0], ttip[1], 2.4, 0, Math.PI * 2); ctx.fill();
