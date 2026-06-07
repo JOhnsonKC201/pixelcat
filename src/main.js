@@ -180,11 +180,19 @@ function createWindow() {
   // (and reclaim the very top with moveTop).
   const reassertTop = () => {
     if (!win || win.isDestroyed()) return;
-    try { win.setAlwaysOnTop(true, 'screen-saver'); win.moveTop(); } catch (e) { /* ignore */ }
+    try {
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      win.moveTop();
+    } catch (e) { /* ignore */ }
   };
-  topTimer = setInterval(reassertTop, 1500);
+  reassertTop();                                  // claim the top immediately
+  topTimer = setInterval(reassertTop, 800);       // and hold it aggressively
   win.on('blur', reassertTop);
+  win.on('show', reassertTop);
+  win.webContents.on('did-finish-load', reassertTop);
   screen.on('display-metrics-changed', reassertTop);
+  screen.on('display-added', reassertTop);
 }
 
 // ---- settings: load, broadcast, persist ------------------------------------
