@@ -854,8 +854,8 @@ function draw(t) {
       wantHighFps = false;   // napping renders at the idle frame rate
       sendHot(pos.x - SLW / 2 - 6, oy - 6, SLW + 12, SLH + 12, false);
     } else if (typing || FORCED_STATE === 'typing' || FORCED_STATE === 'overheat') {
-      // Cat kneads a big two-key keyboard, paws pressing left/right alternately,
-      // mashing out pure cat-chaos (asdf jkl;) that floats up from the keys.
+      // Side "keyboard cat": stands in profile on the keyboard, front paws tapping
+      // the keys, mashing out cat-chaos (asdf jkl;) that floats up.
       renderTypeSide(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - SW / 2 - 6, pos.y - TH - 6, SW + 12, TH + 24, false);
     } else if (!grabbing && (calm || petting || stretching || thinking || hopActive || paperActive)) {
