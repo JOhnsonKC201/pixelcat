@@ -518,7 +518,7 @@ let purring = false;
 // (sleepy/calm/playful/zoomies) gate + scale every behavior; see bandOf()/intensity.
 let energy = 62;
 let startleT0 = -1, startleUntil = 0, startleMode = 'creep', startleFrom = null, startleTo = null, startleCooldownUntil = -9999;
-let zoomiesT0 = -1, prevBand = '';
+let zoomiesT0 = -1, prevBand = '', spinUntil = 0;
 
 let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
@@ -767,7 +767,7 @@ function draw(t) {
   if (moodOn) {
     if (band === 'zoomies') { if (zoomiesT0 < 0) zoomiesT0 = t; if (t - zoomiesT0 > ZOOMIES_MS) { energy = 8; zoomiesT0 = -1; } }
     else zoomiesT0 = -1;
-    if (band !== prevBand) { tailFlickT0 = t; prevBand = band; }   // ear/tail beat on a mood shift
+    if (band !== prevBand) { if (prevBand === 'sleepy') stretchT0 = t; tailFlickT0 = t; prevBand = band; }   // ear/tail beat + a big stretch on waking
   }
 
   if (keyPulse) { lastKeyAt = t; heat = Math.min(1, heat + 0.12); keyPulse = false; addEnergy(6); }
@@ -970,6 +970,7 @@ function draw(t) {
         else if (roll < 0.90) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
         if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4 && !(config && config.reducedMotion)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
+        if (band === 'zoomies' && Math.random() < 0.3 && !(config && config.reducedMotion)) spinUntil = t + 650;   // tail-chase pirouette
       }
     } else { nextIdleAt = 0; }
     if (lookTarget && t > lookTargetUntil) lookTarget = null;
@@ -1051,6 +1052,7 @@ function draw(t) {
       ctx.save();
       ctx.translate(pos.x + wig, pos.y - hop);
       if (lean) ctx.rotate(lean);
+      if (spinUntil > t) ctx.rotate((1 - (spinUntil - t) / 650) * Math.PI * 2);   // tail-chase spin
       const faceLeft = roamUntil > t && roamFrom && roamTo && roamTo.x < roamFrom.x;   // face where it walks
       ctx.scale(faceLeft ? -sx : sx, sy);
       ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
