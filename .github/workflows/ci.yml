@@ -16,3 +16,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  boot:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:boot   # launches the real app (--shot) and asserts it renders
