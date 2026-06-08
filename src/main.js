@@ -47,16 +47,8 @@ function setAutostart(enabled) {
   app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath, args: enabled ? [APP_DIR] : [] });
 }
 
-function unionBounds() {
-  // bounding box of ALL displays, so the cat can roam across monitors. With a
-  // single display this equals that display (no behaviour change).
-  const ds = screen.getAllDisplays();
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const d of ds) { const r = d.bounds; x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y); x1 = Math.max(x1, r.x + r.width); y1 = Math.max(y1, r.y + r.height); }
-  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
-}
 function createWindow() {
-  const b = unionBounds(); // span all displays, so the cat can stretch/roam anywhere
+  const b = screen.getPrimaryDisplay().bounds; // laptop / primary display only (no extended screen)
   origin = { x: b.x, y: b.y };
 
   const opts = {
@@ -172,11 +164,11 @@ function createWindow() {
     agentTimer = setInterval(pushAgent, 500);
   }
 
-  // Keep the overlay matched to ALL displays on resolution/DPI/monitor changes,
+  // Keep the overlay matched to the primary (laptop) display on resolution/DPI changes,
   // so the cat never ends up clipped or with a broken cursor→canvas mapping.
   const refit = () => {
     if (!win || win.isDestroyed()) return;
-    const d = unionBounds();
+    const d = screen.getPrimaryDisplay().bounds;
     origin = { x: d.x, y: d.y };
     win.setBounds({ x: d.x, y: d.y, width: d.width, height: d.height });
   };
