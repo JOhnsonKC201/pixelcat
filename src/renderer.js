@@ -225,6 +225,31 @@ function catGlyph() {
 
 
 let lLast = false, rLast = false;
+// A glowing laptop screen with animated, syntax-coloured "code" lines + a blinking
+// cursor — drawn behind the cat so it reads as a cat coding at a laptop.
+function drawTypeScreen(t, cx, topY, w, h) {
+  const x = Math.round(cx - w / 2), y = Math.round(topY);
+  const gl = ctx.createRadialGradient(cx, y + h * 0.45, 6, cx, y + h * 0.45, w * 0.75);
+  gl.addColorStop(0, 'rgba(120,200,255,0.22)'); gl.addColorStop(1, 'rgba(120,200,255,0)');
+  ctx.fillStyle = gl; ctx.fillRect(cx - w, y - 12, w * 2, h + 34);
+  ctx.fillStyle = '#15181f'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill();
+  ctx.strokeStyle = '#2c313c'; ctx.lineWidth = 1; ctx.stroke();
+  const ix = x + 5, iy = y + 5, iw = w - 10, ih = h - 10;
+  const sg = ctx.createLinearGradient(0, iy, 0, iy + ih); sg.addColorStop(0, '#13343f'); sg.addColorStop(1, '#0b2029');
+  ctx.fillStyle = sg; ctx.fillRect(ix, iy, iw, ih);
+  const cols = ['#9ccc65', '#7fd6ff', '#e8c06a', '#e0a0c0', '#8aa0b8'];
+  const step = Math.floor(t / 280);
+  let ly = iy + 4;
+  for (let i = 0; i < 5 && ly < iy + ih - 5; i++) {
+    const indent = (i === 2 || i === 3) ? 7 : 0;
+    const len = 10 + ((i * 5 + step) % 5) * 5;
+    ctx.fillStyle = cols[(i + step) % cols.length]; ctx.globalAlpha = 0.9;
+    ctx.fillRect(ix + 4 + indent, ly, Math.min(len, iw - 8 - indent), 3);
+    ly += 6;
+  }
+  ctx.globalAlpha = 1;
+  if (Math.floor(t / 450) % 2 === 0) { ctx.fillStyle = '#dff0ff'; ctx.fillRect(ix + 4, iy + ih - 7, 2, 5); }
+}
 // "Keyboard cat" typing render: the sprawled cat on a little laptop keyboard,
 // the two front keys under its paws pressing alternately; chaos letters float up.
 function renderTypeSprawl(t, palRGB, pal, overheat, blinking, look) {
@@ -235,15 +260,10 @@ function renderTypeSprawl(t, palRGB, pal, overheat, blinking, look) {
   const ox = Math.round(pos.x - TW / 2), oy = Math.round(pos.y - TH - lift);
   const kbW = 138, kbH = 17, kbX = Math.round(pos.x - kbW / 2), kbY = Math.round(pos.y - kbH);
   drawShadow(pos.x, pos.y + 2, 0.2, kbW / 2 + 8);
-  const glow = 0.12 + 0.05 * Math.sin(t / 170) + 0.02 * Math.sin(t / 53);
-  const gx = pos.x, gy = pos.y - TH * 0.5 - lift;
-  const grd = ctx.createRadialGradient(gx, gy, 6, gx, gy, TW * 0.55);
-  grd.addColorStop(0, 'rgba(150,200,255,' + glow.toFixed(3) + ')');
-  grd.addColorStop(1, 'rgba(150,200,255,0)');
-  ctx.fillStyle = grd; ctx.fillRect(gx - TW * 0.6, gy - TH * 0.6, TW * 1.2, TH * 1.1);
-  ctx.fillStyle = '#23262e'; ctx.fillRect(kbX - 2, kbY + kbH - 5, kbW + 4, 7);       // front lip / base
-  ctx.fillStyle = '#3a3f4b'; ctx.fillRect(kbX, kbY, kbW, kbH - 3);                    // deck
-  ctx.fillStyle = '#4b515f'; ctx.fillRect(kbX + 2, kbY + 1, kbW - 4, 2);             // top highlight
+  drawTypeScreen(t, pos.x, oy - 26, 104, 62);                                         // glowing screen behind the cat
+  ctx.fillStyle = '#23262e'; ctx.beginPath(); ctx.roundRect(kbX - 3, kbY + kbH - 6, kbW + 6, 9, 3); ctx.fill();   // base lip
+  ctx.fillStyle = '#3a3f4b'; ctx.beginPath(); ctx.roundRect(kbX, kbY, kbW, kbH - 3, 3); ctx.fill();               // deck
+  ctx.fillStyle = '#4b515f'; ctx.fillRect(kbX + 3, kbY + 1, kbW - 6, 2);                                          // top highlight
   ctx.fillStyle = '#2b2f39';                                                          // suggested key dents
   for (let r = 0; r < 2; r++) for (let kx = kbX + 6; kx < kbX + kbW - 9; kx += 11) ctx.fillRect(kx, kbY + 3 + r * 5, 8, 3);
   const lcx = pos.x - 22, rcx = pos.x + 22, keyTop = kbY - 3;
