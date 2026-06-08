@@ -2,6 +2,8 @@
 
 ![CI](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml/badge.svg)
 
+![pixelcat — every pose across every coat](assets/showcase.png)
+
 A cute pixel cat that lives on your Windows desktop — a from-scratch desktop pet
 inspired by Comnyang. Built with Electron. The cat sits in the corner, follows
 your cursor, reacts when you type, purrs when you pet it, and stretches like mochi
