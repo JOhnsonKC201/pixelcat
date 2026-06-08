@@ -6,10 +6,10 @@
 const canvas = document.getElementById('cat');
 const ctx = canvas.getContext('2d');
 const qp = new URLSearchParams(location.search);
-const SHOT = qp.get('shot') === '1';
+const SHOT = qp.get('shot') === '1';
 const SHEET = qp.get('sheet') === '1';   // contact-sheet QA mode (all poses x coats)
 const FORCED_STATE = qp.get('state');
-function resize() {
+function resize() {
   if (SHEET) return;   // the contact sheet sizes its own canvas
   if (SHOT) { canvas.width = 260; canvas.height = 320; }
   else { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -70,25 +70,25 @@ function composeTypeSprawl(B) {
   ellipse(11, 13, 2.2, 2.0, 'X', ['C', 'K']); ellipse(23, 13, 2.2, 2.0, 'X', ['C', 'K']);
 }
 
-// --- sleeping curl: a tight ROUND ball with the tail wrapped over the face ----
-// Round body silhouette, head tucked low-left, tail sweeping around the front to
-// rest by the nose. Eyes are closed (drawn as an adaptive arc in the sleep branch
-// + sheet so they read on any coat); 'E' marks the spot but renders as coat.
-function composeSleepCurl() {
-  ellipse(13, 11, 9.6, 8, 'C');                          // round curled body
-  ellipse(6.6, 13.6, 4.5, 3.9, 'C');                     // head tucked low at the front-left
-  // folded ears on top of the tucked head
-  triangle(3.6, 10.6, 2.3, 13.2, 5.5, 12.7, 'K');
-  triangle(8.4, 10.4, 7.0, 13.0, 10.0, 12.8, 'K');
-  triangle(3.8, 11.2, 3.0, 12.9, 4.9, 12.6, 'I');
-  triangle(8.3, 11.0, 7.5, 12.7, 9.2, 12.6, 'I');
-  // tail: from the back-right, around the bottom, curling up the front to the nose
-  0; /* wrapped tail drawn dynamically */
-  0;              // tail tip resting by the face
-  ellipse(5.2, 15.2, 2.0, 1.5, 'W', ['C']);              // white chin / tucked paw
-  ellipse(5.9, 13.3, 1.1, 0.9, 'E');                     // closed eye marker
-  setCell(4, 14, 'N');                                   // nose
-  ellipse(15, 11.5, 2.6, 2.4, 'X', ['C']);               // patch so tortie/calico read
+// --- sleeping curl: a tight ROUND ball with the tail wrapped over the face ----
+// Round body silhouette, head tucked low-left, tail sweeping around the front to
+// rest by the nose. Eyes are closed (drawn as an adaptive arc in the sleep branch
+// + sheet so they read on any coat); 'E' marks the spot but renders as coat.
+function composeSleepCurl() {
+  ellipse(13, 11, 9.6, 8, 'C');                          // round curled body
+  ellipse(6.6, 13.6, 4.5, 3.9, 'C');                     // head tucked low at the front-left
+  // folded ears on top of the tucked head
+  triangle(3.6, 10.6, 2.3, 13.2, 5.5, 12.7, 'K');
+  triangle(8.4, 10.4, 7.0, 13.0, 10.0, 12.8, 'K');
+  triangle(3.8, 11.2, 3.0, 12.9, 4.9, 12.6, 'I');
+  triangle(8.3, 11.0, 7.5, 12.7, 9.2, 12.6, 'I');
+  // tail: from the back-right, around the bottom, curling up the front to the nose
+  0; /* wrapped tail drawn dynamically */
+  0;              // tail tip resting by the face
+  ellipse(5.2, 15.2, 2.0, 1.5, 'W', ['C']);              // white chin / tucked paw
+  ellipse(5.9, 13.3, 1.1, 0.9, 'E');                     // closed eye marker
+  setCell(4, 14, 'N');                                   // nose
+  ellipse(15, 11.5, 2.6, 2.4, 'X', ['C']);               // patch so tortie/calico read
 }
 
 const spriteHunt = buildSprite(30, 20, composeHunt);
@@ -477,33 +477,28 @@ function voiceFor() {
   return base;
 }
 function playMeow() {
-  // A more realistic meow: a sawtooth glottal source with a pitch contour + vibrato,
-  // shaped by two sweeping vowel formants (an "ee" -> "ow" glide = "mee-ow"). All
-  // synthesized (no audio files); voiceFor() gives each breed its own pitch/length.
+  // A soft, cute "mew": a gentle triangle tone with a rise-then-fall pitch contour,
+  // light vibrato, and a low-pass to keep it warm (not buzzy). Synthesized (no audio
+  // files); voiceFor() gives each breed its own pitch/length.
   const ac = audio(); if (!ac) return;
   const v = voiceFor();
-  const t0 = ac.currentTime, dur = 0.6 * v.dur, f = (hz) => hz * v.pitch;
-  const osc = ac.createOscillator(); osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(f(470), t0);
-  osc.frequency.exponentialRampToValueAtTime(f(840), t0 + dur * 0.30);   // rise (mee)
-  osc.frequency.exponentialRampToValueAtTime(f(430), t0 + dur);          // fall (ow)
-  const vib = ac.createOscillator(); vib.type = 'sine'; vib.frequency.value = 6.5;
-  const vibGain = ac.createGain(); vibGain.gain.value = f(15);
-  vib.connect(vibGain); vibGain.connect(osc.frequency);
+  const t0 = ac.currentTime, dur = 0.42 * v.dur, f = (hz) => hz * v.pitch;
+  const o = ac.createOscillator(); o.type = 'triangle';
+  o.frequency.setValueAtTime(f(500), t0);
+  o.frequency.linearRampToValueAtTime(f(720), t0 + dur * 0.40);   // "mee"
+  o.frequency.linearRampToValueAtTime(f(470), t0 + dur);          // "ow"
+  const vib = ac.createOscillator(); vib.type = 'sine'; vib.frequency.value = 7;
+  const vibGain = ac.createGain(); vibGain.gain.value = f(7);
+  vib.connect(vibGain); vibGain.connect(o.frequency);
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f(2600); lp.Q.value = 0.6;
   const amp = ac.createGain();
   amp.gain.setValueAtTime(0.0001, t0);
-  amp.gain.exponentialRampToValueAtTime(0.24, t0 + 0.05);
-  amp.gain.setValueAtTime(0.22, t0 + dur * 0.6);
+  amp.gain.exponentialRampToValueAtTime(0.2, t0 + 0.05);
+  amp.gain.setValueAtTime(0.18, t0 + dur * 0.55);
   amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.06);
-  const formant = (f1, f2, q) => { const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q; bp.frequency.setValueAtTime(f1, t0); bp.frequency.linearRampToValueAtTime(f2, t0 + dur); return bp; };
-  const F1 = formant(f(640), f(520), 6);     // F1 glides down
-  const F2 = formant(f(2100), f(950), 9);    // F2 ee(high) -> ow(low): the vowel glide
-  const sum = ac.createGain(); sum.gain.value = 0.9;
-  osc.connect(F1); F1.connect(sum); osc.connect(F2); F2.connect(sum);
-  const direct = ac.createGain(); direct.gain.value = 0.22; osc.connect(direct); direct.connect(sum);
-  sum.connect(amp); amp.connect(master);
-  osc.start(t0); vib.start(t0); osc.stop(t0 + dur + 0.12); vib.stop(t0 + dur + 0.12);
-  osc.onended = () => { try { F1.disconnect(); F2.disconnect(); direct.disconnect(); vibGain.disconnect(); amp.disconnect(); sum.disconnect(); } catch (e) { /* ignore */ } };
+  o.connect(lp); lp.connect(amp); amp.connect(master);
+  o.start(t0); vib.start(t0); o.stop(t0 + dur + 0.1); vib.stop(t0 + dur + 0.1);
+  o.onended = () => { try { lp.disconnect(); amp.disconnect(); vibGain.disconnect(); } catch (e) { /* ignore */ } };
 }
 let purrNodes = null;
 function startPurr() {
@@ -825,11 +820,11 @@ function draw(t) {
       if (nextIdleAt === 0) nextIdleAt = t + (2600 + Math.random() * 4200) * idleScale;
       if (t > nextIdleAt) {
         nextIdleAt = t + (3200 + Math.random() * 6000) * idleScale;
-        const roll = Math.random();
-        if (roll < 0.40) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
-        else if (roll < 0.60) { tailFlickT0 = t; }
-        else if (roll < 0.74) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
-        else if (roll < 0.90) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
+        const roll = Math.random();
+        if (roll < 0.40) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
+        else if (roll < 0.60) { tailFlickT0 = t; }
+        else if (roll < 0.74) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
+        else if (roll < 0.90) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
         if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4 && !(config && config.reducedMotion)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
         if (band === 'zoomies' && Math.random() < 0.3 && !(config && config.reducedMotion)) spinUntil = t + 650;   // tail-chase pirouette
@@ -869,7 +864,7 @@ function draw(t) {
       ctx.scale(1 - breath * 0.012, 1 + breath * 0.035);
       ctx.drawImage(oc, 0, 0, SLW, SLH, -SLW / 2, -SLH, SLW, SLH);
       ctx.restore();
-      // closed eye on the tucked head — contrast-adaptive so it reads on any coat
+      // closed eye on the tucked head — contrast-adaptive so it reads on any coat
       // wrapped tail drawn over the body (two-tone: outline edge reads on any coat)
       const tpts = [[pos.x + 44, pos.y - 58], [pos.x + 52, pos.y - 34], [pos.x + 40, pos.y - 12], [pos.x + 8, pos.y - 6], [pos.x - 20, pos.y - 12], [pos.x - 34, pos.y - 26], [pos.x - 29, pos.y - 39]];
       const wag = Math.sin(t / 900) * 5;
@@ -880,9 +875,9 @@ function draw(t) {
       const ttip = tpts[tpts.length - 1];
       ctx.fillStyle = rgbStr(palRGB.O); ctx.beginPath(); ctx.arc(ttip[0], ttip[1], 4, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = rgbStr(palRGB.W); ctx.beginPath(); ctx.arc(ttip[0], ttip[1], 2.4, 0, Math.PI * 2); ctx.fill();
-      const lum = 0.299 * palRGB.C[0] + 0.587 * palRGB.C[1] + 0.114 * palRGB.C[2];
-      ctx.strokeStyle = lum > 110 ? '#2b2d33' : '#ece6df'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(pos.x - 31, pos.y - 34 + Math.round(breath * 1.2), 3.4, Math.PI * 0.12, Math.PI * 0.88); ctx.stroke();
+      const lum = 0.299 * palRGB.C[0] + 0.587 * palRGB.C[1] + 0.114 * palRGB.C[2];
+      ctx.strokeStyle = lum > 110 ? '#2b2d33' : '#ece6df'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(pos.x - 31, pos.y - 34 + Math.round(breath * 1.2), 3.4, Math.PI * 0.12, Math.PI * 0.88); ctx.stroke();
       drawZzz(pos.x - 30, oy + 30, t);
       const sn = (t % 2800) / 2800;
       if (sn < 0.45) { ctx.globalAlpha = (0.45 - sn) * 0.7; ctx.fillStyle = '#cdd3e0'; ctx.beginPath(); ctx.arc(pos.x - 40 - sn * 12, pos.y - 30 - sn * 7, 2 + sn * 4, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
@@ -894,13 +889,13 @@ function draw(t) {
       renderTypeSprawl(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - SW / 2 - 6, pos.y - TH - 6, SW + 12, TH + 24, false);
     } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive || FORCED_STATE === 'loaf')) {
-      const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
+      const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
       const loafing = FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil);
       const wig = (petting ? Math.round(Math.sin(t / 55)) : 0) + idleSway;
       const emode = (petting || stretching || loafing) ? 'happy' : 'open';
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : smoothLook;
       const breath = Math.sin(t / 1500);                              // gentle breathing
-      let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
+      let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (loafing) { sx *= 1.2; sy *= 0.6; }   // squished, content loaf
       if (stretching) {
         const se = FORCED_STATE === 'stretch' ? ((t % STRETCH_MS) / STRETCH_MS) : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
@@ -1017,51 +1012,51 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (purring) { stopPurr(); purring = false; } }  // draw() won't run to stop it
   else resumeRaf();
 });
-// Contact-sheet QA mode: draw the grid, then export the canvas to main (which
-// writes the PNG). Re-renders after themes/config arrive so custom coats appear.
-function sheetPal(P) {
-  return { O: toRgb(P.outline), C: toRgb(P.coat), K: toRgb(P.mark), W: toRgb(P.white), X: toRgb(P.patch), I: toRgb(P.inner), N: toRgb(P.nose), E: toRgb(P.eye), H: toRgb(HALO) };
-}
-function sheetSprite(pose, i) {
-  if (pose === 'sleep') return spriteSleep;
-  if (pose === 'typing') return typeSprites[i] || typeSprites[0];
-  if (pose === 'hunt') return spriteHunt;
-  return sprites[i] || sprites[0];   // sit, loaf
-}
-function renderSheet() {
-  const poses = ['sit', 'sleep', 'typing', 'hunt', 'loaf'];
-  const coats = PATTERNS;
-  const cellW = 96, cellH = 92, labelW = 66, headH = 24;
-  canvas.width = labelW + coats.length * cellW;
-  canvas.height = headH + poses.length * cellH + 6;
-  ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = '#1d1f26'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#cfd3db'; ctx.font = 'bold 10px "Segoe UI", sans-serif'; ctx.textAlign = 'center';
-  coats.forEach((P, i) => ctx.fillText(P.name.slice(0, 13), labelW + i * cellW + cellW / 2, headH / 2));
-  poses.forEach((pose, r) => {
-    const cy = headH + r * cellH;
-    ctx.fillStyle = (r % 2) ? '#23262f' : '#1d1f26'; ctx.fillRect(0, cy, canvas.width, cellH);
-    ctx.fillStyle = '#9aa0ad'; ctx.font = '11px "Segoe UI", sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText(pose, 8, cy + cellH / 2);
-    coats.forEach((P, i) => {
-      const cx = labelW + i * cellW, sp = sheetSprite(pose, i), palRGB = sheetPal(P), closed = pose === 'sleep';
-      octx.clearRect(0, 0, oc.width, oc.height);
-      drawCat(octx, sp, 0, palRGB, { bob: 0, blinking: closed, look: { x: 0, y: 0 }, eyeMode: 'open' });
-      const sc = Math.min((cellW - 16) / sp.SW, (cellH - 16) / sp.SH);
-      const dw = sp.SW * sc, dh = sp.SH * sc, dx = cx + (cellW - dw) / 2, dy = cy + (cellH - dh) / 2;
-      ctx.drawImage(oc, 0, 0, sp.SW, sp.SH, dx, dy, dw, dh);
-    });
-  });
-}
-
-if (SHEET) {
-  renderSheet();
-  setTimeout(() => { renderSheet(); if (window.cat && window.cat.sheetImage) window.cat.sheetImage(canvas.toDataURL('image/png')); }, 700);
-} else {
-  requestAnimationFrame(draw);
-}
-
+// Contact-sheet QA mode: draw the grid, then export the canvas to main (which
+// writes the PNG). Re-renders after themes/config arrive so custom coats appear.
+function sheetPal(P) {
+  return { O: toRgb(P.outline), C: toRgb(P.coat), K: toRgb(P.mark), W: toRgb(P.white), X: toRgb(P.patch), I: toRgb(P.inner), N: toRgb(P.nose), E: toRgb(P.eye), H: toRgb(HALO) };
+}
+function sheetSprite(pose, i) {
+  if (pose === 'sleep') return spriteSleep;
+  if (pose === 'typing') return typeSprites[i] || typeSprites[0];
+  if (pose === 'hunt') return spriteHunt;
+  return sprites[i] || sprites[0];   // sit, loaf
+}
+function renderSheet() {
+  const poses = ['sit', 'sleep', 'typing', 'hunt', 'loaf'];
+  const coats = PATTERNS;
+  const cellW = 96, cellH = 92, labelW = 66, headH = 24;
+  canvas.width = labelW + coats.length * cellW;
+  canvas.height = headH + poses.length * cellH + 6;
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#1d1f26'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#cfd3db'; ctx.font = 'bold 10px "Segoe UI", sans-serif'; ctx.textAlign = 'center';
+  coats.forEach((P, i) => ctx.fillText(P.name.slice(0, 13), labelW + i * cellW + cellW / 2, headH / 2));
+  poses.forEach((pose, r) => {
+    const cy = headH + r * cellH;
+    ctx.fillStyle = (r % 2) ? '#23262f' : '#1d1f26'; ctx.fillRect(0, cy, canvas.width, cellH);
+    ctx.fillStyle = '#9aa0ad'; ctx.font = '11px "Segoe UI", sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(pose, 8, cy + cellH / 2);
+    coats.forEach((P, i) => {
+      const cx = labelW + i * cellW, sp = sheetSprite(pose, i), palRGB = sheetPal(P), closed = pose === 'sleep';
+      octx.clearRect(0, 0, oc.width, oc.height);
+      drawCat(octx, sp, 0, palRGB, { bob: 0, blinking: closed, look: { x: 0, y: 0 }, eyeMode: 'open' });
+      const sc = Math.min((cellW - 16) / sp.SW, (cellH - 16) / sp.SH);
+      const dw = sp.SW * sc, dh = sp.SH * sc, dx = cx + (cellW - dw) / 2, dy = cy + (cellH - dh) / 2;
+      ctx.drawImage(oc, 0, 0, sp.SW, sp.SH, dx, dy, dw, dh);
+    });
+  });
+}
+
+if (SHEET) {
+  renderSheet();
+  setTimeout(() => { renderSheet(); if (window.cat && window.cat.sheetImage) window.cat.sheetImage(canvas.toDataURL('image/png')); }, 700);
+} else {
+  requestAnimationFrame(draw);
+}
+
 // ---- input ------------------------------------------------------------------
 window.addEventListener('mousemove', (e) => {
   cursor.x = e.clientX; cursor.y = e.clientY;
