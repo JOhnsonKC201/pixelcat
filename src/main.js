@@ -189,16 +189,16 @@ function createWindow() {
   // (and reclaim the very top with moveTop).
   const reassertTop = () => {
     if (!win || win.isDestroyed()) return;
+    if (cfg && cfg.onTop === false) return;       // user turned "always on top" off
     try {
+      win.setAlwaysOnTop(false);                  // toggle off->on forces a real re-raise on Windows
       win.setAlwaysOnTop(true, 'screen-saver');
       win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       win.moveTop();
     } catch (e) { /* ignore */ }
   };
   reassertTop();                                  // claim the top immediately
-  topTimer = setInterval(reassertTop, 800);       // and hold it aggressively
-  win.on('blur', reassertTop);
-  win.on('show', reassertTop);
+  topTimer = setInterval(reassertTop, 700);       // and hold it (toggle re-raise each tick)
   win.webContents.on('did-finish-load', reassertTop);
   screen.on('display-metrics-changed', reassertTop);
   screen.on('display-added', reassertTop);
@@ -206,7 +206,10 @@ function createWindow() {
 
 // ---- settings: load, broadcast, persist ------------------------------------
 function applyConfigToOverlay() {
-  if (win && !win.isDestroyed() && win.webContents) win.webContents.send('config', cfg);
+  if (win && !win.isDestroyed() && win.webContents) {
+    try { win.setAlwaysOnTop(!cfg || cfg.onTop !== false, 'screen-saver'); } catch (e) { /* ignore */ }
+    win.webContents.send('config', cfg);
+  }
 }
 function sendThemes() {
   if (win && !win.isDestroyed() && win.webContents) win.webContents.send('themes', themesCache);
@@ -273,6 +276,7 @@ function rebuildTrayMenu() {
       { type: 'separator' },
       { label: 'Set play area (drag)…', click: startSetArea },
     ] },
+    { label: 'Always on top', type: 'checkbox', checked: !(cfg && cfg.onTop === false), click: () => persistAndBroadcast({ ...cfg, onTop: !(cfg && cfg.onTop !== false) }) },
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
     { type: 'separator' },

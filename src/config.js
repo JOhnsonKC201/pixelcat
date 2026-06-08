@@ -18,6 +18,7 @@ const DEFAULTS = {
   followCursor: true,  // eyes track the cursor; turn off to make the cat ignore it
   moodOn: true,        // energy/mood model (sleepy/calm/playful/zoomies + startle)
   playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
+  onTop: true,         // keep the cat above all other windows
   roamOn: true,        // the cat autonomously wanders its play area
   volume: 100,         // master sound volume 0-100
   reducedMotion: false,// calm mode: no roaming/bouncing/screen-glow
@@ -58,6 +59,7 @@ function normalize(cfg) {
     followCursor: c.followCursor === undefined ? true : !!c.followCursor,
     moodOn: c.moodOn === undefined ? true : !!c.moodOn,
     playArea: normArea(c.playArea),
+    onTop: c.onTop === undefined ? true : !!c.onTop,
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,
     volume: clampInt(c.volume, 0, 100, 100),
     reducedMotion: !!c.reducedMotion,

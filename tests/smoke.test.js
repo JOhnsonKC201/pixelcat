@@ -34,6 +34,8 @@ test('config.normalize fills defaults and clamps', () => {
   assert.ok(Array.isArray(c.reminders));
   assert.strictEqual(normalize({ pattern: 999 }).pattern <= (DEFAULTS ? 11 : 11), true);
   assert.strictEqual(normalize({ moodOn: false }).moodOn, false);
+  assert.strictEqual(normalize({}).onTop, true);
+  assert.strictEqual(normalize({ onTop: false }).onTop, false);
   assert.strictEqual(normalize({}).playArea, null);
   const pa = normalize({ playArea: { x: 0.5, y: 0.6, w: 0.5, h: 0.4 } }).playArea;
   assert.ok(pa && pa.x === 0.5 && pa.w === 0.5, "valid play area kept");

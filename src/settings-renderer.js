@@ -50,6 +50,7 @@ function render() {
   $('soundOn').checked = !!cfg.soundOn;
   $('volume').value = cfg.volume === undefined ? 100 : cfg.volume;
   $('volumeVal').textContent = ($('volume').value | 0) + '%';
+  $('onTop').checked = cfg.onTop === undefined ? true : !!cfg.onTop;
   $('roamOn').checked = cfg.roamOn === undefined ? true : !!cfg.roamOn;
   $('reducedMotion').checked = !!cfg.reducedMotion;
   renderReminders();
@@ -87,6 +88,7 @@ $('moodOn').addEventListener('change', () => save({ moodOn: $('moodOn').checked 
 $('soundOn').addEventListener('change', () => save({ soundOn: $('soundOn').checked }));
 $('volume').addEventListener('input', () => { $('volumeVal').textContent = ($('volume').value | 0) + '%'; });
 $('volume').addEventListener('change', () => save({ volume: Number($('volume').value) }));
+$('onTop').addEventListener('change', () => save({ onTop: $('onTop').checked }));
 $('roamOn').addEventListener('change', () => save({ roamOn: $('roamOn').checked }));
 $('reducedMotion').addEventListener('change', () => save({ reducedMotion: $('reducedMotion').checked }));
 $('clearArea').addEventListener('click', () => save({ playArea: null }));
