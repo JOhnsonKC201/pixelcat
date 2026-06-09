@@ -343,3 +343,26 @@ if (process.env.DUMP) {
 const out = path.join(__dirname, '..', 'assets', 'pixelcat-demo.gif');
 fs.writeFileSync(out, Buffer.from(gif.bytes()));
 console.log(`wrote ${path.relative(path.join(__dirname, '..'), out)} — ${frames.length} frames, ${(gif.bytes().length / 1024).toFixed(0)} KB`);
+
+// ---- optional MP4 (H.264) for phones — `node scripts/make-demo-gif.js mp4` ---
+// Re-times the clip to a constant ~12fps (each GIF frame's delay -> repeated
+// frames) and pipes raw RGB to a bundled static ffmpeg. yuv420p + even dims so
+// it plays everywhere (iOS/Android galleries, Quicktime).
+if (process.argv.includes('mp4')) {
+  const { spawnSync } = require('child_process');
+  const ffmpeg = require('@ffmpeg-installer/ffmpeg').path;
+  const FPS = 12, mp4 = path.join(__dirname, '..', 'assets', 'pixelcat-demo.mp4');
+  const chunks = [];
+  for (const f of frames) {
+    const reps = Math.max(1, Math.round((f.delay / 1000) * FPS));   // hold each frame for its delay
+    const rgb = Buffer.alloc(W * H * 3);
+    for (let p = 0, q = 0; p < f.buf.length; p += 4, q += 3) { rgb[q] = f.buf[p]; rgb[q + 1] = f.buf[p + 1]; rgb[q + 2] = f.buf[p + 2]; }
+    for (let k = 0; k < reps; k++) chunks.push(rgb);
+  }
+  const raw = Buffer.concat(chunks);
+  const r = spawnSync(ffmpeg, ['-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', `${W}x${H}`, '-r', String(FPS),
+    '-i', 'pipe:0', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-crf', '20', mp4],
+    { input: raw, stdio: ['pipe', 'ignore', 'inherit'] });
+  if (r.status === 0) console.log(`wrote ${path.relative(path.join(__dirname, '..'), mp4)} — ${(fs.statSync(mp4).size / 1024).toFixed(0)} KB`);
+  else console.error('ffmpeg failed', r.status);
+}
