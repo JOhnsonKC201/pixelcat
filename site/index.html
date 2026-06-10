@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>pixelcat — a cat that lives on your desktop</title>
+<meta name="description" content="pixelcat is a cute pixel cat for your Windows desktop. It follows your cursor, kneads the keyboard when you type, purrs when you pet it, and stretches like mochi. Free & open source." />
+<meta property="og:title" content="pixelcat — a cat that lives on your desktop" />
+<meta property="og:description" content="A from-scratch desktop pet. Follows your cursor, purrs, stretches like mochi, gets the zoomies. 12 coats. Free & open source." />
+<meta property="og:image" content="assets/showcase.png" />
+<meta property="og:type" content="website" />
+<link rel="icon" href="assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================ tokens */
+:root{
+  --bg:#15161d;        /* deepest, warm-dark */
+  --bg2:#1b1d25;       /* base surface */
+  --panel:#23262f;     /* raised panel */
+  --panel2:#2a2e39;    /* hover panel */
+  --line:#3a3f4c;      /* hairline */
+  --ink:#eef0f5;       /* primary text */
+  --muted:#9aa0ad;     /* secondary text */
+  --faint:#666c7a;     /* tertiary */
+
+  --orange:#e8943c;    /* the cat — primary accent */
+  --orange-deep:#b5641d;
+  --green:#8bbf5a;     /* eyes */
+  --pink:#e0888f;      /* nose */
+  --blue:#6db4d6;      /* siamese eyes */
+  --violet:#7a5cc0;    /* app-tile echo */
+
+  --shadow:6px 6px 0 0 rgba(0,0,0,.55);
+  --shadow-sm:3px 3px 0 0 rgba(0,0,0,.5);
+  --maxw:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; overflow-x:hidden}
+body{
+  margin:0; background:var(--bg2); color:var(--ink);
+  font-family:"VT323",ui-monospace,monospace; font-size:21px; line-height:1.5;
+  -webkit-font-smoothing:none; text-rendering:optimizeSpeed;
+  overflow-x:hidden;
+}
+img{display:block}
+a{color:inherit}
+h1,h2,h3{font-family:"Press Start 2P",monospace; font-weight:400; line-height:1.4; margin:0}
+.px{font-family:"Press Start 2P",monospace}
+
+/* warm-dark atmosphere: vignette + dotted starfield + glow blobs */
+body::before{
+  content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background:
+    radial-gradient(900px 520px at 78% -8%, rgba(232,148,60,.16), transparent 60%),
+    radial-gradient(800px 600px at 8% 12%, rgba(122,92,192,.13), transparent 55%),
+    radial-gradient(1000px 700px at 50% 116%, rgba(109,180,214,.10), transparent 60%),
+    var(--bg);
+}
+body::after{ /* scanlines + faint pixel grid, screen-wide */
+  content:""; position:fixed; inset:0; z-index:9999; pointer-events:none; opacity:.5;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+  mix-blend-mode:multiply;
+}
+/* grain layer */
+.grain{position:fixed; inset:0; z-index:9998; pointer-events:none; opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+/* ============================================================ shells */
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+.frame{ /* the game-card look: chunky border + hard offset shadow */
+  background:var(--panel); border:3px solid #11131a; box-shadow:var(--shadow);
+}
+.notch{ /* notched pixel corners */
+  clip-path:polygon(0 8px,8px 8px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 8px) calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 8px),0 calc(100% - 8px));
+}
+
+/* ============================================================ HUD bar */
+header.hud{
+  position:sticky; top:0; z-index:100;
+  background:linear-gradient(180deg,#1a1c24,#15161d);
+  border-bottom:3px solid #0e1016; box-shadow:0 4px 0 rgba(0,0,0,.35);
+}
+.hud .wrap{display:flex; align-items:center; gap:16px; height:64px}
+.brand{display:flex; align-items:center; gap:12px; text-decoration:none}
+.brand img{width:34px; height:34px; image-rendering:auto; border-radius:8px;
+  box-shadow:0 0 0 2px #0e1016, 3px 3px 0 rgba(0,0,0,.4); animation:bob 1.6s steps(2,end) infinite}
+.brand b{font-family:"Press Start 2P",monospace; font-size:13px; letter-spacing:.5px; color:var(--ink)}
+.brand b i{color:var(--orange); font-style:normal}
+nav.links{display:flex; gap:22px; margin-left:auto}
+nav.links a{font-size:20px; color:var(--muted); text-decoration:none; letter-spacing:.5px}
+nav.links a:hover{color:var(--orange)}
+.hud .cta{margin-left:6px}
+
+/* buttons */
+.btn{
+  display:inline-flex; align-items:center; gap:9px; cursor:pointer; user-select:none;
+  font-family:"Press Start 2P",monospace; font-size:11px; letter-spacing:.5px;
+  padding:13px 16px; text-decoration:none; color:#15161d; background:var(--orange);
+  border:3px solid #0e1016; box-shadow:var(--shadow-sm); transition:transform .06s steps(2), box-shadow .06s steps(2), background .15s;
+}
+.btn:hover{background:#f3a24a}
+.btn:active{transform:translate(3px,3px); box-shadow:0 0 0 0 rgba(0,0,0,.5)}
+.btn.ghost{background:var(--panel); color:var(--ink)}
+.btn.ghost:hover{background:var(--panel2)}
+.btn.sm{font-size:10px; padding:10px 12px}
+
+/* ============================================================ hero */
+.hero{padding:64px 0 30px; position:relative}
+.hero-grid{display:grid; grid-template-columns:1.05fr .95fr; gap:44px; align-items:center}
+.eyebrow{display:inline-flex; align-items:center; gap:8px; color:var(--orange);
+  font-family:"Press Start 2P",monospace; font-size:10px; letter-spacing:1px;
+  border:2px solid var(--orange); padding:7px 10px; margin-bottom:22px; background:rgba(232,148,60,.08)}
+.eyebrow .dot{width:7px; height:7px; background:var(--green); box-shadow:0 0 8px var(--green); animation:blink 1.2s steps(2) infinite}
+h1.title{font-size:34px; line-height:1.55; letter-spacing:.5px}
+h1.title .o{color:var(--orange)}
+h1.title small{display:block; font-size:34px}
+.lede{margin:22px 0 0; color:var(--muted); font-size:23px; max-width:30ch}
+.lede b{color:var(--ink)}
+.hero-cta{display:flex; flex-wrap:wrap; gap:14px; margin-top:30px}
+.meta-row{display:flex; gap:18px; margin-top:22px; color:var(--faint); font-size:19px; flex-wrap:wrap}
+.meta-row span{display:inline-flex; gap:7px; align-items:center}
+.meta-row b{color:var(--green)}
+
+/* CRT monitor housing the specimen sheet */
+.crt-wrap{position:relative}
+.crt{
+  position:relative; background:#0c0d12; border:3px solid #0e1016;
+  padding:14px 14px 30px; box-shadow:var(--shadow);
+  border-radius:14px;
+}
+.crt .screen{position:relative; overflow:hidden; background:#1c1f27; border:2px solid #05060a; border-radius:6px}
+.crt .screen img{width:100%; height:auto; image-rendering:pixelated; display:block;
+  filter:saturate(1.05) contrast(1.02)}
+.crt .screen::after{content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 2px,transparent 2px 4px);
+  mix-blend-mode:multiply}
+.crt .screen::before{content:""; position:absolute; inset:0; pointer-events:none; z-index:2;
+  background:radial-gradient(120% 130% at 50% 0%, transparent 60%, rgba(0,0,0,.35) 100%);
+  border-radius:6px}
+.crt .glass{position:absolute; top:14px; left:14px; right:14px; height:38%; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.07), transparent); border-radius:6px 6px 40% 40%/6px 6px 18% 18%}
+.crt .led{position:absolute; right:20px; bottom:9px; width:9px; height:9px; border-radius:50%;
+  background:var(--green); box-shadow:0 0 10px var(--green)}
+.crt .brandtag{position:absolute; left:20px; bottom:7px; font-size:15px; color:var(--faint); letter-spacing:3px}
+.crt .scrlabel{position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:3;
+  font-family:"Press Start 2P",monospace; font-size:8px; color:rgba(238,240,245,.55); letter-spacing:1px}
+/* perched cat sticker on top of the monitor */
+.perch{position:absolute; top:-30px; right:34px; width:56px; height:56px; z-index:3;
+  border-radius:12px; box-shadow:0 0 0 2px #0e1016, var(--shadow-sm); cursor:pointer;
+  animation:bob 1.5s steps(2,end) infinite}
+.perch:active{transform:translateY(2px)}
+
+/* ============================================================ marquee */
+.marquee{border-block:3px solid #0e1016; background:#13141a; overflow:hidden; margin-top:34px}
+.marquee .track{display:flex; gap:0; white-space:nowrap; width:max-content; animation:scroll 26s linear infinite}
+.marquee span{font-family:"Press Start 2P",monospace; font-size:12px; color:var(--ink); padding:16px 26px;
+  display:inline-flex; align-items:center; gap:14px}
+.marquee i{color:var(--orange); font-style:normal}
+.marquee .s{color:var(--violet)}
+
+/* ============================================================ sections */
+section{padding:72px 0}
+.sec-head{margin-bottom:36px; max-width:60ch}
+.kicker{font-family:"Press Start 2P",monospace; font-size:10px; color:var(--orange); letter-spacing:1px; margin-bottom:16px}
+h2.sec{font-size:24px; line-height:1.45}
+.sec-head p{color:var(--muted); margin:16px 0 0; font-size:22px}
+
+/* features bento */
+.bento{display:grid; grid-template-columns:repeat(6,1fr); gap:16px}
+.card{padding:22px; position:relative; background:var(--panel); border:3px solid #11131a; box-shadow:var(--shadow); transition:transform .12s steps(2), background .15s}
+.card:hover{transform:translate(-2px,-2px); background:var(--panel2)}
+.card .ico{font-size:30px; line-height:1; margin-bottom:14px; filter:saturate(1.1)}
+.card h3{font-size:12px; color:var(--ink); margin-bottom:10px}
+.card p{margin:0; color:var(--muted); font-size:20px}
+.card .tag{position:absolute; top:14px; right:14px; font-size:14px; color:var(--faint); letter-spacing:1px}
+.col-3{grid-column:span 3}
+.col-2{grid-column:span 2}
+.col-6{grid-column:span 6}
+/* the showcase / feature variants */
+.card.accent{background:linear-gradient(150deg,#2c2117,#23262f); border-color:#0e1016}
+.card.accent h3{color:var(--orange)}
+.card.violet{background:linear-gradient(150deg,#231c33,#23262f)}
+.card.violet h3{color:var(--violet)}
+
+/* coats */
+.coatgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:16px}
+.coat{background:var(--panel); border:3px solid #11131a; box-shadow:var(--shadow-sm); padding:16px 12px 12px;
+  text-align:center; transition:transform .1s steps(2)}
+.coat:hover{transform:translateY(-4px)}
+.swatch{width:76px; height:76px; margin:0 auto 12px; position:relative; border:3px solid var(--sw-out);
+  border-radius:18px 18px 16px 16px; background:var(--sw-coat); image-rendering:pixelated;
+  box-shadow:inset 0 -10px 0 rgba(0,0,0,.12)}
+/* ears */
+.swatch::before,.swatch::after{content:""; position:absolute; top:-13px; width:0; height:0;
+  border-left:11px solid transparent; border-right:11px solid transparent; border-bottom:16px solid var(--sw-coat);
+  filter:drop-shadow(0 -2px 0 var(--sw-out))}
+.swatch::before{left:6px; transform:rotate(-12deg)}
+.swatch::after{right:6px; transform:rotate(12deg)}
+.swatch .face{position:absolute; inset:0}
+.swatch .eye{position:absolute; top:30px; width:11px; height:11px; border-radius:50%; background:var(--sw-eye);
+  box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+.swatch .eye.l{left:16px} .swatch .eye.r{right:16px}
+.swatch .nose{position:absolute; top:44px; left:50%; transform:translateX(-50%); width:9px; height:7px;
+  border-radius:0 0 50% 50%; background:var(--sw-nose)}
+.swatch .patch{position:absolute; bottom:8px; right:10px; width:18px; height:14px; border-radius:6px; background:var(--sw-patch); opacity:var(--sw-pa,0)}
+.swatch .stripe{position:absolute; top:8px; left:50%; transform:translateX(-50%); width:18px; height:4px;
+  background:var(--sw-mark); box-shadow:0 6px 0 var(--sw-mark); opacity:var(--sw-tb,0); border-radius:2px}
+.coat .nm{font-size:18px; color:var(--ink); line-height:1.15}
+.coat .ix{font-size:13px; color:var(--faint)}
+.coat.custom{display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border-style:dashed; border-color:var(--line); background:transparent}
+.coat.custom .big{font-size:30px; color:var(--orange); margin-bottom:6px}
+.coat.custom .nm{color:var(--muted)}
+
+/* agent terminal */
+.term{font-family:"VT323",monospace; background:#0c0d12; border:3px solid #0e1016; box-shadow:var(--shadow);
+  border-radius:10px; overflow:hidden}
+.term .bar{display:flex; align-items:center; gap:8px; padding:10px 14px; background:#191b22; border-bottom:2px solid #05060a}
+.term .bar i{width:12px; height:12px; border-radius:50%; background:#3a3f4c}
+.term .bar i.r{background:#e0888f} .term .bar i.y{background:#e8c14c} .term .bar i.g{background:#8bbf5a}
+.term .bar .ti{margin-left:8px; color:var(--faint); font-size:17px; letter-spacing:1px}
+.term .body{padding:18px 20px; font-size:21px; line-height:1.6}
+.term .body .l{display:block}
+.term .p{color:var(--green)} .term .c{color:var(--ink)} .term .dim{color:var(--faint)}
+.term .react{color:var(--orange)}
+.cur{display:inline-block; width:11px; height:21px; background:var(--green); vertical-align:-3px;
+  margin-left:3px; animation:blink 1s steps(2) infinite}
+.statechips{display:flex; flex-wrap:wrap; gap:10px; margin-top:20px}
+.chip{font-family:"VT323",monospace; font-size:18px; color:var(--muted); border:2px solid var(--line);
+  padding:7px 12px; background:var(--panel)}
+.chip b{color:var(--orange)}
+.agentgrid{display:grid; grid-template-columns:1.1fr .9fr; gap:30px; align-items:start}
+.agentgrid ul{list-style:none; margin:0; padding:0}
+.agentgrid li{padding:11px 0; border-bottom:1px dashed var(--line); color:var(--muted); display:flex; gap:12px}
+.agentgrid li b{color:var(--ink); font-family:"Press Start 2P"; font-size:10px; min-width:118px}
+
+/* moods meter */
+.moods{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+.mood{padding:20px 18px; border:3px solid #11131a; box-shadow:var(--shadow-sm); position:relative; overflow:hidden}
+.mood .lab{font-family:"Press Start 2P"; font-size:11px; margin-bottom:10px}
+.mood .e{font-size:16px; color:var(--faint); letter-spacing:1px}
+.mood p{margin:12px 0 0; color:var(--muted); font-size:19px}
+.mood .bar{height:10px; margin-top:14px; background:#11131a; border:2px solid #05060a}
+.mood .fill{height:100%}
+.m2{background:linear-gradient(160deg,#1c2a22,#23262f)} .m2 .lab{color:var(--green)} .m2 .fill{width:45%; background:var(--green)}
+.m3{background:linear-gradient(160deg,#2c2418,#23262f)} .m3 .lab{color:var(--orange)} .m3 .fill{width:72%; background:var(--orange)}
+.m4{background:linear-gradient(160deg,#301c1d,#23262f)} .m4 .lab{color:var(--pink)} .m4 .fill{width:96%; background:var(--pink)}
+
+/* download */
+.dl{display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:stretch}
+.dl .big{padding:34px; display:flex; flex-direction:column; justify-content:center;
+  background:linear-gradient(150deg,#2c2117,#1d1f27); border:3px solid #0e1016; box-shadow:var(--shadow)}
+.dl .big h2{font-size:20px; line-height:1.5}
+.dl .big .o{color:var(--orange)}
+.dl .big p{color:var(--muted); margin:16px 0 26px; font-size:21px}
+.dl .big .row{display:flex; gap:14px; flex-wrap:wrap}
+.codecard{background:#0c0d12; border:3px solid #0e1016; box-shadow:var(--shadow); display:flex; flex-direction:column}
+.codecard .top{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:2px solid #05060a; background:#191b22}
+.codecard .top span{font-size:17px; color:var(--faint); letter-spacing:1px}
+.codecard .copy{font-family:"VT323"; font-size:16px; color:var(--muted); background:var(--panel);
+  border:2px solid var(--line); padding:4px 10px; cursor:pointer}
+.codecard .copy:hover{color:var(--orange); border-color:var(--orange)}
+.codecard pre{margin:0; padding:18px 18px 20px; overflow:auto; font-family:"VT323",monospace; font-size:20px; line-height:1.6; color:var(--ink)}
+.codecard pre .c{color:var(--faint)} .codecard pre .o{color:var(--orange)} .codecard pre .g{color:var(--green)}
+
+/* footer */
+footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; margin-top:40px}
+.foot-grid{display:flex; gap:24px; align-items:center; flex-wrap:wrap; justify-content:space-between}
+.foot-grid .lhs{display:flex; align-items:center; gap:14px}
+.foot-grid img{width:40px; height:40px; border-radius:9px; box-shadow:0 0 0 2px #0e1016}
+.foot-grid b{font-family:"Press Start 2P"; font-size:12px}
+.foot-grid b i{color:var(--orange); font-style:normal}
+.foot-grid .note{color:var(--faint); font-size:18px; max-width:42ch}
+.foot-links{display:flex; gap:20px}
+.foot-links a{color:var(--muted); text-decoration:none; font-size:20px}
+.foot-links a:hover{color:var(--orange)}
+
+/* reveal anim */
+.rv{opacity:0; transform:translateY(18px)}
+.rv.in{opacity:1; transform:none; transition:opacity .5s steps(6), transform .5s steps(6)}
+
+/* floating heart */
+.heart{position:fixed; z-index:9000; pointer-events:none; font-size:20px; animation:floatup 1s steps(8) forwards}
+
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.15}}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes floatup{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-60px) scale(1.4)}}
+
+/* responsive */
+@media(max-width:900px){
+  body{font-size:20px}
+  .hero-grid{grid-template-columns:1fr; gap:34px}
+  h1.title,h1.title small{font-size:26px}
+  nav.links{display:none}
+  .bento{grid-template-columns:repeat(2,1fr)}
+  .col-3,.col-2,.col-6{grid-column:span 2}
+  .agentgrid,.dl,.moods{grid-template-columns:1fr}
+  .moods{grid-template-columns:repeat(2,1fr)}
+  .perch{right:18px}
+}
+@media(max-width:560px){
+  .moods{grid-template-columns:1fr}
+  h2.sec{font-size:18px}
+  .hud .cta .btn span{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important}
+  .rv{opacity:1; transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- ===================================================== HUD -->
+<header class="hud">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="pixelcat icon" /><b><i>pixel</i>cat</b></a>
+    <nav class="links">
+      <a href="#features">features</a>
+      <a href="#coats">coats</a>
+      <a href="#agent">agent</a>
+      <a href="#moods">moods</a>
+      <a href="https://github.com/JOhnsonKC201/pixelcat" target="_blank" rel="noopener">source</a>
+    </nav>
+    <div class="cta"><a class="btn sm" href="#get">▼ <span>download</span></a></div>
+  </div>
+</header>
+
+<!-- ===================================================== HERO -->
+<a id="top"></a>
+<div class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <div class="eyebrow"><span class="dot"></span> DESKTOP PET · WINDOWS + MACOS BETA</div>
+      <h1 class="title">a <span class="o">pixel cat</span> that<small>lives on your</small><small>desktop.</small></h1>
+      <p class="lede">It <b>follows your cursor</b>, kneads the keyboard when you type, <b>purrs</b> when you pet it, stretches like <b>mochi</b> when you drag it — and washes its face when you go quiet.</p>
+      <div class="hero-cta">
+        <a class="btn" href="https://github.com/JOhnsonKC201/pixelcat/releases" target="_blank" rel="noopener">⬇ download for windows</a>
+        <a class="btn ghost" href="https://github.com/JOhnsonKC201/pixelcat" target="_blank" rel="noopener">★ view source</a>
+      </div>
+      <div class="meta-row">
+        <span>🐈 <b>12</b> coats</span>
+        <span>🎨 custom coats</span>
+        <span>🔊 synthesized meow</span>
+        <span>💸 <b>free</b> &amp; open source</span>
+      </div>
+    </div>
+
+    <div class="crt-wrap rv">
+      <img class="perch" id="perchCat" src="assets/icon.png" alt="pet me — meow" title="click me!" />
+      <div class="crt">
+        <div class="screen">
+          <span class="scrlabel">EVERY POSE × EVERY COAT</span>
+          <img src="assets/showcase.png" alt="pixelcat — every pose (sit, typing, hunt, loaf) across all 12 coats" />
+        </div>
+        <span class="glass"></span>
+        <span class="brandtag">PIXELCAT-CRT</span>
+        <span class="led"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================== MARQUEE -->
+<div class="marquee" aria-hidden="true">
+  <div class="track" id="mqTrack">
+    <span><i>◆</i> eye-follow &amp; blink <i>◆</i> mochi-drag <i>◆</i> purring pets <i>◆</i> keyboard kneading <i>◆</i> mouse hunt <i>◆</i> pomodoro timer <i>◆</i> reminders <i>◆</i> pinned notes <span class="s">◆</span> moods &amp; energy <i>◆</i> startle <i>◆</i> AI agent reactions <i>◆</i> 12 coats <i>◆</i>&nbsp;</span>
+    <span><i>◆</i> eye-follow &amp; blink <i>◆</i> mochi-drag <i>◆</i> purring pets <i>◆</i> keyboard kneading <i>◆</i> mouse hunt <i>◆</i> pomodoro timer <i>◆</i> reminders <i>◆</i> pinned notes <span class="s">◆</span> moods &amp; energy <i>◆</i> startle <i>◆</i> AI agent reactions <i>◆</i> 12 coats <i>◆</i>&nbsp;</span>
+  </div>
+</div>
+
+<!-- ===================================================== FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker">// WHAT IT DOES</div>
+      <h2 class="sec">a real pet, not a screensaver</h2>
+      <p>Everything runs on a transparent, click-through overlay that floats over every app — but only the cat is interactive, so it never blocks your clicks.</p>
+    </div>
+
+    <div class="bento">
+      <div class="card accent col-3 rv"><span class="tag">01</span><div class="ico">🫶</div>
+        <h3>mochi-drag</h3><p>Grab and pull the cat and it stretches like taffy — head and feet stay solid, the body thins — then squashes and bounces back where you drop it.</p></div>
+      <div class="card col-3 rv"><span class="tag">02</span><div class="ico">👀</div>
+        <h3>eye-follow &amp; blink</h3><p>It watches your cursor across the screen and blinks now and then. Rest the cursor on its head and it shuts its eyes, wiggles, and floats little hearts.</p></div>
+
+      <div class="card col-2 rv"><span class="tag">03</span><div class="ico">⌨️</div>
+        <h3>typing reaction</h3><p>Type in <em>any</em> app and it taps its front paws. Go fast and it overheats — turns red, steams — then cools down.</p></div>
+      <div class="card col-2 rv"><span class="tag">04</span><div class="ico">🐾</div>
+        <h3>mouse hunt</h3><p>Flick the cursor fast and it crouches, stalks, and pounces at it, then settles wherever it lands.</p></div>
+      <div class="card col-2 rv"><span class="tag">05</span><div class="ico">🔊</div>
+        <h3>synthesized meow</h3><p>A realistic formant “mee-ow” glide with vibrato — pitch &amp; length vary by breed. Plus purr, chirp &amp; a startled mrrp. No audio files.</p></div>
+
+      <div class="card violet col-2 rv"><span class="tag">06</span><div class="ico">😼</div>
+        <h3>moods &amp; energy</h3><p>An energy model drifts it through calm → playful → zoomies. Keep it busy and it goes wild, then settles back down.</p></div>
+      <div class="card col-2 rv"><span class="tag">07</span><div class="ico">⏰</div>
+        <h3>breaks &amp; reminders</h3><p>It grows big to stretch with you and meows on a schedule. Set a time + message and it reminds you, by name.</p></div>
+      <div class="card col-2 rv"><span class="tag">08</span><div class="ico">🪟</div>
+        <h3>stays in its lane</h3><p>Confine it to a play area — pick a tray preset or drag-to-draw one. It re-asserts top-most, even over fullscreen apps, and starts at login.</p></div>
+
+      <div class="card accent col-3 rv"><span class="tag">09</span><div class="ico">🍅</div>
+        <h3>pomodoro timer</h3><p>Set focus/break loops and a pixel timer floats next to the cat. It stretches with you at every break and meows you back to focus.</p></div>
+      <div class="card col-3 rv"><span class="tag">10</span><div class="ico">📌</div>
+        <h3>pinned note</h3><p>Pin an important message and it stays in a bubble above the cat's head — in sight until you clear it.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== COATS -->
+<section id="coats">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker">// 12 BUILT-IN COATS + YOUR OWN</div>
+      <h2 class="sec">one shape, a dozen cats</h2>
+      <p>Every cat is one role-coded sprite, recolored per pattern at draw time. Right-click the cat to cycle coats — your pick is remembered. Then design your own.</p>
+    </div>
+    <div class="coatgrid" id="coatGrid"></div>
+  </div>
+</section>
+
+<!-- ===================================================== AGENT -->
+<section id="agent">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker">// FOR PEOPLE WHO LIVE IN A TERMINAL</div>
+      <h2 class="sec">it reacts to your coding agent</h2>
+      <p>pixelcat watches a tiny status file. Wire up a hook and the cat shows a thinking “…” bubble while your agent works, then does a happy hop when it finishes.</p>
+    </div>
+    <div class="agentgrid">
+      <div class="term rv">
+        <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="ti">~/pixelcat — agent-hook</span></div>
+        <div class="body">
+          <span class="l"><span class="dim">$</span> <span class="c">node agent-hook.js</span> <span class="p">thinking</span></span>
+          <span class="l react">   🐈 …  <span class="dim">cat shows a thinking bubble</span></span>
+          <span class="l"><span class="dim">$</span> <span class="c">node agent-hook.js</span> <span class="p">editing</span></span>
+          <span class="l react">   🐈 ⚙  <span class="dim">working spinner</span></span>
+          <span class="l"><span class="dim">$</span> <span class="c">node agent-hook.js</span> <span class="p">done</span></span>
+          <span class="l react">   🐈 ⤴  happy hop!</span>
+          <span class="l"><span class="dim">$</span><span class="cur"></span></span>
+        </div>
+      </div>
+      <div class="rv">
+        <ul>
+          <li><b>Claude Code</b> merge the bundled settings hooks</li>
+          <li><b>Codex CLI</b> drop into <code>~/.codex/config.toml</code></li>
+          <li><b>Cursor</b> copy <code>.cursor/hooks.json</code></li>
+          <li><b>Antigravity</b> add to <code>.agents/hooks.json</code></li>
+          <li><b>Kiro</b> add via the Agent Hooks UI</li>
+        </ul>
+        <div class="statechips">
+          <span class="chip"><b>thinking</b> · bubble</span>
+          <span class="chip"><b>working</b> · spinner</span>
+          <span class="chip"><b>error</b> · flinch</span>
+          <span class="chip"><b>done</b> · hop</span>
+          <span class="chip"><b>idle</b> · normal</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== MOODS -->
+<section id="moods">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker">// ENERGY 0–100, FULLY LOCAL</div>
+      <h2 class="sec">it has good days and lazy days</h2>
+      <p>Energy builds from what you do and decays when you stop — no mic, no telemetry. A sudden cursor jolt startles it: it puffs up, freezes, then bolts or creeps back.</p>
+    </div>
+    <div class="moods">
+      <div class="mood m2 rv"><div class="lab">calm</div><span class="e">ENERGY 0–50</span><p>Mellow — small, infrequent idle moves. Loafs, grooms, watches the world.</p><div class="bar"><div class="fill"></div></div></div>
+      <div class="mood m3 rv"><div class="lab">playful</div><span class="e">ENERGY 51–80</span><p>Full reactions — the original feel. Hunts, pounces, pets, purrs.</p><div class="bar"><div class="fill"></div></div></div>
+      <div class="mood m4 rv"><div class="lab">zoomies</div><span class="e">ENERGY 81–100</span><p>Frantic and fast… then a hard crash back toward calm.</p><div class="bar"><div class="fill"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== GET -->
+<section id="get">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker">// GET IT</div>
+      <h2 class="sec">adopt the cat</h2>
+    </div>
+    <div class="dl">
+      <div class="big rv">
+        <h2>free, <span class="o">open source</span>,<br/>and yours forever.</h2>
+        <p>All art, code, and sound are original — the meow and purr are synthesized in code, no audio files. Built with Electron for Windows.</p>
+        <div class="row">
+          <a class="btn" href="https://github.com/JOhnsonKC201/pixelcat/releases" target="_blank" rel="noopener">⬇ download</a>
+          <a class="btn ghost" href="https://github.com/JOhnsonKC201/pixelcat" target="_blank" rel="noopener">★ star on github</a>
+        </div>
+      </div>
+      <div class="codecard rv">
+        <div class="top"><span>run from source · powershell</span><button class="copy" id="copyBtn">copy</button></div>
+        <pre id="codeBlock"><span class="c"># clone &amp; run the cat</span>
+git clone <span class="o">https://github.com/JOhnsonKC201/pixelcat</span>
+cd pixelcat
+npm install
+npm start
+
+<span class="c"># build a standalone app</span>
+npm run pack   <span class="c">// portable .exe</span>
+npm run dist   <span class="c">// windows installer</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== FOOTER -->
+<footer>
+  <div class="wrap foot-grid">
+    <div class="lhs">
+      <img src="assets/icon.png" alt="pixelcat" />
+      <div>
+        <b><i>pixel</i>cat</b>
+        <div class="note">Made for fun. Inspired by — not copied from — Comnyang. No Comnyang assets, sprites, audio, or branding are used.</div>
+      </div>
+    </div>
+    <div class="foot-links">
+      <a href="https://github.com/JOhnsonKC201/pixelcat" target="_blank" rel="noopener">github</a>
+      <a href="https://github.com/JOhnsonKC201/pixelcat/releases" target="_blank" rel="noopener">releases</a>
+      <a href="https://github.com/JOhnsonKC201/pixelcat#readme" target="_blank" rel="noopener">docs</a>
+      <a href="https://github.com/JOhnsonKC201/pixelcat/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* real coat palettes — copied verbatim from src/cat-sprite.js (single source of truth) */
+const COATS = [
+  {n:'Orange Tabby',coat:'#e8943c',mark:'#b5641d',patch:'#e8943c',eye:'#8bbf5a',nose:'#e0888f',outline:'#5a3514',tabby:true},
+  {n:'Mackerel Tabby',coat:'#9aa3b0',mark:'#5c6470',patch:'#9aa3b0',eye:'#9ccf6a',nose:'#e3a0a6',outline:'#2f343d',tabby:true},
+  {n:'Brown Tabby',coat:'#a07d52',mark:'#5f4528',patch:'#a07d52',eye:'#c9a23c',nose:'#c98b85',outline:'#352718',tabby:true},
+  {n:'Siamese',coat:'#e8dcc4',mark:'#5a4636',patch:'#e8dcc4',eye:'#6db4d6',nose:'#d6a3a8',outline:'#3a2f26',tabby:false},
+  {n:'Tuxedo',coat:'#2b2d33',mark:'#2b2d33',patch:'#f4f5f7',eye:'#8bbf5a',nose:'#e6a6ac',outline:'#141519',tabby:false},
+  {n:'Black',coat:'#2b2d33',mark:'#212329',patch:'#2b2d33',eye:'#d8b13a',nose:'#b06b72',outline:'#141519',tabby:false},
+  {n:'Gray',coat:'#8b94a3',mark:'#8b94a3',patch:'#8b94a3',eye:'#c9a23c',nose:'#d99fa5',outline:'#2f343d',tabby:false},
+  {n:'White',coat:'#f2f1ec',mark:'#f2f1ec',patch:'#f2f1ec',eye:'#6db4d6',nose:'#f0b4ba',outline:'#9b948a',tabby:false},
+  {n:'Cream',coat:'#ecd6ab',mark:'#ecd6ab',patch:'#ecd6ab',eye:'#c9a23c',nose:'#e2a7ab',outline:'#b59a6a',tabby:false},
+  {n:'Tortoiseshell',coat:'#2b2d33',mark:'#1f2024',patch:'#c9762a',eye:'#c9a23c',nose:'#b06b72',outline:'#141519',tabby:false},
+  {n:'Calico',coat:'#f3f1ec',mark:'#2b2d33',patch:'#d6802f',eye:'#c9a23c',nose:'#d98f95',outline:'#6f6a62',tabby:false},
+  {n:'Slate',coat:'#8d97ac',mark:'#6f7892',patch:'#8d97ac',eye:'#ffffff',nose:'#ff9aa2',outline:'#2e323d',tabby:false},
+];
+const grid = document.getElementById('coatGrid');
+COATS.forEach((c,i)=>{
+  const el=document.createElement('div'); el.className='coat rv';
+  el.style.cssText=`--sw-coat:${c.coat};--sw-out:${c.outline};--sw-eye:${c.eye};--sw-nose:${c.nose};--sw-mark:${c.mark};--sw-patch:${c.patch};--sw-pa:${c.patch.toLowerCase()!==c.coat.toLowerCase()?1:0};--sw-tb:${c.tabby?1:0}`;
+  el.innerHTML=`<div class="swatch"><div class="face"><span class="stripe"></span><span class="eye l"></span><span class="eye r"></span><span class="nose"></span><span class="patch"></span></div></div><div class="nm">${c.n}</div><div class="ix">#${String(i+1).padStart(2,'0')}</div>`;
+  grid.appendChild(el);
+});
+const custom=document.createElement('div'); custom.className='coat custom rv';
+custom.innerHTML=`<div class="big">+</div><div class="nm">design your own<br/>custom coat</div>`;
+grid.appendChild(custom);
+
+/* reveal on scroll (steps for a spritey snap) */
+const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+/* copy snippet */
+const copyBtn=document.getElementById('copyBtn');
+copyBtn?.addEventListener('click',async()=>{
+  const txt=document.getElementById('codeBlock').innerText;
+  try{await navigator.clipboard.writeText(txt); copyBtn.textContent='copied!'; setTimeout(()=>copyBtn.textContent='copy',1400);}catch(e){copyBtn.textContent='select all';}
+});
+
+/* meow on clicking the perched cat — same synthesis the app's "Test meow" uses */
+let actx=null;
+function meow(){
+  try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    const t0=actx.currentTime, g=actx.createGain(); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(0.16,t0+0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+0.30);
+    for(const det of [0,6]){
+      const o=actx.createOscillator(); o.type= det? 'sine':'triangle'; o.detune.value=det;
+      o.frequency.setValueAtTime(620,t0);
+      o.frequency.linearRampToValueAtTime(720,t0+0.10);
+      o.frequency.linearRampToValueAtTime(520,t0+0.28);
+      o.connect(g); o.start(t0); o.stop(t0+0.32);
+    }
+  }catch(e){}
+}
+function heartBurst(x,y){
+  for(let i=0;i<5;i++){
+    const h=document.createElement('div'); h.className='heart'; h.textContent='💛';
+    h.style.left=(x+(Math.random()*40-20))+'px'; h.style.top=(y-10)+'px';
+    h.style.animationDelay=(i*60)+'ms'; document.body.appendChild(h);
+    setTimeout(()=>h.remove(),1200);
+  }
+}
+const perch=document.getElementById('perchCat');
+perch?.addEventListener('click',(e)=>{ meow(); const r=perch.getBoundingClientRect(); heartBurst(r.left+r.width/2,r.top); });
+
+/* konami → zoomies (everything wiggles once) */
+let kbuf=[]; const KON=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+addEventListener('keydown',(e)=>{ kbuf.push(e.key); kbuf=kbuf.slice(-KON.length);
+  if(kbuf.join()===KON.join()){ document.body.animate([{filter:'hue-rotate(0)'},{filter:'hue-rotate(360deg)'}],{duration:900,iterations:1}); meow(); }
+});
+</script>
+</body>
+</html>
