@@ -5,7 +5,7 @@
 // so renderer.js / cat-preview.js use them as bare identifiers — and required as a
 // CommonJS module by scripts/make-app-icon.js (Node). Pose-specific composers
 // (hunt/type/sleep) and the animated drawCat stay in renderer.js.
-const CELL = 5;
+const CELL = 4;   // px per sprite cell — sets the cat's overall size (was 5; 4 ≈ 20% smaller)
 
 // ---- sprite builder (writes to current target G/GC/GR) ----------------------
 let G, GC, GR;

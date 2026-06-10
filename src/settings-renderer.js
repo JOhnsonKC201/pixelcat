@@ -53,6 +53,11 @@ function render() {
   $('onTop').checked = cfg.onTop === undefined ? true : !!cfg.onTop;
   $('roamOn').checked = cfg.roamOn === undefined ? true : !!cfg.roamOn;
   $('reducedMotion').checked = !!cfg.reducedMotion;
+  const pomo = cfg.pomodoro || { on: false, focusMin: 25, breakMin: 5 };
+  $('pomoOn').checked = !!pomo.on;
+  $('pomoFocus').value = String(pomo.focusMin || 25);
+  $('pomoBreak').value = String(pomo.breakMin || 5);
+  if (document.activeElement !== $('pinnedNote')) $('pinnedNote').value = cfg.pinnedNote || '';
   renderReminders();
   drawPreview();
 }
@@ -92,6 +97,15 @@ $('onTop').addEventListener('change', () => save({ onTop: $('onTop').checked }))
 $('roamOn').addEventListener('change', () => save({ roamOn: $('roamOn').checked }));
 $('reducedMotion').addEventListener('change', () => save({ reducedMotion: $('reducedMotion').checked }));
 $('clearArea').addEventListener('click', () => save({ playArea: null }));
+const pomoSave = () => save({ pomodoro: { on: $('pomoOn').checked, focusMin: Number($('pomoFocus').value), breakMin: Number($('pomoBreak').value) } });
+$('pomoOn').addEventListener('change', pomoSave);
+$('pomoFocus').addEventListener('change', pomoSave);
+$('pomoBreak').addEventListener('change', pomoSave);
+let noteTimer = null;
+$('pinnedNote').addEventListener('input', () => {
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => save({ pinnedNote: $('pinnedNote').value }), 300);
+});
 
 $('addReminder').addEventListener('click', () => {
   const hhmm = $('newTime').value, message = $('newMsg').value.trim();

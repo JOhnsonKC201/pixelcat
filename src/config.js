@@ -16,12 +16,14 @@ const DEFAULTS = {
   soundOn: true,
   huntOn: true,        // Comnyang hunts the cursor by default; user-toggleable
   followCursor: true,  // eyes track the cursor; turn off to make the cat ignore it
-  moodOn: true,        // energy/mood model (sleepy/calm/playful/zoomies + startle)
+  moodOn: true,        // energy/mood model (calm/playful/zoomies + startle)
   playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
   onTop: true,         // keep the cat above all other windows
   roamOn: true,        // the cat autonomously wanders its play area
   volume: 100,         // master sound volume 0-100
   reducedMotion: false,// calm mode: no roaming/bouncing/screen-glow
+  pinnedNote: '',      // fixed message pinned above the cat's head ('' = off)
+  pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
   reminders: [],       // [{ id, hhmm: 'HH:MM', message }]
 };
 
@@ -63,6 +65,11 @@ function normalize(cfg) {
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,
     volume: clampInt(c.volume, 0, 100, 100),
     reducedMotion: !!c.reducedMotion,
+    pinnedNote: String(c.pinnedNote == null ? '' : c.pinnedNote).trim().slice(0, 80),
+    pomodoro: (() => {
+      const p = (c.pomodoro && typeof c.pomodoro === 'object') ? c.pomodoro : {};
+      return { on: !!p.on, focusMin: clampInt(p.focusMin, 5, 120, 25), breakMin: clampInt(p.breakMin, 1, 60, 5) };
+    })(),
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;
       const hhmm = String(r.hhmm || '');

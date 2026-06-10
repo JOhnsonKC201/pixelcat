@@ -40,6 +40,14 @@ test('config.normalize fills defaults and clamps', () => {
   const pa = normalize({ playArea: { x: 0.5, y: 0.6, w: 0.5, h: 0.4 } }).playArea;
   assert.ok(pa && pa.x === 0.5 && pa.w === 0.5, "valid play area kept");
   assert.strictEqual(normalize({ playArea: { x: 0.5 } }).playArea, null, "incomplete play area dropped");
+  // pomodoro: defaults, clamps, and junk coercion
+  assert.deepStrictEqual(normalize({}).pomodoro, { on: false, focusMin: 25, breakMin: 5 });
+  assert.deepStrictEqual(normalize({ pomodoro: { on: 1, focusMin: 999, breakMin: 0 } }).pomodoro, { on: true, focusMin: 120, breakMin: 1 });
+  assert.deepStrictEqual(normalize({ pomodoro: 'junk' }).pomodoro, { on: false, focusMin: 25, breakMin: 5 });
+  // pinned note: trimmed + capped at 80 chars
+  assert.strictEqual(normalize({}).pinnedNote, '');
+  assert.strictEqual(normalize({ pinnedNote: '  hi  ' }).pinnedNote, 'hi');
+  assert.strictEqual(normalize({ pinnedNote: 'x'.repeat(200) }).pinnedNote.length, 80);
 });
 
 test('themes.clean keeps valid coats and drops invalid/dupes', () => {

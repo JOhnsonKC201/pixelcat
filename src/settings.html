@@ -4,147 +4,269 @@
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self';" />
   <style>
-    :root { --bg:#1d1f26; --panel:#262932; --line:#363a45; --fg:#eceef3; --muted:#9aa0ad; --accent:#e8943c; }
+    :root {
+      --bg:#191b22; --panel:#23262f; --panel2:#2a2e39; --line:#363b47;
+      --fg:#eceef3; --muted:#9aa0ad; --faint:#6b7280;
+      --accent:#e8943c; --accent-deep:#b5641d; --good:#8bbf5a;
+      --shadow:3px 3px 0 0 rgba(0,0,0,.45);
+    }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; }
     body {
-      background: var(--bg); color: var(--fg);
+      background:
+        radial-gradient(420px 240px at 100% -10%, rgba(232,148,60,.12), transparent 60%),
+        var(--bg);
+      color: var(--fg);
       font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
-      padding: 16px; user-select: none; overflow-y: auto;
+      padding: 0 0 18px; user-select: none; overflow-y: auto;
     }
-    h1 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
-    h1 .paw { color: var(--accent); }
-    .row { margin-bottom: 14px; }
+    body::-webkit-scrollbar { width: 10px; }
+    body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; border: 2px solid var(--bg); }
+
+    /* sticky header bar — game-HUD feel */
+    .hdr {
+      position: sticky; top: 0; z-index: 5;
+      display: flex; align-items: center; gap: 9px;
+      padding: 13px 16px; margin-bottom: 14px;
+      background: linear-gradient(180deg, #1e2027, #181a20);
+      border-bottom: 2px solid #0f1116; box-shadow: 0 3px 0 rgba(0,0,0,.3);
+    }
+    .hdr .paw {
+      width: 24px; height: 24px; flex: none; display: grid; place-items: center;
+      background: var(--accent); color: #1a1c22; border-radius: 7px;
+      box-shadow: 0 0 0 2px #0f1116, 2px 2px 0 rgba(0,0,0,.4); font-size: 14px;
+    }
+    .hdr b { font-size: 14px; letter-spacing: .3px; }
+    .hdr b i { color: var(--accent); font-style: normal; }
+    .hdr .tag { margin-left: auto; color: var(--faint); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    .wrap { padding: 0 16px; }
+
+    /* section cards */
+    .card {
+      background: var(--panel); border: 2px solid #14161c; border-radius: 10px;
+      box-shadow: var(--shadow); padding: 13px 13px 14px; margin-bottom: 13px;
+    }
+    .card-h {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+      color: var(--accent); margin: 0 0 11px;
+    }
+    .card-h::after { content: ""; flex: 1; height: 2px; background: linear-gradient(90deg, var(--line), transparent); border-radius: 2px; }
+
+    .row { margin-bottom: 12px; }
+    .row:last-child { margin-bottom: 0; }
     label.lbl { display: block; color: var(--muted); margin-bottom: 5px; font-size: 12px; }
     input[type=text], input[type=number], input[type=time], select {
-      width: 100%; background: var(--panel); color: var(--fg);
-      border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font: inherit; outline: none;
+      width: 100%; background: var(--bg); color: var(--fg);
+      border: 2px solid var(--line); border-radius: 7px; padding: 8px 9px; font: inherit; outline: none;
+      transition: border-color .12s;
     }
     input:focus, select:focus { border-color: var(--accent); }
+    select { cursor: pointer; }
     .inline { display: flex; align-items: center; gap: 8px; }
-    .inline input[type=number] { width: 72px; }
-    .check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .check input { width: 16px; height: 16px; accent-color: var(--accent); }
-    .hr { height: 1px; background: var(--line); margin: 16px 0; border: 0; }
-    .rem-add { display: flex; gap: 6px; }
-    .rem-add input[type=time] { width: 96px; flex: none; }
-    .rem-add input[type=text] { flex: 1; }
+    .inline .lbl { margin: 0; flex: none; }
+    .inline input[type=number] { width: 70px; }
+
+    /* toggle rows */
+    .check {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      padding: 8px 9px; margin: 0 -4px 7px; border-radius: 7px;
+      border: 1px solid transparent; transition: background .12s, border-color .12s;
+    }
+    .check:hover { background: var(--panel2); border-color: var(--line); }
+    .check:last-child { margin-bottom: 0; }
+    .check input { appearance: none; -webkit-appearance: none; width: 38px; height: 20px; flex: none;
+      background: #14161c; border: 2px solid var(--line); border-radius: 12px; position: relative; cursor: pointer; transition: background .15s, border-color .15s; }
+    .check input::after { content: ""; position: absolute; top: 1px; left: 1px; width: 14px; height: 14px;
+      background: var(--muted); border-radius: 50%; transition: transform .15s, background .15s; }
+    .check input:checked { background: rgba(232,148,60,.25); border-color: var(--accent); }
+    .check input:checked::after { transform: translateX(18px); background: var(--accent); }
+    .check label, .check > span.t { font-size: 12.5px; color: var(--fg); cursor: pointer; flex: 1; }
+    .check .sub { display: block; color: var(--faint); font-size: 11px; margin-top: 1px; }
+
+    /* range */
+    input[type=range] { width: 100%; appearance: none; -webkit-appearance: none; height: 6px; border-radius: 4px;
+      background: #14161c; border: 1px solid var(--line); outline: none; }
+    input[type=range]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 16px; height: 16px;
+      border-radius: 4px; background: var(--accent); border: 2px solid #0f1116; box-shadow: 1px 1px 0 rgba(0,0,0,.4); cursor: pointer; }
+
+    /* buttons */
     button {
-      background: var(--accent); color: #1d1f26; border: 0; border-radius: 6px;
-      padding: 7px 12px; font: inherit; font-weight: 600; cursor: pointer;
+      background: var(--accent); color: #1a1c22; border: 2px solid #0f1116; border-radius: 7px;
+      padding: 8px 12px; font: inherit; font-weight: 700; cursor: pointer;
+      box-shadow: 2px 2px 0 rgba(0,0,0,.4); transition: transform .06s, box-shadow .06s, background .12s;
     }
-    button.ghost { background: var(--panel); color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
-    button:active { transform: translateY(1px); }
-    ul#reminders { list-style: none; margin: 8px 0 0; padding: 0; }
-    ul#reminders li {
-      display: flex; align-items: center; gap: 8px; background: var(--panel);
-      border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px;
+    button:hover { background: #f2a24a; }
+    button:active { transform: translate(2px,2px); box-shadow: 0 0 0 rgba(0,0,0,.4); }
+    button.ghost { background: var(--panel2); color: var(--fg); font-weight: 600; }
+    button.ghost:hover { background: #313542; }
+
+    .coatPreview-wrap { display: flex; justify-content: center; margin-top: 12px; }
+    canvas#coatPreview { display: block; image-rendering: pixelated;
+      background: radial-gradient(circle at 50% 35%, rgba(232,148,60,.08), rgba(255,255,255,.03));
+      border: 2px solid var(--line); border-radius: 10px; }
+
+    .hint { color: var(--faint); font-size: 11px; }
+
+    /* lists (reminders / themes) */
+    ul#reminders, #themes { list-style: none; margin: 10px 0 0; padding: 0; }
+    ul#reminders li, #themes li {
+      display: flex; align-items: center; gap: 9px; background: var(--bg);
+      border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; margin-bottom: 6px;
     }
-    ul#reminders .t { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; }
-    ul#reminders .m { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    ul#reminders .x { color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 15px; }
-    ul#reminders .x:hover { color: #ff6b78; }
-    .empty { color: var(--muted); font-size: 12px; font-style: italic; }
-    .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
-    .hint { color: var(--muted); font-size: 11px; }
-    #themes { list-style: none; margin: 8px 0 0; padding: 0; }
-    #themes li { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; }
-    #themes .sw { width: 16px; height: 16px; border-radius: 4px; border: 2px solid #000; flex: none; }
-    #themes .m { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-    #themes .x { color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 15px; }
-    #themes .x:hover { color: #ff6b78; }
-    .t-io { display: flex; gap: 6px; margin: 8px 0; }
+    ul#reminders .t { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; }
+    ul#reminders .m, #themes .m { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    ul#reminders .x, #themes .x { color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 15px; line-height: 1; }
+    ul#reminders .x:hover, #themes .x:hover { color: #ff6b78; }
+    .empty { color: var(--faint); font-size: 12px; font-style: italic; }
+    #themes .sw { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #000; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+
+    .rem-add { display: flex; gap: 6px; }
+    .rem-add input[type=time] { width: 98px; flex: none; }
+    .rem-add input[type=text] { flex: 1; }
+
+    .t-io { display: flex; gap: 6px; margin: 10px 0 0; }
     .t-io button { flex: 1; }
-    .theme-add { margin-top: 8px; }
-    .theme-add summary { cursor: pointer; color: var(--accent); font-size: 12px; margin-bottom: 8px; }
+    .theme-add { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 10px; }
+    .theme-add summary { cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 600; margin-bottom: 9px; list-style: none; }
+    .theme-add summary::-webkit-details-marker { display: none; }
+    .theme-add summary::before { content: "＋ "; }
+    .theme-add[open] summary::before { content: "－ "; }
     .t-grid { display: flex; gap: 8px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
     .t-grid input[type=text] { flex: 1; min-width: 110px; }
-    .t-check { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
-    .t-colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
-    .t-colors label { display: flex; flex-direction: column; font-size: 10px; color: var(--muted); gap: 2px; }
-    .t-colors input[type=color] { width: 100%; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); cursor: pointer; }
+    .t-check { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; white-space: nowrap; cursor: pointer; }
+    .t-colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 10px; }
+    .t-colors label { display: flex; flex-direction: column; font-size: 10px; color: var(--muted); gap: 3px; align-items: center; }
+    .t-colors input[type=color] { width: 100%; height: 26px; padding: 0; border: 2px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; }
+
+    .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 0 16px; margin-top: 4px; }
+    .foot .hint { display: flex; align-items: center; gap: 6px; }
+    .foot .hint::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 6px var(--good); }
   </style>
 </head>
 <body>
-  <h1><span class="paw">🐾</span> pixelcat settings</h1>
-
-  <div class="row">
-    <label class="lbl" for="name">Your name (the cat calls you by it)</label>
-    <input type="text" id="name" maxlength="24" placeholder="e.g. John" />
+  <div class="hdr">
+    <span class="paw">🐾</span>
+    <b><i>pixel</i>cat</b>
+    <span class="tag">settings</span>
   </div>
 
-  <div class="row">
-    <label class="lbl" for="pattern">Coat</label>
-    <select id="pattern"></select>
-    <canvas id="coatPreview" width="120" height="150" style="display:block;margin:12px auto 0;image-rendering:pixelated;background:rgba(255,255,255,0.04);border-radius:8px;"></canvas>
-  </div>
-
-  <div class="row inline">
-    <label class="lbl" for="breakMinutes" style="margin:0;">Break / stretch every</label>
-    <input type="number" id="breakMinutes" min="0" max="240" step="1" />
-    <span class="hint">minutes (0 = off)</span>
-  </div>
-
-  <div class="row check"><input type="checkbox" id="followCursor" /><label for="followCursor">Follow the cursor (eyes track your mouse)</label></div>
-  <div class="row check"><input type="checkbox" id="huntOn" /><label for="huntOn">Hunt the cursor when the mouse moves fast</label></div>
-  <div class="row check"><input type="checkbox" id="moodOn" /><label for="moodOn">Mood reactions (sleeps when idle, zoomies, startle)</label></div>
-  <div class="row check"><input type="checkbox" id="soundOn" /><label for="soundOn">Sound (meow &amp; purr)</label></div>
-  <div class="row">
-    <label class="lbl" for="volume">Sound volume <span class="hint" id="volumeVal"></span></label>
-    <input type="range" id="volume" min="0" max="100" step="5" style="width:100%" />
-  </div>
-  <div class="row check"><input type="checkbox" id="onTop" /><label for="onTop">Always on top (keep the cat above other windows)</label></div>
-  <div class="row check"><input type="checkbox" id="roamOn" /><label for="roamOn">Wander (the cat roams its play area)</label></div>
-  <div class="row check"><input type="checkbox" id="reducedMotion" /><label for="reducedMotion">Reduced motion (calmer: no wandering or bouncing)</label></div>
-  <div class="row"><button class="ghost" id="clearArea">Clear play area (use whole screen)</button></div>
-
-  <hr class="hr" />
-
-  <div class="row">
-    <label class="lbl">Custom coats — design your own and pick it from Coat above</label>
-    <ul id="themes"></ul>
-    <div class="t-io"><button class="ghost" id="exportThemes">Export…</button><button class="ghost" id="importThemes">Import…</button></div>
-    <details class="theme-add">
-      <summary>+ Add a custom coat</summary>
-      <div class="t-grid">
-        <input type="text" id="tName" maxlength="24" placeholder="Coat name" />
-        <select id="tBuild">
-          <option value="standard">Standard</option>
-          <option value="slender">Slender</option>
-          <option value="stocky">Stocky</option>
-          <option value="fluffy">Fluffy</option>
-        </select>
-        <label class="t-check"><input type="checkbox" id="tTabby" /> Tabby</label>
+  <div class="wrap">
+    <!-- YOU + COAT -->
+    <section class="card">
+      <div class="card-h">your cat</div>
+      <div class="row">
+        <label class="lbl" for="name">Your name — the cat calls you by it</label>
+        <input type="text" id="name" maxlength="24" placeholder="e.g. John" />
       </div>
-      <div class="t-colors">
-        <label>Coat<input type="color" id="c_coat" value="#8d97ac" /></label>
-        <label>Marks<input type="color" id="c_mark" value="#6f7892" /></label>
-        <label>White<input type="color" id="c_white" value="#f2f4f7" /></label>
-        <label>Patch<input type="color" id="c_patch" value="#8d97ac" /></label>
-        <label>Eyes<input type="color" id="c_eye" value="#8bbf5a" /></label>
-        <label>Nose<input type="color" id="c_nose" value="#e0888f" /></label>
-        <label>Inner ear<input type="color" id="c_inner" value="#f0b6a0" /></label>
-        <label>Outline<input type="color" id="c_outline" value="#2e323d" /></label>
+      <div class="row">
+        <label class="lbl" for="pattern">Coat</label>
+        <select id="pattern"></select>
+        <div class="coatPreview-wrap">
+          <canvas id="coatPreview" width="120" height="150"></canvas>
+        </div>
       </div>
-      <button id="addTheme">Add coat</button>
-    </details>
-  </div>
+    </section>
 
-  <hr class="hr" />
+    <!-- BEHAVIOUR -->
+    <section class="card">
+      <div class="card-h">behaviour</div>
+      <div class="row inline">
+        <label class="lbl" for="breakMinutes">Break / stretch every</label>
+        <input type="number" id="breakMinutes" min="0" max="240" step="1" />
+        <span class="hint">min (0 = off)</span>
+      </div>
+      <label class="check"><input type="checkbox" id="followCursor" /><span class="t">Follow the cursor<span class="sub">eyes track your mouse</span></span></label>
+      <label class="check"><input type="checkbox" id="huntOn" /><span class="t">Hunt the cursor<span class="sub">pounces when the mouse moves fast</span></span></label>
+      <label class="check"><input type="checkbox" id="moodOn" /><span class="t">Mood reactions<span class="sub">zoomies &amp; startle reactions</span></span></label>
+      <label class="check"><input type="checkbox" id="roamOn" /><span class="t">Wander<span class="sub">roams its play area</span></span></label>
+      <label class="check"><input type="checkbox" id="reducedMotion" /><span class="t">Reduced motion<span class="sub">calmer: no wandering or bouncing</span></span></label>
+    </section>
 
-  <div class="row">
-    <label class="lbl">Reminders — the cat meows your message at a set time</label>
-    <div class="rem-add">
-      <input type="time" id="newTime" />
-      <input type="text" id="newMsg" maxlength="80" placeholder="Drink water, {name}!" />
-      <button id="addReminder">Add</button>
-    </div>
-    <ul id="reminders"></ul>
+    <!-- SOUND -->
+    <section class="card">
+      <div class="card-h">sound</div>
+      <label class="check"><input type="checkbox" id="soundOn" /><span class="t">Sound<span class="sub">meow &amp; purr (synthesized)</span></span></label>
+      <div class="row">
+        <label class="lbl" for="volume">Volume <span class="hint" id="volumeVal"></span></label>
+        <input type="range" id="volume" min="0" max="100" step="5" />
+      </div>
+    </section>
+
+    <!-- POMODORO -->
+    <section class="card">
+      <div class="card-h">pomodoro</div>
+      <label class="check"><input type="checkbox" id="pomoOn" /><span class="t">Pomodoro timer<span class="sub">a pixel timer floats next to the cat; it stretches with you on breaks</span></span></label>
+      <div class="row inline">
+        <label class="lbl" for="pomoFocus">Focus</label>
+        <input type="number" id="pomoFocus" min="5" max="120" step="5" />
+        <span class="hint">min</span>
+        <label class="lbl" for="pomoBreak">Break</label>
+        <input type="number" id="pomoBreak" min="1" max="60" step="1" />
+        <span class="hint">min</span>
+      </div>
+    </section>
+
+    <!-- WINDOW / PLAY AREA -->
+    <section class="card">
+      <div class="card-h">window</div>
+      <label class="check"><input type="checkbox" id="onTop" /><span class="t">Always on top<span class="sub">keep the cat above other windows</span></span></label>
+      <div class="row" style="margin-top:10px;"><button class="ghost" id="clearArea" style="width:100%;">Clear play area (use whole screen)</button></div>
+    </section>
+
+    <!-- CUSTOM COATS -->
+    <section class="card">
+      <div class="card-h">custom coats</div>
+      <span class="hint">Design your own and pick it from Coat above.</span>
+      <ul id="themes"></ul>
+      <div class="t-io"><button class="ghost" id="exportThemes">Export…</button><button class="ghost" id="importThemes">Import…</button></div>
+      <details class="theme-add">
+        <summary>Add a custom coat</summary>
+        <div class="t-grid">
+          <input type="text" id="tName" maxlength="24" placeholder="Coat name" />
+          <select id="tBuild">
+            <option value="standard">Standard</option>
+            <option value="slender">Slender</option>
+            <option value="stocky">Stocky</option>
+            <option value="fluffy">Fluffy</option>
+          </select>
+          <label class="t-check"><input type="checkbox" id="tTabby" /> Tabby</label>
+        </div>
+        <div class="t-colors">
+          <label>Coat<input type="color" id="c_coat" value="#8d97ac" /></label>
+          <label>Marks<input type="color" id="c_mark" value="#6f7892" /></label>
+          <label>White<input type="color" id="c_white" value="#f2f4f7" /></label>
+          <label>Patch<input type="color" id="c_patch" value="#8d97ac" /></label>
+          <label>Eyes<input type="color" id="c_eye" value="#8bbf5a" /></label>
+          <label>Nose<input type="color" id="c_nose" value="#e0888f" /></label>
+          <label>Inner ear<input type="color" id="c_inner" value="#f0b6a0" /></label>
+          <label>Outline<input type="color" id="c_outline" value="#2e323d" /></label>
+        </div>
+        <button id="addTheme" style="width:100%;">Add coat</button>
+      </details>
+    </section>
+
+    <!-- REMINDERS -->
+    <section class="card">
+      <div class="card-h">reminders</div>
+      <span class="hint">The cat meows your message at a set time.</span>
+      <div class="rem-add" style="margin-top:10px;">
+        <input type="time" id="newTime" />
+        <input type="text" id="newMsg" maxlength="80" placeholder="Drink water, {name}!" />
+        <button id="addReminder">Add</button>
+      </div>
+      <ul id="reminders"></ul>
+      <div class="row" style="margin-top:12px;">
+        <label class="lbl" for="pinnedNote">Pinned note — stays above the cat's head (leave empty to hide)</label>
+        <input type="text" id="pinnedNote" maxlength="80" placeholder="Ship the demo by Friday!" />
+      </div>
+    </section>
   </div>
 
   <div class="foot">
-    <button class="ghost" id="testSound">Test meow</button>
-    <span class="hint">Changes save automatically</span>
+    <button class="ghost" id="testSound">🔊 Test meow</button>
+    <span class="hint">Saves automatically</span>
   </div>
 
   <script src="patterns.js"></script>

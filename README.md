@@ -4,12 +4,12 @@
 
 ![pixelcat — every pose across every coat](assets/showcase.png)
 
-A cute pixel cat that lives on your Windows desktop — a from-scratch desktop pet
+A cute pixel cat that lives on your desktop — a from-scratch desktop pet
 inspired by Comnyang. Built with Electron. The cat sits in the corner, follows
 your cursor, reacts when you type, purrs when you pet it, and stretches like mochi
 when you drag it.
 
-![cat](https://img.shields.io/badge/platform-Windows-blue) ![electron](https://img.shields.io/badge/built%20with-Electron-47848F)
+![cat](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20(beta)-blue) ![electron](https://img.shields.io/badge/built%20with-Electron-47848F)
 
 ## Features
 
@@ -19,35 +19,42 @@ when you drag it.
 - **Eye-follow & blink** — the cat watches your cursor and blinks now and then.
 - **Mochi-drag** — **grab and pull** the cat and it stretches like taffy (head and
   feet stay solid, the body thins), then **squashes and bounces** back when you
-  drop it. It stays where you put it.
+  drop it. **Shake it side to side** and it wobbles like jello (with a startled
+  mrrp). It stays where you put it.
 - **Purring pets** — **rest the cursor on its head** and it closes its eyes
   happily, wiggles, and floats little hearts.
-- **Typing reaction** — when you type (in *any* app), the cat **taps its front
-  paws**; type fast and it **overheats** (turns red with steam), then cools down.
-  Powered by a system-wide keyboard hook (`uiohook-napi`).
+- **Keyboard kneading** — when you type (in *any* app), the cat leans onto **two
+  big keys and kneads them with its tiny paws**; type fast and it **overheats**
+  (turns red with steam), then cools down. Powered by a system-wide keyboard hook
+  (`uiohook-napi`).
 - **Mouse hunt** — flick the cursor fast and the cat **crouches, stalks, and
   pounces** at it, then settles where it lands. Toggle in Settings.
 - **Break timer** — pick an interval and the cat **grows big to stretch with you**
-  and meows, on a schedule (a gentle Pomodoro-style nudge). Or "Start break now."
+  and meows, on a schedule (a gentle nudge). Or "Start break now."
+- **Pomodoro timer** — set **focus/break loops** and a **pixel timer floats next to
+  the cat** (tomato dot = focus, green = break). At each focus end the cat stretches
+  with you; when the break ends it meows "Back to focus!". Toggle in Settings or tray.
 - **Reminders** — set a **time and message** and the cat **meows and shows a
   speech bubble** to remind you.
+- **Pinned note** — pin an important message and it **stays in a bubble above the
+  cat's head** until you clear it (reminders briefly take over, then it returns).
 - **Calls you by name** — tell the cat your name in Settings (or use `{name}` in a
   reminder) and it greets you by it.
 - **Sound** — a **realistic synthesized** meow (a formant "mee-ow" glide with
   vibrato) whose pitch and length vary by **cat species**, plus purr, chirp, and a
   startled mrrp. No audio files; toggle in Settings.
 - **Settings + tray** — a system-tray icon (coat picker, **Play area**, break /
-  sound / hunt / mood toggles, Quit) and a settings window (**double-click the cat**)
+  pomodoro / sound / hunt / mood toggles, Quit) and a settings window (**double-click the cat**)
   for name, timer, reminders, and custom coats (**with a live preview**). Everything
   persists to `settings.json` in your app-data folder.
 - **AI agent reactions** — shows a thinking "…" bubble while a coding agent
   (Claude Code, Codex, Cursor, …) is working, and does a happy **hop** when it
   finishes. See [AI agent reactions](#ai-agent-reactions) for setup.
 - **Moods & energy** — the cat has an energy level (0-100) that builds from what you
-  do and decays when you stop, shifting it through **sleepy -> calm -> playful ->
-  zoomies**. Leave it alone and it curls up and naps (`z z z`); keep it busy and it
-  gets the zoomies, then crashes. A **sudden cursor jolt startles it** (it puffs up,
-  freezes, then bolts or creeps back). Toggle "Mood reactions" in Settings/tray.
+  do and decays when you stop, shifting it through **calm -> playful -> zoomies**.
+  Keep it busy and it gets the zoomies, then settles back down. A **sudden cursor
+  jolt startles it** (it puffs up, freezes, then bolts or creeps back). Toggle
+  "Mood reactions" in Settings/tray.
 - **Polished pixel art** — white sticker outline (pops on any wallpaper), soft
   top-lit shading, whiskers, ground shadow, sparkly eyes.
 - **Desktop-pet overlay** — a full-screen, transparent, click-through layer, so the
@@ -79,6 +86,13 @@ npm start
 ```
 
 To stop it launching at login: `npm run autostart:off`.
+
+**macOS (beta):** same commands. On first run, grant **Accessibility permission**
+(System Settings → Privacy & Security → Accessibility) so the cat can react to your
+typing and cursor — input is only *detected*, never logged or sent anywhere. The
+release builds are unsigned, so right-click → Open the first time. Not yet smoke-
+tested on real hardware — see the checklist in [Build a standalone app](#build-a-standalone-app);
+issues welcome.
 
 ## Project layout
 
@@ -160,14 +174,13 @@ ideas only; all code here is original to pixelcat.
 
 The cat tracks an internal **energy** value (0-100) that decays over time and is
 bumped by stimuli (typing, scrolling, fast-mouse play, petting, an AI agent
-finishing). Energy maps to four mood bands that gate and scale every reaction:
+finishing). Energy maps to three mood bands that gate and scale every reaction:
 
 | Band | Energy | Behaviour |
 |------|--------|-----------|
-| **Sleepy** | 0-15 | Curls into a loaf and naps (`z z z`); ignores weak input, wakes on a real jolt |
-| **Calm** | 16-50 | Mellow — small, infrequent idle moves |
+| **Calm** | 0-50 | Mellow — small, infrequent idle moves (loafs, grooms) |
 | **Playful** | 51-80 | Full reactions (the original feel) |
-| **Zoomies** | 81-100 | Frantic and fast, then a hard crash back toward sleep |
+| **Zoomies** | 81-100 | Frantic and fast, then a hard crash back toward calm |
 
 **Startle** fires on an abrupt cursor jump / velocity spike (no mic, fully local):
 the cat flinches and puffs, freezes, then either bolts to a screen edge or creeps
@@ -177,8 +190,8 @@ the classic always-playful behaviour.
 Preview the new poses without running the live overlay:
 
 ```powershell
-npx electron . --shot --state=sleep --pattern=black
 npx electron . --shot --state=startle --pattern=orange
+npx electron . --shot --state=groom --pattern=black
 ```
 
 (writes `_render.png`; existing states `typing/overheat/mochi/pet/hunt/think/done/paper` still work too.)
@@ -220,8 +233,16 @@ from an Administrator terminal once. The native `uiohook-napi` module ships N-AP
 prebuilds, so `npmRebuild` is disabled in the build config (no Visual Studio needed).
 Run `npm run icon` to regenerate the original procedural app + tray icons.
 
+**macOS:** `npm run dist:mac` (on a Mac) builds dmg + zip for Apple Silicon and Intel;
+the release workflow also builds them in CI on every version tag. Builds are
+**unsigned** (right-click → Open the first time). The mac port is code-complete but
+**not yet smoke-tested on real hardware** — if you have a Mac, the checklist is:
+overlay shows over all apps & Spaces (incl. fullscreen), clicks pass through except on
+the cat, typing reaction works after granting Accessibility, the cat rests on the Dock
+edge (not the menu bar), tray menu works in the menu bar, login launch works.
+
 More touches: the cat **chirps** when an agent finishes and **mrrps** when startled
-(toggle with Sound), and the tray **Mood** submenu has *Sleep now / Zoomies! / Wake up*
+(toggle with Sound), and the tray **Mood** submenu has *Zoomies! / Calm down*
 to drive the energy model on demand.
 
 ## Visual QA (contact sheet)
@@ -235,7 +256,8 @@ on light *and* dark coats at once.
 npm run sheet      # writes previews/contact-sheet.png (poses x coats)
 ```
 
-Single poses still preview via `npx electron . --shot --state=<sit|sleep|typing|hunt|loaf|overheat|pet|startle|work> --pattern=<coat>`.
+Single poses still preview via `npx electron . --shot --state=<sit|typing|hunt|loaf|groom|paper|overheat|pet|startle|work> --pattern=<coat>`.
+Add `--at=<ms>` to capture an animated pose at a chosen phase (e.g. a typing key-press): `npx electron . --shot --state=typing --at=760`.
 
 ## Development
 
@@ -258,7 +280,7 @@ Electron · HTML canvas · [`uiohook-napi`](https://github.com/SnosMe/uiohook-na
   (`%APPDATA%/pixelcat/` on Windows). Timer reminders only fire while pixelcat is
   running. Reminder times use your local clock.
 - Future: multi-monitor roaming, repeating/weekday reminders, packaged installer,
-  more idle behaviours (grooming, naps).
+  more idle behaviours (the cat now **grooms** — washes its face — during calm idle).
 
 ---
 

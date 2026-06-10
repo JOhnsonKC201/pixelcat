@@ -34,12 +34,18 @@ const stateArg = (process.argv.find((a) => a.startsWith('--state=')) || '').spli
 const patternArg = (process.argv.find((a) => a.startsWith('--pattern=')) || '').split('=')[1] || '';
 const SHOT = process.argv.includes('--shot');
 const SHEET = process.argv.includes('--sheet');   // contact-sheet QA capture
+// `--at=<ms>` sets how long to let the scene animate before the --shot capture, so
+// animated poses (typing kneads, paper batting) can be QA'd at any phase.
+const shotAtMs = Math.max(0, Number((process.argv.find((a) => a.startsWith('--at=')) || '').split('=')[1]) || 700);
 
 // Single-instance: the pet is a singleton (login-launch + a manual start would
 // otherwise spawn two overlays, two keyboard hooks, two cursor loops). Preview
 // (--shot) runs are allowed to coexist with a running pet.
 const isSecondary = !SHOT && !SHEET && !app.requestSingleInstanceLock();
 if (isSecondary) app.quit();
+
+// macOS: a desktop pet belongs in the menu bar, not the Dock or the app switcher.
+if (process.platform === 'darwin' && app.dock && !SHOT && !SHEET) app.dock.hide();
 
 // Launch-at-login (unpackaged): run `electron.exe <appDir>` on login.
 const APP_DIR = path.resolve(__dirname, '..');
@@ -66,6 +72,10 @@ function createWindow() {
   }
   win = new BrowserWindow(opts);
   win.setAlwaysOnTop(true, 'screen-saver');
+  // macOS: follow the user across Spaces and fullscreen apps (no-op elsewhere).
+  if (process.platform === 'darwin' && !SHOT && !SHEET) {
+    try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch (e) { /* ignore */ }
+  }
   // Default: whole overlay passes clicks through; move events still forwarded so
   // the renderer can detect hover. Main re-derives this each cursor tick (below).
   if (!SHOT) win.setIgnoreMouseEvents(true, { forward: true });
@@ -89,7 +99,7 @@ function createWindow() {
 
   // Push current settings to the overlay as soon as (and every time) it loads,
   // so first paint already has the name / coat / sound+hunt flags.
-  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) applyConfigToOverlay(); });
+  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) { applyConfigToOverlay(); sendPomo(); } });
 
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
   // (Skipped for --shot previews — a screenshot has no need for a global hook,
@@ -113,7 +123,7 @@ function createWindow() {
         fs.writeFileSync(path.join(__dirname, '..', '_render.png'), img.toPNG());
         console.log('[captured _render.png]');
         app.quit();
-      }, 700);
+      }, shotAtMs);
     });
     return;
   }
@@ -217,8 +227,10 @@ function sendMood(cmd) {
 // the overlay + the settings window + the tray menu so all surfaces stay in sync.
 function persistAndBroadcast(next) {
   const prevBreak = cfg ? cfg.breakMinutes : 0;
+  const prevPomo = cfg ? JSON.stringify(cfg.pomodoro) : '';
   cfg = config.save(next);
   if (cfg.breakMinutes !== prevBreak) breakAnchor = Date.now();  // editing the interval restarts it
+  if (JSON.stringify(cfg.pomodoro) !== prevPomo) syncPomodoro(); // toggling/retuning restarts the loop
   applyConfigToOverlay();
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('config', cfg);
   rebuildTrayMenu();
@@ -228,7 +240,10 @@ function persistAndBroadcast(next) {
 function trayImage() {
   const p = path.join(APP_DIR, 'assets', 'tray.png');
   const img = nativeImage.createFromPath(p);
-  return img.isEmpty() ? nativeImage.createEmpty() : img;
+  if (img.isEmpty()) return nativeImage.createEmpty();
+  // macOS renders template images correctly in light & dark menu bars.
+  if (process.platform === 'darwin') img.setTemplateImage(true);
+  return img;
 }
 function createTray() {
   try {
@@ -254,10 +269,10 @@ function rebuildTrayMenu() {
     { label: 'Mouse hunt', type: 'checkbox', checked: !!(cfg && cfg.huntOn), click: () => persistAndBroadcast({ ...cfg, huntOn: !cfg.huntOn }) },
     { label: 'Mood reactions', type: 'checkbox', checked: !(cfg && cfg.moodOn === false), click: () => persistAndBroadcast({ ...cfg, moodOn: !(cfg && cfg.moodOn !== false) }) },
     { label: 'Mood', submenu: [
-      { label: 'Sleep now', click: () => sendMood('sleep') },
       { label: 'Zoomies!', click: () => sendMood('zoomies') },
-      { label: 'Wake up', click: () => sendMood('wake') },
+      { label: 'Calm down', click: () => sendMood('calm') },
     ] },
+    { label: 'Pomodoro', type: 'checkbox', checked: !!(cfg && cfg.pomodoro && cfg.pomodoro.on), click: () => persistAndBroadcast({ ...cfg, pomodoro: { ...cfg.pomodoro, on: !(cfg.pomodoro && cfg.pomodoro.on) } }) },
     { label: 'Play area', submenu: [
       { label: 'Whole screen', type: 'radio', checked: !(cfg && cfg.playArea), click: () => persistAndBroadcast({ ...cfg, playArea: null }) },
       { label: 'Bottom strip', click: () => persistAndBroadcast({ ...cfg, playArea: { x: 0, y: 0.78, w: 1, h: 0.22 } }) },
@@ -294,6 +309,38 @@ function triggerBreak() {
   if (win && !win.isDestroyed()) win.webContents.send('break');
   breakAnchor = Date.now();
 }
+
+// ---- Pomodoro: focus/break loops. Main owns the phase clock (the renderer may
+// throttle/pause); the renderer just draws a countdown from { phase, endsAt }.
+// Phase flips ride the existing reactions: focus->break = the stretch break,
+// break->focus = a "back to focus" reminder bubble.
+let pomoPhase = 'focus', pomoEndsAt = 0, pomoTimer = null;
+function sendPomo() {
+  const on = !!(cfg && cfg.pomodoro && cfg.pomodoro.on);
+  if (win && !win.isDestroyed()) win.webContents.send('pomo', { on, phase: pomoPhase, endsAt: pomoEndsAt });
+}
+function pomoFlip() {
+  if (!cfg || !cfg.pomodoro || !cfg.pomodoro.on) return;
+  if (pomoPhase === 'focus') {
+    pomoPhase = 'break'; pomoEndsAt = Date.now() + cfg.pomodoro.breakMin * 60000;
+    triggerBreak();                                              // big stretch + meow
+  } else {
+    pomoPhase = 'focus'; pomoEndsAt = Date.now() + cfg.pomodoro.focusMin * 60000;
+    if (win && !win.isDestroyed()) win.webContents.send('remind', { message: nameFill('Back to focus, {name}!') });
+  }
+  sendPomo(); armPomoTimer();
+}
+function armPomoTimer() {
+  if (pomoTimer) { clearTimeout(pomoTimer); pomoTimer = null; }
+  if (!cfg || !cfg.pomodoro || !cfg.pomodoro.on) return;
+  pomoTimer = setTimeout(pomoFlip, Math.max(250, pomoEndsAt - Date.now()));
+}
+// (Re)start or stop the loop whenever the pomodoro config changes.
+function syncPomodoro() {
+  if (cfg && cfg.pomodoro && cfg.pomodoro.on) { pomoPhase = 'focus'; pomoEndsAt = Date.now() + cfg.pomodoro.focusMin * 60000; }
+  else { pomoEndsAt = 0; }
+  sendPomo(); armPomoTimer();
+}
 // Fill {name} in main (which always has cfg) so reminders are correct even if the
 // overlay hasn't received its config copy yet (e.g. the immediate launch tick).
 function nameFill(msg) {
@@ -328,9 +375,12 @@ function tick() {
     }
   }
   if (cfg.breakMinutes > 0 && Date.now() - breakAnchor >= cfg.breakMinutes * 60000) triggerBreak();
+  // Pomodoro catch-up: if the exact-time flip was lost to a sleep/stall, flip now.
+  if (cfg.pomodoro && cfg.pomodoro.on && pomoEndsAt && Date.now() > pomoEndsAt + 1000) pomoFlip();
 }
 function startScheduler() {
   breakAnchor = Date.now();
+  syncPomodoro();                            // resume the pomodoro loop if it's enabled
   tick();                                    // fire immediately (catch a launch late in the minute)
   scheduleTimer = setInterval(tick, 20000);  // sample each clock-minute ~3x; dedupe handles repeats
 }
@@ -344,6 +394,7 @@ function cleanup() {
   if (topTimer) clearInterval(topTimer);
   if (agentTimer) clearInterval(agentTimer);
   if (scheduleTimer) clearInterval(scheduleTimer);
+  if (pomoTimer) clearTimeout(pomoTimer);
   if (agentWatcher) { try { agentWatcher.close(); } catch (e) { /* ignore */ } }
   if (hookStarted) { try { require('uiohook-napi').uIOhook.stop(); } catch (e) { /* ignore */ } }
   if (tray) { try { tray.destroy(); } catch (e) { /* ignore */ } tray = null; }

@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('cat', {
   onSetArea: sub('setarea:start'),
   onRemind: sub('remind', (d) => d),
   onBreak: sub('break'),
+  onPomo: sub('pomo', (d) => d),
   setHot: (o) => ipcRenderer.send('hot', o),
   openSettings: () => ipcRenderer.send('settings:open'),
   setPattern: (i) => ipcRenderer.send('settings:save-pattern', i),
