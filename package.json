@@ -16,6 +16,7 @@
     "icon": "node scripts/make-tray-icon.js && node scripts/make-ico.js && node scripts/make-app-icon.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac",
     "test": "node --test",
     "hook": "node scripts/install-hook.js",
     "test:boot": "node scripts/bootcheck.js"
@@ -44,6 +45,14 @@
       "icon": "assets/icon.ico",
       "target": [
         "nsis"
+      ]
+    },
+    "mac": {
+      "icon": "assets/icon-512.png",
+      "category": "public.app-category.entertainment",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
       ]
     },
     "nsis": {
