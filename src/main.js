@@ -39,6 +39,7 @@ let hot = { x: 0, y: 0, w: 0, h: 0, dragging: false }; // cat's interactive regi
 // Optional `--state=` / `--pattern=` force a pose/coat for --shot previews.
 const stateArg = (process.argv.find((a) => a.startsWith('--state=')) || '').split('=')[1] || '';
 const patternArg = (process.argv.find((a) => a.startsWith('--pattern=')) || '').split('=')[1] || '';
+const pvArg = (process.argv.find((a) => a.startsWith('--pv=')) || '').split('=')[1] || '';   // force a scroll-prop variant for --shot previews
 const SHOT = process.argv.includes('--shot');
 const SHEET = process.argv.includes('--sheet');   // contact-sheet QA capture
 // `--at=<ms>` sets how long to let the scene animate before the --shot capture, so
@@ -90,6 +91,7 @@ function createWindow() {
   const params = [];
   if (stateArg) params.push(`state=${stateArg}`);
   if (patternArg) params.push(`pattern=${patternArg}`);
+  if (pvArg) params.push(`pv=${pvArg}`);
   if (SHOT) params.push('shot=1');
   if (SHEET) params.push('sheet=1');
   win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });
@@ -320,6 +322,7 @@ function rebuildTrayMenu() {
     { label: 'Follow cursor', type: 'checkbox', checked: !!(cfg && cfg.followCursor), click: () => persistAndBroadcast({ ...cfg, followCursor: !cfg.followCursor }) },
     { label: 'Mouse hunt', type: 'checkbox', checked: !!(cfg && cfg.huntOn), click: () => persistAndBroadcast({ ...cfg, huntOn: !cfg.huntOn }) },
     { label: 'Mood reactions', type: 'checkbox', checked: !(cfg && cfg.moodOn === false), click: () => persistAndBroadcast({ ...cfg, moodOn: !(cfg && cfg.moodOn !== false) }) },
+    { label: 'Startle at cursor', type: 'checkbox', checked: !(cfg && cfg.startleOn === false), click: () => persistAndBroadcast({ ...cfg, startleOn: !(cfg && cfg.startleOn !== false) }) },
     { label: 'Mood', submenu: [
       { label: 'Zoomies!', click: () => sendMood('zoomies') },
       { label: 'Calm down', click: () => sendMood('calm') },
@@ -349,9 +352,11 @@ function openSettings() {
   settingsWin = new BrowserWindow({
     width: 400, height: 560, resizable: false, fullscreenable: false, maximizable: false,
     title: 'pixelcat settings', skipTaskbar: false, alwaysOnTop: true,
+    show: false, backgroundColor: '#191b22',   // dark from the first paint — no white flash
     webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   settingsWin.setMenuBarVisibility(false);
+  settingsWin.once('ready-to-show', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.show(); });
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
   settingsWin.on('closed', () => { settingsWin = null; });
 }

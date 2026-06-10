@@ -17,6 +17,7 @@ const DEFAULTS = {
   huntOn: true,        // Comnyang hunts the cursor by default; user-toggleable
   followCursor: true,  // eyes track the cursor; turn off to make the cat ignore it
   moodOn: true,        // energy/mood model (calm/playful/zoomies + startle)
+  startleOn: true,     // flinch/bolt when the cursor lunges at it; off = ignore sudden cursor moves
   playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
   onTop: true,         // keep the cat above all other windows
   roamOn: true,        // the cat autonomously wanders its play area
@@ -63,6 +64,7 @@ function normalize(cfg) {
     huntOn: c.huntOn === undefined ? true : !!c.huntOn,
     followCursor: c.followCursor === undefined ? true : !!c.followCursor,
     moodOn: c.moodOn === undefined ? true : !!c.moodOn,
+    startleOn: c.startleOn === undefined ? true : !!c.startleOn,
     playArea: normArea(c.playArea),
     onTop: c.onTop === undefined ? true : !!c.onTop,
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,

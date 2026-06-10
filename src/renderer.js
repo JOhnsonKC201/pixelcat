@@ -85,6 +85,54 @@ function composeTypeFront(B) {
   ellipse(16.5, 20, 2.0, 2.0, 'X', ['C', 'K']);
 }
 
+// --- loafing cat ("cat bread"): a compact, content resting pose. The body is a
+//     low rounded mound (no upright legs — paws are tucked under), the head rests
+//     low and forward on top, and the tail wraps around the front. Grid 24x30 so
+//     SW/SH match the sit sprite (the draw loop swaps sprites at the same size).
+//     Built per coat from the same build descriptor B as composeSit.
+function composeLoaf(B) {
+  B = B || {};
+  const CX = 12;
+  const bw = B.bodyW || 1;
+  const headRx = B.headRx || 6.3, headRy = B.headRy || 5.8;
+  const earY = B.earApexY == null ? 1 : B.earApexY, ew = B.earW || 2.4, eo = B.earOut || 4;
+  const eRx = B.eyeRx || 2, eRy = B.eyeRy || 2.4, fluff = !!B.fluff, cheek = B.cheek || 0;
+  const EH = 6;   // ears/head drop vs the sit sprite (the loaf sits low)
+  // baked tail wrapped around the front-right base (drawn first, behind the body)
+  [[20.4, 26.6], [18.6, 28.2], [16.2, 29.2]].forEach(([c, r]) => ellipse(c, r, 1.7, 1.6, 'C'));
+  ellipse(16.2, 29.2, 0.9, 0.9, 'W', ['C']);               // pale tail tip curled to the front
+  // body: a wide, low loaf mound — base sits on the ground line (row ~29)
+  ellipse(CX, 25, 8.9 * bw, 4.7 + (fluff ? 0.4 : 0), 'C'); // broad base
+  ellipse(CX, 21, 8.0 * bw, 4.0, 'C');                     // rounded upper mound
+  // head resting low and forward on the mound
+  ellipse(CX, 8 + EH, headRx, headRy, 'C');
+  if (cheek) { ellipse(CX - headRx * 0.7, 9.6 + EH, 1.7, 2.2, 'C'); ellipse(CX + headRx * 0.7, 9.6 + EH, 1.7, 2.2, 'C'); }
+  if (fluff) { ellipse(5.4, 10.4 + EH, 1.9, 2.4, 'C'); ellipse(18.6, 10.4 + EH, 1.9, 2.4, 'C'); } // cheek ruff
+  // ears — same triangles as the sit head, dropped by EH
+  triangle(CX - eo - 0.5, earY + EH, CX - eo - ew, 7.6 + EH, CX - eo + ew, 6.4 + EH, 'K');
+  triangle(CX + eo + 0.5, earY + EH, CX + eo + ew, 7.6 + EH, CX + eo - ew, 6.4 + EH, 'K');
+  const iw = ew * 0.55;
+  triangle(CX - eo - 0.3, earY + 2 + EH, CX - eo - iw, 7.2 + EH, CX - eo + iw, 6.6 + EH, 'I');
+  triangle(CX + eo + 0.3, earY + 2 + EH, CX + eo + iw, 7.2 + EH, CX + eo - iw, 6.6 + EH, 'I');
+  if (fluff) { ellipse(CX - eo, 6.0 + EH, 0.9, 1.4, 'W', ['C', 'K']); ellipse(CX + eo, 6.0 + EH, 0.9, 1.4, 'W', ['C', 'K']); } // ear tufts
+  // muzzle + a small chest bib on the front of the mound
+  ellipse(CX, 12 + EH, 3, 2, 'W', ['C']);
+  ellipse(CX, 22, fluff ? 3.2 : 2.6, 3.4, 'W', ['C']);
+  // two tucked front paws peeking out at the base
+  ellipse(9.6, 28.4, 2.0, 1.4, 'W', ['C']); ellipse(14.4, 28.4, 2.0, 1.4, 'W', ['C']);
+  setCell(12, 28, '.'); setCell(12, 29, '.');              // toe split between the tucked paws
+  // eyes + nose (drawCat closes them to a happy curve for the content loaf)
+  ellipse(9, 8.2 + EH, eRx, eRy, 'E'); ellipse(15, 8.2 + EH, eRx, eRy, 'E');
+  setCell(12, 11 + EH, 'N'); setCell(11, 11 + EH, 'N');
+  // tabby: forehead M + a couple of soft side bands (kept subtle so the loaf reads clean)
+  if (B.tabby) {
+    [[11, 6 + EH], [12, 7 + EH], [13, 6 + EH]].forEach(([c, r]) => { if (G[r] && G[r][c] === 'C') setCell(c, r, 'K'); });
+    [[5, 23], [6, 25], [18, 23], [17, 25]].forEach(([c, r]) => { if (G[r] && G[r][c] === 'C') setCell(c, r, 'K'); });
+  }
+  // tortie/calico colour patches (invisible where patch == coat)
+  ellipse(7.5, 24, 2.3, 2.8, 'X', ['C', 'K']); ellipse(16, 26, 2.2, 2.2, 'X', ['C', 'K']);
+}
+
 const spriteHunt = buildSprite(30, 20, composeHunt);
 const TW = 24 * CELL, TH = 24 * CELL;            // front-facing kneading-cat dims (per-coat sprites built below)
 // Sit grid is always 24x30, so SW/SH and the mochi bands stay constant across the
@@ -129,6 +177,8 @@ const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeSit
 // each coat also gets its own typing (kneading) body, so every breed types differently
 // one shared front "kneading cat" shape, recoloured per coat (+ tabby stripes / fluffy tufts)
 const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 24, () => composeTypeFront({ tabby: TABBY[i], fluff: BUILDS[b].fluff })));
+// and a dedicated loaf (resting) body per coat — same 24x30 size as the sit sprite
+const loafSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeLoaf({ ...BUILDS[b], tabby: TABBY[i] })));
 let patternIndex = Number(localStorage.getItem('pattern') || 0);
 if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
 const forcedPattern = qp.get('pattern');
@@ -140,7 +190,7 @@ if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().in
 const BASE_PATTERNS = PATTERNS.length;
 function applyThemes(list) {
   PATTERNS.length = BASE_PATTERNS; PATTERN_BUILD.length = BASE_PATTERNS; TABBY.length = BASE_PATTERNS;
-  sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS;
+  sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS; loafSprites.length = BASE_PATTERNS;
   for (const th of (Array.isArray(list) ? list : [])) {
     if (!th || !th.name || !th.coat) continue;
     const build = BUILDS[th.build] ? th.build : 'standard';
@@ -151,6 +201,7 @@ function applyThemes(list) {
     TABBY.push(!!th.tabby);
     sprites.push(buildSprite(24, 30, () => composeSit({ ...BUILDS[build], tabby: !!th.tabby })));
     typeSprites.push(buildSprite(24, 24, () => composeTypeFront({ tabby: !!th.tabby, fluff: BUILDS[build].fluff })));
+    loafSprites.push(buildSprite(24, 30, () => composeLoaf({ ...BUILDS[build], tabby: !!th.tabby })));
   }
   if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
   if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
@@ -161,7 +212,7 @@ const HOT_BODY = '#d9534f', HOT_OUTLINE = '#7a1f1a';
 
 // ---- draw the cat body into context g (local origin 0,0) -------------------
 function drawCat(g, sp, t, palRGB, o) {
-  const { bob = 0, blinking = false, look = { x: 0, y: 0 }, typing = false, eyeMode = 'open' } = o;
+  const { bob = 0, blinking = false, look = { x: 0, y: 0 }, typing = false, eyeMode = 'open', blush = false, dilate = 1 } = o;
   const closed = blinking || eyeMode === 'happy';
   const grid = sp.grid, COLS = sp.COLS, ROWS = sp.ROWS;
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
@@ -180,6 +231,15 @@ function drawCat(g, sp, t, palRGB, o) {
       g.beginPath(); g.moveTo(sx, my + i * 3 - 2); g.lineTo(sx + dir * 13, my + i * 5 - 1); g.stroke();
     }
   }
+  if (blush) {
+    g.globalAlpha = 0.52; g.fillStyle = '#ffaab8';
+    for (const e of sp.eyes) {
+      if (e.w <= 0) continue;
+      const bx = Math.round(e.cx - 2), by = Math.round(e.cy + e.h * 0.55 + bob);
+      g.fillRect(bx, by, 5, 2); g.fillRect(bx + 1, by + 2, 3, 1);  // soft oval blush cluster
+    }
+    g.globalAlpha = 1;
+  }
   if (eyeMode === 'happy') {
     g.strokeStyle = rgbStr(palRGB.O); g.lineWidth = 2; g.lineCap = 'round';
     for (const e of sp.eyes) { if (e.w <= 0) continue; g.beginPath(); g.arc(e.cx, e.cy + bob - 1, e.w * 0.5, Math.PI * 0.15, Math.PI * 0.85); g.stroke(); }
@@ -187,7 +247,7 @@ function drawCat(g, sp, t, palRGB, o) {
     const eLook = typing ? { x: look.x * 0.3, y: 0.85 } : look;
     for (const e of sp.eyes) {
       if (e.w <= 0) continue;                         // profile sprites have eyes on one side only
-      const pw = Math.max(4, Math.round(e.w * 0.46)), ph = Math.max(5, Math.round(e.h * 0.7));
+      const pw = Math.max(4, Math.round(e.w * 0.46 * dilate)), ph = Math.max(5, Math.round(e.h * 0.7 * Math.min(dilate, 1.12)));
       const cx = e.cx + eLook.x * (e.w * 0.30), cy = e.cy + eLook.y * (e.h * 0.26) + bob;
       const px = Math.round(cx - pw / 2), py = Math.round(cy - ph / 2);
       g.fillStyle = '#22242b';
@@ -300,28 +360,56 @@ function renderTypeFront(t, palRGB, pal, overheat, blinking, look) {
   drawKneadPaws(palRGB, lcx, rcx, keyTop, lp, rp, pos.y - 29 + dip);
   if (overheat) drawSteam(t, pos.x, oy + 2 * CELL);
 }
-// Animated tail: a curling, swaying stroke that flicks on idle actions and wags
-// faster while the cat is petted. Drawn behind the body so its root tucks under.
+// Animated tail: rests low behind the haunch, lies along the ground sweeping
+// right, then the last segments curl gently up. Tapers from a thick base to a
+// pale rounded tip; flicks on idle actions and wags faster while petted.
+// Drawn behind the body so its root tucks under.
 function drawTail(footX, footY, t, pal, flickT0, petting) {
-  const baseX = footX + SW * 0.20, baseY = footY - SH * 0.24, segLen = SH * 0.052;
+  const baseX = footX + SW * 0.20, baseY = footY - SH * 0.22, segLen = SH * 0.052;
+  // Rest pose per segment (rad): dive down behind the haunch, level out along
+  // the ground, then curl the tip up. (+y is down on canvas.)
+  const REST = [1.30, 1.10, 0.85, 0.55, 0.28, 0.08, -0.05, -0.45, -0.85, -1.20];
   let flick = 0;
-  if (flickT0 >= 0 && t - flickT0 < 650) { const e = (t - flickT0) / 650; flick = Math.sin(e * Math.PI * 3) * (1 - e) * 0.55; }
-  const wag = Math.sin(t / 540) * 0.10 + (petting ? Math.sin(t / 120) * 0.07 : 0);
-  const pts = []; let x = baseX, y = baseY, ang = -1.15;
-  for (let i = 0; i <= 10; i++) {
+  if (flickT0 >= 0 && t - flickT0 < 650) { const e = (t - flickT0) / 650; flick = Math.sin(e * Math.PI * 3) * (1 - e) * 0.45; }
+  const wag = Math.sin(t / 540) * 0.12 + (petting ? Math.sin(t / 120) * 0.08 : 0);
+  const pts = [[baseX, baseY]];
+  let x = baseX, y = baseY, dev = 0;
+  for (let i = 0; i < REST.length; i++) {
+    const w = (i + 1) / REST.length;                       // tip sways most; base barely moves
+    dev += (wag + flick) * w * w + Math.sin(t / 430 + i * 0.6) * 0.03 * w;
+    const ang = REST[i] - dev;
+    x += Math.cos(ang) * segLen;
+    y = Math.min(y + Math.sin(ang) * segLen, footY - 2.5); // the ground stops the tail
     pts.push([x, y]);
-    const w = i / 10;                                    // tip sways most
-    ang += 0.20 + (wag + flick) * w + Math.sin(t / 430 + i * 0.6) * 0.03 * w;
-    x += Math.cos(ang) * segLen; y += Math.sin(ang) * segLen;
   }
+  // Screen-edge budget: never sweep further right than EDGE_R allows for.
+  let reach = 0; for (const p of pts) reach = Math.max(reach, p[0] - baseX);
+  if (reach > 56) { const f = 56 / reach; for (const p of pts) p[0] = baseX + (p[0] - baseX) * f; }
+  // Densify with quadratics through segment midpoints (same scheme as
+  // strokeSmooth) so the tapered per-piece strokes show no corners.
+  const sm = [pts[0]]; let px = pts[0][0], py = pts[0][1];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2;
+    for (let k = 1; k <= 4; k++) {
+      const u = k / 4, v = 1 - u;
+      sm.push([v * v * px + 2 * v * u * pts[i][0] + u * u * mx,
+               v * v * py + 2 * v * u * pts[i][1] + u * u * my]);
+    }
+    px = mx; py = my;
+  }
+  sm.push(pts[pts.length - 1]);
+  // Two tapered passes: outline stays ~3px proud of the coat at every piece so
+  // the sticker halo survives; the last stretch of coat is pale (dipped tip).
+  const n = sm.length - 1;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = pal.O; ctx.lineWidth = 9;
-  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const p of pts) ctx.lineTo(p[0], p[1]); ctx.stroke();
-  ctx.strokeStyle = pal.C; ctx.lineWidth = 5.5;
-  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const p of pts) ctx.lineTo(p[0], p[1]); ctx.stroke();
-  const tip = pts[pts.length - 1];
-  ctx.fillStyle = pal.O; ctx.beginPath(); ctx.arc(tip[0], tip[1], 4.2, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = pal.W; ctx.beginPath(); ctx.arc(tip[0], tip[1], 2.7, 0, Math.PI * 2); ctx.fill();
+  for (const pass of [0, 1]) {
+    for (let j = 0; j < n; j++) {
+      const s = (j + 0.5) / n;                             // 0 at base -> 1 at tip
+      ctx.strokeStyle = pass === 0 ? pal.O : (s > 0.82 ? pal.W : pal.C);
+      ctx.lineWidth = 7 - 4 * s + (pass === 0 ? 3 : 0);    // coat 7 -> 3, outline +3
+      ctx.beginPath(); ctx.moveTo(sm[j][0], sm[j][1]); ctx.lineTo(sm[j + 1][0], sm[j + 1][1]); ctx.stroke();
+    }
+  }
 }
 // Thinking indicator: three dots that pulse near the head (AI agent working).
 function drawThinkBubble(x, y, t) {
@@ -389,12 +477,18 @@ let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let hearts = [], lastHeart = 0, lastBodyTrill = -9999;
+let idleSparkles = [], nextIdleSparkle = 0;
+let loafZZZ = [], nextLoafZ = 0;
 // stretch reminder (08) + AI-agent thinking/done (10/11)
 let stretchT0 = -1, nextStretch = 0;
-let agentState = 'idle', doneHopT0 = -1, doneHopPending = false, errorPending = false;
+let agentState = 'idle', doneHopT0 = -1, doneHopPending = false, doneIsAgent = false, errorPending = false;
 const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
-// paper unroll (09)
+// scroll reaction (09): the cat plays with a prop while you scroll. The prop
+// rotates per scroll-session for variety (yarn ball / toilet roll / fish toy).
 let paperLen = 0, paperUntil = 0, scrollPulses = 0;
+const SCROLL_VARIANTS = 3;
+const forcedVariant = qp.get('pv');   // --pv=N pins the scroll prop for previews
+let scrollVariant = forcedVariant != null ? (Number(forcedVariant) || 0) % SCROLL_VARIANTS : 0;
 // liveliness: eased gaze, idle micro-actions, animated tail + frame governor
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
@@ -441,7 +535,10 @@ if (window.cat) {
       : /(edit|writ|creat|refactor|test|build|compil|run|install|search|read|tool)/.test(v) ? 'working'
       : /(think|plan|prompt|start|busy)/.test(v) ? 'thinking'
       : 'idle';
-    if (cat === 'done') { doneHopPending = true; agentState = 'idle'; energy = clamp(energy + 25, 0, 100); }
+    if (cat === 'done') {
+      doneHopPending = true; doneIsAgent = true; agentState = 'idle'; energy = clamp(energy + 25, 0, 100);
+      bubbleText = 'Task complete!'; bubbleUntil = performance.now() + 2600;   // Comnyang-style done bubble
+    }
     else if (cat === 'error') { errorPending = true; agentState = 'idle'; energy = clamp(energy + 30, 0, 100); }
     else if (cat === 'working') { agentState = 'working'; energy = clamp(energy + 8, 0, 100); }
     else if (cat === 'thinking') { agentState = 'thinking'; energy = clamp(energy + 6, 0, 100); }
@@ -640,66 +737,190 @@ function drawPomoTimer(x, y, t) {
   ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
-// Unspooling roll of paper (drawn in front of the cat while you scroll). The text
-// lines and a highlighted "current" band slide downward to read as live scrolling.
-function drawPaper(cx, topY, len, t) {
-  const w = 16, x = Math.round(cx - w / 2), sway = Math.round(Math.sin(t / 220) * 1.5);
-  const xs = x + sway;
-  topY = Math.round(topY);
-  ctx.fillStyle = '#fbfbf7'; ctx.fillRect(xs, topY, w, len);                   // sheet
-  ctx.fillStyle = '#e6e6df'; ctx.fillRect(xs, topY, 1, len); ctx.fillRect(xs + w - 1, topY, 1, len);  // side edges
-  // scrolling text lines: offset slides down over time, wrapping within the sheet
-  const off = (t / 22) % 5;
-  for (let yy = topY + 4 + off; yy < topY + len - 2; yy += 5) {
-    const row = Math.round((yy - topY) / 5);
-    const ind = (row % 4 === 2) ? 4 : (row % 4 === 0) ? 2 : 0;                 // ragged indents = code-ish
-    const wd = (w - 6 - ind) - (row % 3) * 2;
-    ctx.fillStyle = '#c9c9bf'; ctx.fillRect(xs + 2 + ind, Math.round(yy), Math.max(3, wd), 1);
+// Ball of yarn, Comnyang-style: a wound coral ball sits BESIDE the cat at face
+// height and a thread unwinds from it, trailing straight down and pooling on the
+// floor — so the cat stays fully visible. cx = ball centre, topY = ball top.
+// The thread sways to read as "live", a tangle pools as you unwind more, and
+// little highlight twists travel down the strand while you actively scroll.
+function drawPaper(cx, topY, len, t, active) {
+  // A coral BALL OF YARN the cat bats while you scroll: the wound ball sits to the
+  // cat's left and a thread unwinds from it, trailing down and pooling on the floor.
+  // `len` is the unwound thread length (grows as you scroll, retracts when you stop).
+  const YARN_OUT = '#c8455a', YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3', YARN_HI = '#ffd0d8';
+  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+  const R = 11;
+  const bx = Math.round(cx) + Math.round(Math.sin(t / 220));   // gentle sway, like the roll had
+  const by = Math.round(topY) + 4;
+  const threadX = bx + R - 2, threadY = by - 4;                // loose end leaves the ball's right side
+  // trailing thread down toward the floor (drawn first, so the ball overlaps its root)
+  for (let i = 0; i < len; i++) {
+    const x = threadX + Math.sin(i / 9 + t / 240) * 3, y = threadY + i;
+    rect(x, y, 2, 2, YARN_MID);
+    if (i % 4 === 0) rect(x + 1.5, y, 1, 2, YARN_DK);          // one-sided edge shade for depth
   }
-  // highlighted current line sweeping down the page
-  const hy = topY + 6 + ((t / 9) % Math.max(8, len - 12));
-  ctx.globalAlpha = 0.5; ctx.fillStyle = '#bfe0ff'; ctx.fillRect(xs + 1, Math.round(hy), w - 2, 3); ctx.globalAlpha = 1;
-  ctx.fillStyle = '#fbfbf7'; for (let i = 0; i < w; i += 3) ctx.fillRect(xs + i, topY + len, 2, i % 2 ? 2 : 3);  // torn bottom
-  ctx.fillStyle = '#3a3f48'; ctx.fillRect(x - 2, topY - 6, w + 4, 7);          // roll body
-  ctx.fillStyle = '#dadbd0'; ctx.fillRect(x - 1, topY - 5, w + 2, 5);
-  ctx.fillStyle = '#9aa0a8'; ctx.fillRect(x + w / 2 - 1, topY - 4, 2, 3);      // core
+  // ground pool: the tangle grows the more you've unwound, shrinks as it rewinds
+  if (len > 30) {
+    const poolX = threadX + Math.sin(len / 9 + t / 240) * 3, groundY = threadY + len;
+    const loops = Math.min(3, Math.floor((len - 25) / 15));
+    for (let k = 0; k < loops; k++) {
+      const lx = poolX + (k - 1) * 5, ly = groundY - k * 2, lw = 14 - k * 2;
+      ctx.fillStyle = YARN_DK; ctx.beginPath(); ctx.ellipse(lx, ly + 1, lw / 2, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = YARN_MID; ctx.beginPath(); ctx.ellipse(lx, ly, lw / 2, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+      rect(lx - 2, ly - 2.5, 4, 1, YARN_LT);                   // top highlight tick
+    }
+  }
+  // the ball: a wound coral disc with a grounded underside + glint
+  ctx.fillStyle = YARN_MID; ctx.beginPath(); ctx.ellipse(bx, by, R, R, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = YARN_DK;  ctx.beginPath(); ctx.ellipse(bx, by + 4, R, R - 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();                                                  // wrap strands, clipped to the disc
+  ctx.beginPath(); ctx.ellipse(bx, by, R, R, 0, 0, Math.PI * 2); ctx.clip();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = YARN_LT; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(bx - R, by - 7); ctx.lineTo(bx + R, by + 9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(bx - R, by - 1); ctx.lineTo(bx + R - 2, by + 11); ctx.stroke();
+  ctx.strokeStyle = YARN_OUT;
+  ctx.beginPath(); ctx.moveTo(bx + R, by - 9); ctx.lineTo(bx - R + 1, by + 9); ctx.stroke();
+  ctx.restore();
+  rect(bx - 7, by - 8, 4, 3, YARN_HI);                         // top-left glint
+  // active "unwinding" sparkle twisting down the strand (replaces the old motion dashes)
+  if (active && len > 6) {
+    const dOff = (t / 4) % 14;
+    ctx.globalAlpha = 0.7; ctx.fillStyle = YARN_LT;
+    for (let i = 0; i < 3; i++) {
+      const yy = (dOff + i * 14) % Math.max(14, len - 4);
+      rect(threadX + Math.sin(yy / 9 + t / 240) * 3 - 1, threadY + yy, 2, 3);
+    }
+    ctx.globalAlpha = 1;
+  }
 }
-// Two front paws batting at the unspooling paper, alternating like a cat swatting a
-// dangling ribbon. Drawn over the seated sprite (cx = paper centre, pawY = chest).
-function drawBatPaws(palRGB, cx, pawY, paperTop, t) {
+// Scroll prop variant 1 — an unspooling toilet-paper roll (the original): a side-
+// view roll sits beside the cat and a plain sheet feeds straight down. `len` is
+// the sheet length. The paw PULLS this one (motion 'pull').
+function drawPaperRoll(cx, topY, len, t, active) {
+  const w = 16, sway = Math.round(Math.sin(t / 220) * 1.2);
+  const xs = Math.round(cx - w / 2) + sway;
+  topY = Math.round(topY);
+  ctx.fillStyle = '#fbfbf7'; ctx.fillRect(xs, topY, w, len);
+  ctx.fillStyle = '#e6e6df'; ctx.fillRect(xs, topY, 1, len); ctx.fillRect(xs + w - 1, topY, 1, len);
+  const off = (t / 18) % 12;
+  ctx.fillStyle = '#e9e9e0';
+  for (let yy = topY + 6 + off; yy < topY + len - 5; yy += 12) ctx.fillRect(xs + 1, Math.round(yy), w - 2, 1);
+  if (len > 8) {
+    ctx.fillStyle = '#fbfbf7';
+    ctx.fillRect(xs + 1, topY + len, w - 1, 2); ctx.fillRect(xs + 3, topY + len + 2, w - 2, 2);
+    ctx.fillStyle = '#efefe8'; ctx.fillRect(xs + 4, topY + len + 3, w - 3, 1);
+  }
+  const bw = w + 9, bx = xs - 5, by = topY - 13;
+  ctx.fillStyle = '#3a3f48'; ctx.fillRect(bx - 1, by - 1, bw + 2, 15);
+  ctx.fillStyle = '#ecece4'; ctx.fillRect(bx, by, bw, 13);
+  ctx.fillStyle = '#f7f7f0'; ctx.fillRect(bx + 2, by + 1, bw - 4, 2);
+  ctx.fillStyle = '#d8d8cc'; ctx.fillRect(bx + 2, by + 10, bw - 4, 2);
+  const ex = bx + 1, ey = by + 6.5;
+  ctx.fillStyle = '#3a3f48'; ctx.beginPath(); ctx.ellipse(ex, ey, 6.2, 7.7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f4f4ec'; ctx.beginPath(); ctx.ellipse(ex, ey, 5, 6.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#c9c9bf'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(ex, ey, 3, 4, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#6a707a'; ctx.beginPath(); ctx.ellipse(ex, ey, 1.7, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+  if (active && len > 6) {
+    const dOff = (t / 4) % 14;
+    ctx.fillStyle = '#9aa0a8'; ctx.globalAlpha = 0.7;
+    for (let i = 0; i < 3; i++) {
+      const dy = topY + 6 + ((dOff + i * 14) % Math.max(14, len - 4));
+      ctx.fillRect(xs - 5, Math.round(dy), 2, 5);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+// Scroll prop variant 2 — a teal felt fish cat-toy lying beside the cat, head
+// facing the cat so the paw can BAT it. It flops harder the more you scroll
+// (`len` drives the wiggle amplitude). No trailing thread — it's a toy.
+function drawPaperFish(cx, topY, len, t, active) {
+  const wig = active ? Math.sin(t / 90) * Math.min(0.55, 0.18 + len / 150) : Math.sin(t / 320) * 0.1;
+  const bx = Math.round(cx), by = Math.round(topY) + 6;
+  const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+  const OUT = '#1f6b73', BODY = '#3fb6c4', LT = '#9fe6ec', BELLY = '#d2f0f2', FIN = '#2a93a0';
+  ctx.save(); ctx.translate(bx, by); ctx.rotate(wig);
+  ctx.fillStyle = OUT; ctx.beginPath(); ctx.moveTo(-15, -7); ctx.lineTo(-6, 0); ctx.lineTo(-15, 7); ctx.closePath(); ctx.fill();   // tail (left)
+  ctx.fillStyle = FIN; ctx.beginPath(); ctx.moveTo(-13, -5); ctx.lineTo(-7, 0); ctx.lineTo(-13, 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = OUT; ctx.beginPath(); ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2); ctx.fill();                                   // body
+  ctx.fillStyle = BODY; ctx.beginPath(); ctx.ellipse(0, 0, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = BELLY; ctx.beginPath(); ctx.ellipse(0, 2, 7, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = FIN; ctx.beginPath(); ctx.moveTo(-3, -5); ctx.lineTo(2, -10); ctx.lineTo(5, -5); ctx.closePath(); ctx.fill();    // top fin
+  r(-3, -5, 2, 2, LT); r(1, -4, 3, 1, LT);                                                                                        // highlights
+  r(2, -3, 1, 6, FIN);                                                                                                            // gill line
+  r(5, -2, 3, 3, '#ffffff'); r(6, -1, 2, 2, '#22242b');                                                                           // eye (head, right)
+  ctx.restore();
+}
+// The cat's raised front paw interacting with a scroll prop. (px, py) is the
+// target. `motion` selects the cycle: 'bat' swats sideways at a ball/toy (toes
+// splay on contact); 'pull' strokes straight down to drag a sheet (toes splay on
+// the lift). Idle (not active) = a gentle resting bob. The arm is a rotated
+// two-tone slab from the shoulder (sx,sy), so it reads blocky at any angle.
+function drawFeedPaw(palRGB, sx, sy, px, py, t, active, motion) {
   const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  const swat = (side, phase) => {
-    const s = (Math.sin(t / 150 + phase) + 1) / 2;                  // 0..1 swat cycle
-    const sx = cx + side * 10;                                      // shoulder anchor
-    const px = cx + side * (8 - s * 7);                             // paw swings in toward paper
-    const py = paperTop + 5 + s * 13;                               // and down the page
-    ctx.strokeStyle = O; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(sx, pawY); ctx.lineTo(px, py); ctx.stroke();
-    ctx.strokeStyle = C; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(sx, pawY); ctx.lineTo(px, py); ctx.stroke();
-    ctx.fillStyle = O; ctx.beginPath(); ctx.arc(px, py, 4.2, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = C; ctx.beginPath(); ctx.arc(px, py, 2.9, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = W; ctx.beginPath(); ctx.arc(px, py + 1.2, 1.3, 0, Math.PI * 2); ctx.fill();
-    return s;
-  };
-  swat(-1, 0);                 // left paw
-  swat(1, Math.PI);            // right paw, opposite phase
+  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+  const pull = motion === 'pull';
+  let pxb = px, pyb = py, ph = -1, splayed = false;
+  if (active) {
+    ph = (t / 700) % 1;
+    if (pull) {
+      const STROKE = 22;
+      if (ph < 0.6) { pyb = py + (ph / 0.6) * STROKE; }                 // downstroke: drag the sheet
+      else { const r = (ph - 0.6) / 0.4; pyb = py + (1 - r) * STROKE; pxb = px + Math.sin(r * Math.PI) * 4.5; }   // lift back up
+      splayed = ph >= 0.6;                                              // toes show on the lift
+    } else {
+      const BAT = 9;
+      if (ph < 0.45) { const k = ph / 0.45; pxb = px - k * BAT; pyb = py - (1 - k) * 6; }   // wind up & strike
+      else if (ph < 0.70) { pxb = px - BAT + Math.sin(t / 40); pyb = py + Math.sin(t / 40); }   // contact: tap + jitter
+      else { const r = (ph - 0.70) / 0.30; pxb = px - BAT + r * BAT * 1.2; pyb = py - r * 6; }   // recoil up-and-right
+      splayed = ph >= 0.45 && ph < 0.70;                               // toes splay on contact
+    }
+  } else {
+    pyb = py + Math.round(Math.sin(t / 600) * 2);
+  }
+  const pwW = 13, pwH = 7;
+  const pY = Math.round(pyb - pwH / 2);
+  const adx = pxb - sx, ady = pyb - sy, aLen = Math.hypot(adx, ady) || 1, aAng = Math.atan2(ady, adx);
+  ctx.save();
+  ctx.translate(sx, sy); ctx.rotate(aAng);
+  ctx.fillStyle = O; ctx.fillRect(0, -5, aLen + 3, 10);   // outline slab
+  ctx.fillStyle = C; ctx.fillRect(0, -3, aLen + 3, 6);    // coat core
+  ctx.restore();
+  const pX = pxb - pwW / 2;
+  rect(pX - 2, pY - 2, pwW + 4, pwH + 4, O);
+  rect(pX, pY, pwW, pwH, W);
+  if (active && splayed) {
+    rect(pxb - 3, pY + 3.5, 6, 3, '#ff8fa3');
+    rect(pxb - 6.5, pY + 0.5, 3, 3, '#ff8fa3');
+    rect(pxb + 3.5, pY + 0.5, 3, 3, '#ff8fa3');
+  } else {
+    rect(pxb - 1, pY + 2, 2, pwH - 2, O);
+  }
 }
 // Grooming: the cat raises a front paw to its muzzle and licks it, washing its face.
 // Drawn over the seated sprite (cx = body centre, faceY = muzzle height).
 function drawGroom(palRGB, cx, faceY, t) {
   const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
+  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
   const u = (Math.sin(t / 200) + 1) / 2;                          // 0..1 lick cycle
-  const shX = cx - 7, shY = faceY + 32;                           // chest anchor
+  const shY = faceY + 32;                                          // chest anchor y
   const pawX = cx - 2, pawY = faceY + 11 - u * 11;                // paw rises to the muzzle
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = O; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(shX, shY); ctx.lineTo(pawX, pawY); ctx.stroke();
-  ctx.strokeStyle = C; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(shX, shY); ctx.lineTo(pawX, pawY); ctx.stroke();
-  ctx.fillStyle = O; ctx.beginPath(); ctx.arc(pawX, pawY, 4.5, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = C; ctx.beginPath(); ctx.arc(pawX, pawY, 3, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = W; ctx.beginPath(); ctx.arc(pawX, pawY + 1.2, 1.4, 0, Math.PI * 2); ctx.fill();
-  if (u > 0.55) {                                                 // little pink tongue licking the paw
-    ctx.globalAlpha = (u - 0.55) / 0.45; ctx.fillStyle = '#ff9aa8';
-    ctx.beginPath(); ctx.ellipse(cx - 1, pawY + 3.4, 2, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+  const pwW = 13, pwH = 7;
+  const pY = Math.round(pawY - pwH / 2);
+  const aw = 10, ax = Math.round(pawX - aw / 2);
+  const aTop = pY + pwH;                                           // arm hangs below the paw
+  const aH = Math.max(0, Math.round(shY) - aTop);
+  if (aH > 0) { rect(ax, aTop, aw, aH, O); rect(ax + 2, aTop, aw - 4, aH, C); }
+  rect(pawX - pwW / 2 - 2, pY - 2, pwW + 4, pwH + 4, O);          // paw outline
+  rect(pawX - pwW / 2, pY, pwW, pwH, W);                           // white mitt
+  if (u > 0.70) {                                                  // paw near face: show toe beans on underside
+    rect(pawX - 3, pY + 3.5, 6, 3, '#ff8fa3');
+    rect(pawX - 6.5, pY + 0.5, 3, 3, '#ff8fa3'); rect(pawX + 3.5, pY + 0.5, 3, 3, '#ff8fa3');
+  } else {
+    rect(pawX - 1, pY + 2, 2, pwH - 2, O);                        // contact: toe-split line
+  }
+  if (u > 0.55) {                                                  // little pink tongue licking the paw
+    ctx.globalAlpha = (u - 0.55) / 0.45;
+    rect(pawX - 2, pY + pwH, 4, 3, '#ff9aa8'); rect(pawX - 1, pY + pwH + 3, 2, 1, '#ff9aa8');
     ctx.globalAlpha = 1;
   }
   const sp = (t % 1600) / 1600;                                   // occasional "squeaky clean" sparkle
@@ -715,6 +936,7 @@ const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUN
 const ENERGY_DECAY = 0.0012;
 const CALM_MAX = 50, PLAYFUL_MAX = 80;
 const STARTLE_VEL = 3.5, STARTLE_JUMP = 320, STARTLE_MS = 820, ZOOMIES_MS = 2500;
+const STARTLE_RANGE = 160;   // only flinch when the cursor lunges NEAR the cat — not on every fast move across the screen
 function bandOf(e) { return e <= CALM_MAX ? 'calm' : e <= PLAYFUL_MAX ? 'playful' : 'zoomies'; }
 function addEnergy(n) { energy = clamp(energy + n, 0, 100); }
 
@@ -760,6 +982,7 @@ function draw(t) {
   // that scales existing behaviours (calm = mellow, zoomies = frantic). When mood
   // is off, behave exactly like before (band 'playful', intensity 1).
   const moodOn = !(config && config.moodOn === false);
+  const startleOn = !(config && config.startleOn === false);   // flinch when the cursor lunges at it
   if (moodOn) energy = clamp(energy - dt * ENERGY_DECAY, 0, 100);
   const band = moodOn ? bandOf(energy) : 'playful';
   const intensity = !moodOn ? 1 : band === 'calm' ? 0.6 : band === 'zoomies' ? 1.5 : 1;
@@ -774,7 +997,8 @@ function draw(t) {
 
   // STARTLE: an abrupt cursor jump / velocity spike (the "sudden big change") makes
   // the cat flinch, freeze, then bolt or creep back. Cooldown stops re-fires.
-  if (moodOn && !SHOT && !grabbing && t > startleCooldownUntil && (inst > STARTLE_VEL || moved > STARTLE_JUMP)) {
+  const startleNear = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5)) < STARTLE_RANGE;
+  if (moodOn && startleOn && !SHOT && !grabbing && t >= huntUntil && !pouncing && t > startleCooldownUntil && startleNear && (inst > STARTLE_VEL || moved > STARTLE_JUMP)) {
     startleT0 = t; startleUntil = t + STARTLE_MS; startleCooldownUntil = t + 1500;
     startleMode = Math.random() < 0.5 ? 'bolt' : 'creep';
     startleFrom = { x: pos.x, y: pos.y };
@@ -797,7 +1021,10 @@ function draw(t) {
   const startleActive = FORCED_STATE === 'startle' || (startleT0 >= 0 && t < startleUntil);
 
   // paper unroll: scrolling grows the paper; it retracts when you stop.
-  if (scrollPulses > 0) { paperUntil = t + 700; paperLen = Math.min(70, paperLen + scrollPulses * 7); addEnergy(scrollPulses * 4); scrollPulses = 0; }
+  if (scrollPulses > 0) {
+    if (paperLen <= 1) scrollVariant = Math.floor(Math.random() * SCROLL_VARIANTS);   // new scroll session -> pick a fresh prop
+    paperUntil = t + 700; paperLen = Math.min(70, paperLen + scrollPulses * 7); addEnergy(scrollPulses * 4); scrollPulses = 0;
+  }
   if (FORCED_STATE === 'paper') paperLen = 50;
   else if (t > paperUntil) paperLen = Math.max(0, paperLen - dt * 0.06);
   const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
@@ -838,8 +1065,16 @@ function draw(t) {
   else if (FORCED_STATE === 'typing') { typing = true; overheat = false; heatT = 0; }
   else { typing = !grabbing && !hunting && !startleActive && (t - lastKeyAt) < 350; overheat = heat > 0.7; heatT = overheat ? (heat - 0.7) / 0.3 : 0; }
 
+  // A real cat abandons its stroll the instant you interact. Cancel any active roam
+  // so it never slides while petted/typing, and never resumes from a stale path
+  // anchor after a hunt/startle/grab interrupts it (which would snap it back).
+  if (roamUntil > t && (grabbing || hunting || startleActive || typing || petting || bodyPet)) {
+    roamUntil = 0; roamFrom = null; roamTo = null;
+  }
+
   const P = PATTERNS[patternIndex];
   const catSprite = sprites[patternIndex];   // this coat's body build (slender/stocky/fluffy/standard)
+  const loafSprite = loafSprites[patternIndex] || catSprite;   // compact resting (loaf) body for the same coat
   const palRGB = {
     O: toRgb(heatT ? lerpHex(P.outline, HOT_OUTLINE, heatT) : P.outline),
     C: toRgb(heatT ? lerpHex(P.coat, HOT_BODY, heatT) : P.coat),
@@ -875,7 +1110,7 @@ function draw(t) {
     const oy = Math.round(pos.y - SH);
     drawShadow(pos.x, pos.y, 0.16);
     octx.clearRect(0, 0, oc.width, oc.height);
-    drawCat(octx, catSprite, t, palRGB, { bob: 0, blinking, look: { x: 0, y: -0.25 }, eyeMode: 'open' });
+    drawCat(octx, catSprite, t, palRGB, { bob: 0, blinking, look: { x: 0, y: -0.25 }, eyeMode: 'open', dilate: 1.5 - Math.min(se, 1) * 0.25 });   // fright blows the pupils wide, easing as it recovers
     ctx.save();
     ctx.translate(pos.x + jit, pos.y);
     ctx.scale(puff, puff);
@@ -894,7 +1129,7 @@ function draw(t) {
       pos.x = pounceFrom.x + (tgt.x - pounceFrom.x) * ease;
       pos.y = pounceFrom.y + (tgt.y - pounceFrom.y) * ease;
       leap = Math.sin(e * Math.PI) * 18; stretchY = 1 + Math.sin(e * Math.PI) * 0.18;
-      if (e >= 1) { pouncing = false; huntUntil = 0; persistPos(); }
+      if (e >= 1) { pouncing = false; huntUntil = 0; persistPos(); tailFlickT0 = t; idleSparkles.push({ x: pos.x, y: pos.y - HH * 0.7, t0: t }); }   // "got it!" beat
     } else if (FORCED_STATE !== 'hunt' && d < POUNCE_RANGE) {
       pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: cursor.x, y: cursor.y };
     } else if (FORCED_STATE !== 'hunt') {
@@ -906,9 +1141,19 @@ function draw(t) {
     const creep = Math.round(Math.sin(t / 90) * 1.5);
     const ox = Math.round(pos.x - HW / 2), oy = Math.round(pos.y - HH) - Math.round(leap);
     const facingLeft = FORCED_STATE !== 'hunt' && cursor.x < pos.x;
+    if (pouncing && pounceFrom && pounceTarget) {
+      const pe = clamp((t - pounceT0) / POUNCE_MS, 0, 1);
+      const pdx = pounceTarget.x - pounceFrom.x, pdy = pounceTarget.y - pounceFrom.y, plen = Math.hypot(pdx, pdy) || 1;
+      for (let i = 1; i <= 3; i++) {
+        ctx.globalAlpha = (0.28 - i * 0.07) * Math.sin(pe * Math.PI);
+        ctx.fillStyle = pal.C;
+        ctx.fillRect(Math.round(pos.x - pdx / plen * i * 7 - 2), Math.round(pos.y - leap - HH * 0.5 - pdy / plen * i * 7 - 3), 4, 6);
+      }
+      ctx.globalAlpha = 1;
+    }
     drawShadow(pos.x, pos.y, 0.18, 26);
     octx.clearRect(0, 0, oc.width, oc.height);
-    drawCat(octx, spriteHunt, t, palRGB, { bob: creep, blinking, look, eyeMode: 'open' });
+    drawCat(octx, spriteHunt, t, palRGB, { bob: creep, blinking, look, eyeMode: 'open', dilate: pouncing ? 1.5 : 1.32 });
     ctx.save();
     if (facingLeft) { ctx.translate(ox + HW, oy); ctx.scale(-1, stretchY); ctx.drawImage(oc, 0, 0, HW, HH, 0, 0, HW, HH); }
     else { ctx.translate(ox, oy); ctx.scale(1, stretchY); ctx.drawImage(oc, 0, 0, HW, HH, 0, 0, HW, HH); }
@@ -953,7 +1198,7 @@ function draw(t) {
     const speed = Math.hypot(head.vx, head.vy) + Math.hypot(feet.vx, feet.vy);
     const calm = !grabbing && FORCED_STATE !== 'mochi' && Math.abs(ratio - 1) < 0.02 && speed < 0.45 && Math.abs(ang - Math.PI / 2) < 0.03;
     const eyeMode = petting ? 'happy' : 'open';
-    const bob = Math.round(Math.sin(t / (typing ? 220 : 600)) * 2);
+    const bob = Math.round(Math.sin(t / (typing ? 220 : 700)) * 3);
 
     // --- liveliness: eased gaze + periodic idle micro-actions ---------------
     const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && roamUntil < t && agentState === 'idle';
@@ -991,7 +1236,11 @@ function draw(t) {
     const stretching = FORCED_STATE === 'stretch' || (stretchT0 >= 0 && t - stretchT0 < STRETCH_MS);
     const thinking = FORCED_STATE === 'think' || agentState === 'thinking';
     const working = FORCED_STATE === 'work' || agentState === 'working';
-    if (doneHopPending) { doneHopT0 = t; doneHopPending = false; if (config && config.soundOn) playChirp(); }
+    if (doneHopPending) {
+      doneHopT0 = t; doneHopPending = false;
+      if (config && config.soundOn) { if (doneIsAgent) playMeow(); else playChirp(); }   // agent done meows; playful bounce chirps
+      doneIsAgent = false;
+    }
     let hop = 0, hopActive = false;
     if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
     else if (doneHopT0 >= 0 && t - doneHopT0 < DONE_MS) { hop = Math.sin(((t - doneHopT0) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
@@ -1006,20 +1255,35 @@ function draw(t) {
       const grooming = FORCED_STATE === 'groom' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < groomUntil);
       const loafing = !grooming && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
       const wig = (petting ? Math.round(Math.sin(t / 55)) : 0) + idleSway;
-      const emode = (petting || stretching || loafing || grooming) ? 'happy' : 'open';
-      const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: 0, y: 0.75 } : smoothLook;
+      const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
+      const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.7, y: 0.45 } : smoothLook;   // watch the roll beside it
       const breath = Math.sin(t / 1500);                              // gentle breathing
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
-      if (loafing) { sx *= 1.2; sy *= 0.6; }   // squished, content loaf
       if (stretching) {
         const se = FORCED_STATE === 'stretch' ? ((t % STRETCH_MS) / STRETCH_MS) : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
         const k = Math.sin(se * Math.PI); sy = 1 + k * 0.32; sx = 1 + k * 0.10;
       }
       const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop);
-      drawShadow(pos.x + wig, pos.y, 0.18);
-      if (!stretching && !thinking && !working) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);
+      const shadowA = (petting || bodyPet) ? 0.14 + Math.sin(t / 800) * 0.05 : 0.18;
+      drawShadow(pos.x + wig, pos.y, shadowA);
+      if (!stretching && !thinking && !working && !loafing) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);   // loaf has a baked, wrapped tail
+      if (restIdle && band === 'calm' && !paperActive && t > nextIdleSparkle) {
+        idleSparkles.push({ x: pos.x + (Math.random() - 0.5) * 8, y: oy, t0: t });
+        nextIdleSparkle = t + 5000 + Math.random() * 4000;
+      }
+      if (loafing && calm && t > nextLoafZ) {
+        loafZZZ.push({ x: pos.x + 10 + Math.random() * 8, y: oy + 8, t0: t, sz: Math.random() < 0.4 ? 2 : 1 });
+        nextLoafZ = t + 1800 + Math.random() * 1600;
+      }
       octx.clearRect(0, 0, oc.width, oc.height);
-      drawCat(octx, catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode });
+      drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet });
+      if (paperActive && !petting && !stretching) {
+        // the cat lifts its LEFT front paw to play with the scroll prop — paint over
+        // the baked planted left leg+paw (sprite grid x8-12, y24-29) so the reaching
+        // paw doesn't read as a third limb. Drawn on the offscreen sprite so it
+        // scales/flips with the cat.
+        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(32, 97 + bob, 15, 21);
+      }
       ctx.save();
       ctx.translate(pos.x + wig, pos.y - hop);
       if (lean || cursorLean) ctx.rotate(lean + cursorLean);   // idle lean + watch-the-cursor tilt
@@ -1035,9 +1299,26 @@ function draw(t) {
       else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
       if (paperActive && !petting && !stretching) {
-        const paperTop = pos.y - 30;
-        drawPaper(pos.x, paperTop, Math.round(paperLen), t);
-        drawBatPaws(palRGB, pos.x, pos.y - 18, paperTop, t);   // two paws swatting the scroll
+        // The scroll prop varies per session (scrollVariant): the left front paw is
+        // hidden above and raised here to play. Shoulder = the planted-paw spot so
+        // the raised paw reads as that leg lifting. Variant 1 PULLS, others BAT.
+        const feeding = t < paperUntil || FORCED_STATE === 'paper';
+        const shX = pos.x - 8, shY = pos.y - SH * 0.12, propLen = Math.round(paperLen);
+        if (scrollVariant === 1) {                                        // toilet-paper roll: paw pulls the sheet down
+          const rollX = Math.max(18, pos.x - SW / 2 + 10), paperTop = pos.y - SH * 0.52;
+          const dl = Math.min(propLen, Math.round(pos.y - paperTop + 4));
+          drawPaperRoll(rollX, paperTop, dl, t, feeding);
+          drawFeedPaw(palRGB, shX, shY, rollX + 5, paperTop + 5, t, feeding, 'pull');
+        } else if (scrollVariant === 2) {                                 // felt fish toy: paw bats it
+          const fishX = Math.max(24, pos.x - SW / 2 + 16), fishTop = pos.y - SH * 0.44;
+          drawPaperFish(fishX, fishTop, propLen, t, feeding);
+          drawFeedPaw(palRGB, shX, shY, fishX + 9, fishTop + 4, t, feeding, 'bat');
+        } else {                                                          // ball of yarn: paw bats it, thread pools
+          const ballX = Math.max(22, pos.x - SW / 2 + 14), ballTop = pos.y - SH * 0.50;
+          const dl = Math.min(propLen, Math.round(pos.y - ballTop - 2));
+          drawPaper(ballX, ballTop, dl, t, feeding);
+          drawFeedPaw(palRGB, shX, shY, ballX + 12, ballTop + 2, t, feeding, 'bat');
+        }
       }
       if (grooming && !paperActive) drawGroom(palRGB, pos.x + wig, oy + SH * 0.30, t);   // raise a paw, wash its face
       if (t < labelUntil) {
@@ -1047,7 +1328,7 @@ function draw(t) {
       }
       // fully idle (only breathing/tail)? let the governor drop to ~33fps
       if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !blinking
-          && !lookTarget && t > lookTargetUntil && hearts.length === 0 && t >= bubbleUntil
+          && !lookTarget && t > lookTargetUntil && hearts.length === 0 && idleSparkles.length === 0 && loafZZZ.length === 0 && t >= bubbleUntil
           && (tailFlickT0 < 0 || t - tailFlickT0 > 700) && Math.abs(lean) < 0.004) wantHighFps = false;
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
     } else if (grabbing || FORCED_STATE === 'mochi' || ratio > 1.06) {
@@ -1075,6 +1356,10 @@ function draw(t) {
   // floating hearts (update + draw; persist after petting ends)
   hearts = hearts.filter((h) => t - h.t0 < 1100);
   for (const h of hearts) { const a = (t - h.t0) / 1100; drawHeart(Math.round(h.x + Math.sin(a * 6) * 4), Math.round(h.y - a * 26), a < 0.5 ? '#ff5a6e' : '#ff8a98', (1 - a) * 0.95); }
+  idleSparkles = idleSparkles.filter((s) => t - s.t0 < 400);
+  for (const s of idleSparkles) { const a = (t - s.t0) / 400; ctx.globalAlpha = (1 - a) * 0.9; ctx.fillStyle = '#fff6d6'; ctx.fillRect(Math.round(s.x), Math.round(s.y - a * 12), 2, 2); ctx.fillRect(Math.round(s.x + 3), Math.round(s.y - a * 12 - 3), 1, 1); ctx.globalAlpha = 1; }
+  loafZZZ = loafZZZ.filter((z) => t - z.t0 < 1100);
+  for (const z of loafZZZ) { const a = (t - z.t0) / 1100, yOff = a * 14, fade = a < 0.15 ? a / 0.15 : a > 0.75 ? (1 - a) / 0.25 : 1; ctx.globalAlpha = fade * 0.65; ctx.fillStyle = '#8ab4cc'; const zx = Math.round(z.x), zy = Math.round(z.y - yOff), s = z.sz; ctx.fillRect(zx, zy, s * 4, s); ctx.fillRect(zx + s * 2, zy + s, s * 2, s); ctx.fillRect(zx + s, zy + s * 2, s * 2, s); ctx.fillRect(zx, zy + s * 3, s * 4, s); ctx.globalAlpha = 1; }
 
   // reminder/break speech bubble — drawn here (outside the pose branches) so it's
   // visible even if a reminder fires mid-hunt or mid-type. A transient bubble
@@ -1130,7 +1415,8 @@ function sheetPal(P) {
 function sheetSprite(pose, i) {
   if (pose === 'typing') return typeSprites[i] || typeSprites[0];
   if (pose === 'hunt') return spriteHunt;
-  return sprites[i] || sprites[0];   // sit, loaf
+  if (pose === 'loaf') return loafSprites[i] || loafSprites[0];
+  return sprites[i] || sprites[0];   // sit
 }
 function renderSheet() {
   const poses = ['sit', 'typing', 'hunt', 'loaf'];
