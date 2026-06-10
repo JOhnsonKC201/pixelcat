@@ -165,6 +165,23 @@ stdin and replies `{"continue": true}`, so it never blocks or alters your agent.
 Tip: `node scripts/install-hook.js <agent>` (or `npm run hook -- <agent>`) prints the
 config with the absolute path already filled in.
 
+### Notify the cat (push any message)
+
+Beyond agent status, **any** script or tool can make the cat deliver an arbitrary
+message — a speech bubble, a Windows toast, and a meow. This is the seam email
+checks, CI, cron jobs, or build steps hook into:
+
+```bash
+node scripts/notify.js "Build finished" --title CI --level success
+node scripts/notify.js "Coffee break ☕" --ttl 8000
+echo "anything" | node scripts/notify.js "Deploy done"   # hook-safe (drains stdin)
+```
+
+Flags: `--title <T>`, `--level info|success|warn|alert`, `--ttl <ms>`, `--no-sound`.
+It appends one JSON line to `%TEMP%/pixelcat-notify.jsonl`, which the running cat
+tails. Lines written before the cat launched are ignored (no backlog replay), and
+calling it while the cat is closed is harmless.
+
 The richer status reactions were inspired by the open-source AI desktop pets
 [openpets](https://github.com/alvinunreal/openpets) (MIT) and
 [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk) (AGPL-3.0) —

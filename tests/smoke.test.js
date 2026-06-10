@@ -25,6 +25,25 @@ test('agent-hook.js handles each known state', () => {
   }
 });
 
+test('scripts/notify.js appends a valid JSON line and replies', () => {
+  const bridge = path.join(os.tmpdir(), 'pixelcat-notify.jsonl');
+  try { fs.unlinkSync(bridge); } catch (e) { /* fresh */ }
+  const out = execFileSync('node', [path.join(ROOT, 'scripts', 'notify.js'), 'hello cat', '--title', 'CI', '--level', 'success', '--no-sound'], { input: '{"event":"x"}', encoding: 'utf8' });
+  assert.match(out, /"continue"\s*:\s*true/);
+  const lines = fs.readFileSync(bridge, 'utf8').trim().split('\n');
+  const o = JSON.parse(lines[lines.length - 1]);
+  assert.strictEqual(o.message, 'hello cat');
+  assert.strictEqual(o.title, 'CI');
+  assert.strictEqual(o.level, 'success');
+  assert.strictEqual(o.sound, false);
+  assert.ok(o.id && o.ts, 'has id + ts');
+  // empty message -> no throw, still replies, appends nothing new
+  const before = fs.readFileSync(bridge, 'utf8');
+  const out2 = execFileSync('node', [path.join(ROOT, 'scripts', 'notify.js')], { encoding: 'utf8' });
+  assert.match(out2, /"continue"\s*:\s*true/);
+  assert.strictEqual(fs.readFileSync(bridge, 'utf8'), before, 'empty message appends nothing');
+});
+
 test('config.normalize fills defaults and clamps', () => {
   const { normalize, DEFAULTS } = require(path.join(ROOT, 'src', 'config.js'));
   const c = normalize({});

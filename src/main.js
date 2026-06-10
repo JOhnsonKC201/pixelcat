@@ -9,6 +9,9 @@ const { PATTERN_NAMES } = require('./patterns');
 // AI-agent status file: hooks (e.g. Claude Code) write 'thinking' | 'done' here
 // and the cat reacts. See README "AI agent reactions".
 const AGENT_FILE = path.join(os.tmpdir(), 'pixelcat-agent.state');
+// Generic message bridge: any external tool appends JSON lines here (see
+// scripts/notify.js) and the cat shows a bubble + toast. README "Notify the cat".
+const NOTIFY_FILE = path.join(os.tmpdir(), 'pixelcat-notify.jsonl');
 
 let win;                                               // the overlay (the cat)
 let settingsWin = null;                                // settings window (when open)
@@ -165,13 +168,49 @@ function createWindow() {
     try { s = (fs.readFileSync(AGENT_FILE, 'utf8').trim() || 'idle'); } catch (e) { s = 'idle'; }
     if (s !== lastAgent) { lastAgent = s; win.webContents.send('agent', s); }
   };
+
+  // Tail the message-bridge file. We baseline the offset to the current size so a
+  // backlog from before launch isn't replayed; then forward only freshly-appended
+  // lines, de-duped by id, through notify() (bubble + toast + meow).
+  let notifyOffset = 0; const notifySeen = new Set(); let notifyTail = '';
+  try { notifyOffset = fs.statSync(NOTIFY_FILE).size; } catch (e) { notifyOffset = 0; }
+  const pushNotify = () => {
+    if (!win || win.isDestroyed()) return;
+    let size = 0;
+    try { size = fs.statSync(NOTIFY_FILE).size; } catch (e) { return; }
+    if (size < notifyOffset) { notifyOffset = 0; notifyTail = ''; }   // truncated/rotated
+    if (size === notifyOffset) return;
+    let chunk = '';
+    try {
+      const fd = fs.openSync(NOTIFY_FILE, 'r');
+      const buf = Buffer.alloc(size - notifyOffset);
+      fs.readSync(fd, buf, 0, buf.length, notifyOffset);
+      fs.closeSync(fd);
+      chunk = buf.toString('utf8');
+    } catch (e) { return; }
+    notifyOffset = size;
+    notifyTail += chunk;
+    const lines = notifyTail.split('\n');
+    notifyTail = lines.pop();   // keep any trailing partial line for next time
+    for (const line of lines) {
+      const t = line.trim(); if (!t) continue;
+      let o; try { o = JSON.parse(t); } catch (e) { continue; }
+      if (!o || typeof o !== 'object' || !o.message) continue;
+      const id = String(o.id || (o.ts || '') + ':' + o.message);
+      if (notifySeen.has(id)) continue;
+      notifySeen.add(id);
+      if (notifySeen.size > 500) { for (const k of notifySeen) { notifySeen.delete(k); if (notifySeen.size <= 250) break; } }
+      notify(String(o.message), { source: 'bridge', dedupeKey: 'bridge:' + id, title: o.title || 'pixelcat', level: o.level, ttl: o.ttl, sound: o.sound });
+    }
+  };
   try { lastAgent = fs.readFileSync(AGENT_FILE, 'utf8').trim(); } catch (e) { /* none yet */ }
   try {
     agentWatcher = fs.watch(os.tmpdir(), (_ev, fname) => {
       if (!fname || fname === path.basename(AGENT_FILE)) pushAgent();
+      if (!fname || fname === path.basename(NOTIFY_FILE)) pushNotify();
     });
   } catch (e) {
-    agentTimer = setInterval(pushAgent, 500);
+    agentTimer = setInterval(() => { pushAgent(); pushNotify(); }, 500);
   }
 
   // Keep the overlay matched to the primary (laptop) display on resolution/DPI changes,

@@ -39,6 +39,7 @@
       "src/**/*",
       "assets/**/*",
       "agent-hook.js",
+      "scripts/notify.js",
       "package.json"
     ],
     "win": {
