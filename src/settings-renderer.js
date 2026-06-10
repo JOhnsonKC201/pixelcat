@@ -59,6 +59,13 @@ function render() {
   $('pomoFocus').value = String(pomo.focusMin || 25);
   $('pomoBreak').value = String(pomo.breakMin || 5);
   if (document.activeElement !== $('pinnedNote')) $('pinnedNote').value = cfg.pinnedNote || '';
+  const em = cfg.email || {};
+  $('emailOn').checked = !!em.on;
+  if (document.activeElement !== $('emailUser')) $('emailUser').value = em.user || '';
+  if (document.activeElement !== $('emailHost')) $('emailHost').value = em.host || 'imap.gmail.com';
+  if (document.activeElement !== $('emailPort')) $('emailPort').value = String(em.port || 993);
+  if (document.activeElement !== $('emailInterval')) $('emailInterval').value = String(em.intervalMin || 5);
+  refreshEmailPassState();
   renderReminders();
   drawPreview();
 }
@@ -147,6 +154,32 @@ $('addReminder').addEventListener('click', () => {
   $('newMsg').value = '';
 });
 $('newMsg').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addReminder').click(); });
+
+function emailSave() {
+  save({ email: { on: $('emailOn').checked, user: $('emailUser').value.trim(), host: $('emailHost').value.trim(), port: Number($('emailPort').value) || 993, secure: true, intervalMin: Number($('emailInterval').value) || 5 } });
+}
+['emailOn', 'emailUser', 'emailHost', 'emailPort', 'emailInterval'].forEach((id) => $(id).addEventListener('change', emailSave));
+async function refreshEmailPassState() {
+  try { const has = await window.settings.emailHasPassword(); $('emailPassState').textContent = has ? '\u00b7 saved \u2713' : ''; }
+  catch (e) { /* ignore */ }
+}
+let emailPassTimer = null;
+$('emailPass').addEventListener('input', () => {
+  clearTimeout(emailPassTimer);
+  emailPassTimer = setTimeout(async () => {
+    const pw = $('emailPass').value; if (!pw) return;
+    await window.settings.emailSetPassword(pw);
+    $('emailPass').value = ''; refreshEmailPassState();
+    $('emailStatus').textContent = 'Password saved (encrypted).';
+  }, 600);
+});
+$('emailTest').addEventListener('click', async () => {
+  $('emailStatus').textContent = 'Testing\u2026'; emailSave();
+  const pw = $('emailPass').value || null;
+  const r = await window.settings.emailTest(pw);
+  $('emailStatus').textContent = r && r.ok ? ('Connected \u2014 ' + r.unread + ' unread.') : ('Failed: ' + ((r && r.error) || 'unknown error'));
+  if (pw) { await window.settings.emailSetPassword(pw); $('emailPass').value = ''; refreshEmailPassState(); }
+});
 
 // "Test meow" is a real user gesture, so playing audio here always unlocks cleanly.
 $('testSound').addEventListener('click', () => { playTestMeow(); window.settings.testSound(); });

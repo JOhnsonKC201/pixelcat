@@ -35,7 +35,16 @@ when you drag it.
   the cat** (tomato dot = focus, green = break). At each focus end the cat stretches
   with you; when the break ends it meows "Back to focus!". Toggle in Settings or tray.
 - **Reminders** — set a **time and message** and the cat **meows and shows a
-  speech bubble** to remind you.
+  speech bubble** to remind you. Reminders can **repeat** (daily / weekdays /
+  specific weekdays / once), can be **snoozed** from the tray, and support
+  `{name}`, `{time}`, and `{date}` placeholders.
+- **Desktop alerts** — every reminder/message can also raise a **real Windows
+  notification** and a sound, so you never miss it when you're not looking at the
+  cat. Toggle in Settings.
+- **Unread-mail alerts** — point the cat at your **IMAP inbox** (Gmail, Outlook,
+  any IMAP) and it **tells you when new mail arrives**. Your app-password is stored
+  **encrypted at rest** (Electron `safeStorage` / Windows DPAPI), never in
+  `settings.json`, and the IMAP connection runs in an isolated worker process.
 - **Pinned note** — pin an important message and it **stays in a bubble above the
   cat's head** until you clear it (reminders briefly take over, then it returns).
 - **Calls you by name** — tell the cat your name in Settings (or use `{name}` in a

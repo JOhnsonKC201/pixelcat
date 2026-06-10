@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const config = require('./config');
 const { fillPlaceholders } = require('./template');
+const mail = require('./mail');
 const themes = require('./themes');
 const { PATTERN_NAMES } = require('./patterns');
 
@@ -269,9 +270,11 @@ function sendMood(cmd) {
 function persistAndBroadcast(next) {
   const prevBreak = cfg ? cfg.breakMinutes : 0;
   const prevPomo = cfg ? JSON.stringify(cfg.pomodoro) : '';
+  const prevEmail = cfg ? JSON.stringify(cfg.email) : '';
   cfg = config.save(next);
   if (cfg.breakMinutes !== prevBreak) breakAnchor = Date.now();  // editing the interval restarts it
   if (JSON.stringify(cfg.pomodoro) !== prevPomo) syncPomodoro(); // toggling/retuning restarts the loop
+  if (JSON.stringify(cfg.email) !== prevEmail) mail.sync(cfg);   // re-poll when email settings change
   applyConfigToOverlay();
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('config', cfg);
   rebuildTrayMenu();
@@ -482,6 +485,7 @@ function cleanup() {
   if (pomoTimer) clearTimeout(pomoTimer);
   if (agentWatcher) { try { agentWatcher.close(); } catch (e) { /* ignore */ } }
   if (hookStarted) { try { require('uiohook-napi').uIOhook.stop(); } catch (e) { /* ignore */ } }
+  try { mail.stop(); } catch (e) { /* ignore */ }
   if (tray) { try { tray.destroy(); } catch (e) { /* ignore */ } tray = null; }
 }
 
@@ -518,6 +522,9 @@ ipcMain.on('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed
 ipcMain.on('settings:testSound', () => {
   notify('Hi {name}!', { source: 'test', dedupeMs: 0 });
 });
+ipcMain.handle('email:hasPassword', () => mail.hasPassword());
+ipcMain.handle('email:setPassword', (_e, pw) => mail.setPassword(pw));
+ipcMain.handle('email:test', (_e, pw) => mail.test(cfg, pw && String(pw).length ? String(pw) : null));
 ipcMain.handle('settings:get', () => cfg);
 ipcMain.handle('settings:save', (_e, partial) => { persistAndBroadcast({ ...cfg, ...(partial || {}) }); return cfg; });
 ipcMain.handle('themes:get', () => themesCache);
@@ -551,7 +558,7 @@ app.whenReady().then(() => {
     cfg = config.load();
   }
   createWindow();
-  if (!SHOT && !SHEET) { createTray(); startScheduler(); }
+  if (!SHOT && !SHEET) { createTray(); startScheduler(); mail.init(notify, () => cfg); mail.sync(cfg); }
 });
 
 // Don't quit just because the settings window closed — the overlay is the app.

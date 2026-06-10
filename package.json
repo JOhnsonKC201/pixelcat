@@ -26,6 +26,7 @@
     "electron-builder": "^25.1.8"
   },
   "dependencies": {
+    "imapflow": "^1.4.0",
     "uiohook-napi": "^1.5.5"
   },
   "build": {
@@ -52,8 +53,20 @@
       "icon": "assets/icon-512.png",
       "category": "public.app-category.entertainment",
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] },
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {

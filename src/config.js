@@ -25,7 +25,8 @@ const DEFAULTS = {
   pinnedNote: '',      // fixed message pinned above the cat's head ('' = off)
   notifyOn: true,      // also pop a Windows toast for reminders/messages
   pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
-  reminders: [],       // [{ id, hhmm: 'HH:MM', message }]
+  reminders: [],       // [{ id, hhmm: 'HH:MM', message, recur, days, lastFired }]
+  email: { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 }, // IMAP unread alerts (app-password stored separately, encrypted)
 };
 
 function filePath() {
@@ -71,6 +72,17 @@ function normalize(cfg) {
     pomodoro: (() => {
       const p = (c.pomodoro && typeof c.pomodoro === 'object') ? c.pomodoro : {};
       return { on: !!p.on, focusMin: clampInt(p.focusMin, 5, 120, 25), breakMin: clampInt(p.breakMin, 1, 60, 5) };
+    })(),
+    email: (() => {
+      const e = (c.email && typeof c.email === 'object') ? c.email : {};
+      return {
+        on: !!e.on,
+        host: String(e.host == null ? '' : e.host).trim().slice(0, 120),
+        port: clampInt(e.port, 1, 65535, 993),
+        user: String(e.user == null ? '' : e.user).trim().slice(0, 160),
+        secure: e.secure === undefined ? true : !!e.secure,
+        intervalMin: clampInt(e.intervalMin, 1, 60, 5),
+      };
     })(),
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;

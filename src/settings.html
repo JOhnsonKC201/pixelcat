@@ -209,6 +209,27 @@
       </div>
     </section>
 
+    <!-- EMAIL -->
+    <section class="card">
+      <div class="card-h">email</div>
+      <label class="check"><input type="checkbox" id="emailOn" /><span class="t">Unread-mail alerts<span class="sub">the cat tells you when new mail arrives (IMAP)</span></span></label>
+      <div class="row"><label class="lbl" for="emailUser">Email address</label><input type="text" id="emailUser" placeholder="you@gmail.com" /></div>
+      <div class="row"><label class="lbl" for="emailPass">App password <span class="hint" id="emailPassState"></span></label><input type="password" id="emailPass" placeholder="paste an app-password" /></div>
+      <div class="row inline">
+        <label class="lbl" for="emailHost">Server</label>
+        <input type="text" id="emailHost" placeholder="imap.gmail.com" />
+        <label class="lbl" for="emailPort">Port</label>
+        <input type="number" id="emailPort" min="1" max="65535" />
+      </div>
+      <div class="row inline">
+        <label class="lbl" for="emailInterval">Check every</label>
+        <input type="number" id="emailInterval" min="1" max="60" />
+        <span class="hint">min</span>
+        <button class="ghost" id="emailTest">Test</button>
+      </div>
+      <span class="hint" id="emailStatus">Use an app-password (Gmail/Outlook), not your login password.</span>
+    </section>
+
     <!-- WINDOW / PLAY AREA -->
     <section class="card">
       <div class="card-h">window</div>

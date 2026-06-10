@@ -93,6 +93,19 @@ test('reminder recurrence normalizes (back-compat + clamps)', () => {
   assert.strictEqual(normalize({ reminders: [{ hhmm: '08:00', message: 'x', recur: 'once', lastFired: 'junk' }] }).reminders[0].lastFired, '');
 });
 
+test('email config normalizes + clamps', () => {
+  const { normalize } = require(path.join(ROOT, 'src', 'config.js'));
+  assert.deepStrictEqual(normalize({}).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 });
+  const e = normalize({ email: { on: 1, host: '  imap.gmail.com ', port: 99999, user: 'a@b.com', secure: false, intervalMin: 0 } }).email;
+  assert.strictEqual(e.on, true);
+  assert.strictEqual(e.host, 'imap.gmail.com');
+  assert.strictEqual(e.port, 65535);
+  assert.strictEqual(e.user, 'a@b.com');
+  assert.strictEqual(e.secure, false);
+  assert.strictEqual(e.intervalMin, 1);
+  assert.deepStrictEqual(normalize({ email: 'junk' }).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 });
+});
+
 test('fillPlaceholders expands {name}{time}{date}{count} and tidies punctuation', () => {
   const { fillPlaceholders } = require(path.join(ROOT, 'src', 'template.js'));
   const now = new Date(2026, 0, 2, 9, 5); // 2026-01-02 09:05 (local)
