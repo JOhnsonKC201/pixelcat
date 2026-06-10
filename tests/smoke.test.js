@@ -73,6 +73,36 @@ test('config.normalize fills defaults and clamps', () => {
   assert.strictEqual(normalize({ notifyOn: 1 }).notifyOn, true);
 });
 
+test('reminder recurrence normalizes (back-compat + clamps)', () => {
+  const { normalize } = require(path.join(ROOT, 'src', 'config.js'));
+  // legacy {id,hhmm,message} -> daily, empty days, no lastFired
+  const legacy = normalize({ reminders: [{ id: 'a', hhmm: '08:00', message: 'hi' }] }).reminders[0];
+  assert.strictEqual(legacy.recur, 'daily');
+  assert.deepStrictEqual(legacy.days, []);
+  assert.strictEqual(legacy.lastFired, '');
+  // invalid recur -> daily
+  assert.strictEqual(normalize({ reminders: [{ hhmm: '08:00', message: 'x', recur: 'bogus' }] }).reminders[0].recur, 'daily');
+  // weekdays kept
+  assert.strictEqual(normalize({ reminders: [{ hhmm: '08:00', message: 'x', recur: 'weekdays' }] }).reminders[0].recur, 'weekdays');
+  // weekly days deduped, clamped, sorted; only stored for weekly
+  const wk = normalize({ reminders: [{ hhmm: '08:00', message: 'x', recur: 'weekly', days: [6, 1, 1, 9, -2, 3] }] }).reminders[0];
+  assert.deepStrictEqual(wk.days, [1, 3, 6]);
+  // once: lastFired validated, kept only for once
+  const once = normalize({ reminders: [{ hhmm: '08:00', message: 'x', recur: 'once', lastFired: '2026-6-9' }] }).reminders[0];
+  assert.strictEqual(once.lastFired, '2026-6-9');
+  assert.strictEqual(normalize({ reminders: [{ hhmm: '08:00', message: 'x', recur: 'once', lastFired: 'junk' }] }).reminders[0].lastFired, '');
+});
+
+test('fillPlaceholders expands {name}{time}{date}{count} and tidies punctuation', () => {
+  const { fillPlaceholders } = require(path.join(ROOT, 'src', 'template.js'));
+  const now = new Date(2026, 0, 2, 9, 5); // 2026-01-02 09:05 (local)
+  assert.strictEqual(fillPlaceholders('Hi {name}!', { name: 'Jo', now }), 'Hi Jo!');
+  assert.strictEqual(fillPlaceholders('Hi {name}!', { name: '', now }), 'Hi!'); // stray space before ! tidied
+  assert.strictEqual(fillPlaceholders('It is {time} on {date}', { now }), 'It is 09:05 on 2026-01-02');
+  assert.strictEqual(fillPlaceholders('{count} new mail', { count: 3, now }), '3 new mail');
+  assert.strictEqual(fillPlaceholders(null, {}), '');
+});
+
 test('themes.clean keeps valid coats and drops invalid/dupes', () => {
   const themes = require(path.join(ROOT, 'src', 'themes.js'));
   const valid = { name: 'Galaxy', build: 'fluffy', tabby: false, coat: '#3b2f63', mark: '#2a2147', white: '#c9c0e8', patch: '#7a5cc0', eye: '#7fd6ff', nose: '#e0a0c0', inner: '#9a7ad0', outline: '#15101f' };

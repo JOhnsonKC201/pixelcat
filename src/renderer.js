@@ -474,8 +474,7 @@ if (window.cat) {
 // Replace {name} (and provide clean fallbacks when no name is set).
 function catName() { return config && config.name ? config.name : ''; }
 function template(msg) {
-  const n = catName();
-  return String(msg || '').replace(/\{name\}/g, n).replace(/\s+([,!?.])/g, '$1').replace(/,\s*!/g, '!').trim();
+  return fillPlaceholders(msg, { name: catName() });
 }
 // A generic notification from main: speech bubble + optional meow.
 // (Any Windows toast is raised in main; here we just draw + chirp.)

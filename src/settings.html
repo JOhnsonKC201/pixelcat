@@ -251,11 +251,20 @@
     <!-- REMINDERS -->
     <section class="card">
       <div class="card-h">reminders</div>
-      <span class="hint">The cat meows your message at a set time.</span>
+      <span class="hint">The cat meows your message at a set time. Placeholders: {name} {time} {date}</span>
       <div class="rem-add" style="margin-top:10px;">
         <input type="time" id="newTime" />
         <input type="text" id="newMsg" maxlength="80" placeholder="Drink water, {name}!" />
         <button id="addReminder">Add</button>
+      </div>
+      <div class="rem-recur" style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <select id="newRecur">
+          <option value="daily">Every day</option>
+          <option value="weekdays">Weekdays</option>
+          <option value="weekly">Weekly…</option>
+          <option value="once">Once</option>
+        </select>
+        <div id="dayPicker" style="display:none; gap:4px;"></div>
       </div>
       <ul id="reminders"></ul>
       <div class="row" style="margin-top:12px;">

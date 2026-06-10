@@ -80,7 +80,12 @@ function normalize(cfg) {
       let id = String(r.id || '');
       if (!id || seen.has(id)) id = makeId();
       seen.add(id);
-      out.push({ id, hhmm, message });
+      const recur = ['once', 'daily', 'weekdays', 'weekly'].includes(r.recur) ? r.recur : 'daily';
+      const days = Array.isArray(r.days)
+        ? Array.from(new Set(r.days.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))).sort((a, b) => a - b)
+        : [];
+      const lastFired = /^\d{4}-\d{1,2}-\d{1,2}$/.test(String(r.lastFired || '')) ? String(r.lastFired) : '';
+      out.push({ id, hhmm, message, recur, days: recur === 'weekly' ? days : [], lastFired: recur === 'once' ? lastFired : '' });
       return out;
     }, []),
   };

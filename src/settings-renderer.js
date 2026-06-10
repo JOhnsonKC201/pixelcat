@@ -62,6 +62,15 @@ function render() {
   renderReminders();
   drawPreview();
 }
+function recurLabel(r) {
+  const dn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const recur = r.recur || 'daily';
+  if (recur === 'daily') return '  \u00b7 daily';
+  if (recur === 'weekdays') return '  \u00b7 weekdays';
+  if (recur === 'once') return '  \u00b7 once';
+  if (recur === 'weekly') return '  \u00b7 ' + ((r.days || []).map((d) => dn[d]).join(' ') || 'weekly');
+  return '';
+}
 function renderReminders() {
   const ul = $('reminders'); ul.innerHTML = '';
   if (!cfg.reminders.length) {
@@ -71,7 +80,7 @@ function renderReminders() {
   for (const r of cfg.reminders) {
     const li = document.createElement('li');
     const t = document.createElement('span'); t.className = 't'; t.textContent = r.hhmm;
-    const m = document.createElement('span'); m.className = 'm'; m.textContent = r.message;
+    const m = document.createElement('span'); m.className = 'm'; m.textContent = r.message + recurLabel(r);
     const x = document.createElement('span'); x.className = 'x'; x.textContent = '✕'; x.title = 'Remove';
     x.onclick = () => save({ reminders: cfg.reminders.filter((q) => q.id !== r.id) });
     li.append(t, m, x); ul.appendChild(li);
@@ -109,11 +118,32 @@ $('pinnedNote').addEventListener('input', () => {
   noteTimer = setTimeout(() => save({ pinnedNote: $('pinnedNote').value }), 300);
 });
 
+const selectedDays = new Set([1, 2, 3, 4, 5]);
+function paintDays() {
+  const dp = $('dayPicker'); if (!dp) return;
+  for (const b of dp.children) { const on = selectedDays.has(Number(b.dataset.dow)); b.style.opacity = on ? '1' : '0.4'; b.style.fontWeight = on ? '700' : '400'; }
+}
+function buildDayPicker() {
+  const dp = $('dayPicker'); if (!dp || dp.childElementCount) return;
+  const dn = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  for (let d = 0; d < 7; d++) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = dn[d]; b.dataset.dow = String(d);
+    b.style.cssText = 'width:24px;height:24px;padding:0;border-radius:6px;font-size:11px;cursor:pointer;';
+    b.onclick = () => { const dow = Number(b.dataset.dow); if (selectedDays.has(dow)) selectedDays.delete(dow); else selectedDays.add(dow); paintDays(); };
+    dp.appendChild(b);
+  }
+  paintDays();
+}
+function syncRecurUI() { const wk = $('newRecur').value === 'weekly'; $('dayPicker').style.display = wk ? 'flex' : 'none'; if (wk) buildDayPicker(); }
+$('newRecur').addEventListener('change', syncRecurUI);
+syncRecurUI();
 $('addReminder').addEventListener('click', () => {
   const hhmm = $('newTime').value, message = $('newMsg').value.trim();
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !message) { $('newTime').focus(); return; }
   const id = `r${Date.now().toString(36)}${Math.floor(performance.now()).toString(36)}`;
-  save({ reminders: [...cfg.reminders, { id, hhmm, message }] });
+  const recur = $('newRecur').value;
+  const days = recur === 'weekly' ? Array.from(selectedDays).sort((a, b) => a - b) : [];
+  save({ reminders: [...cfg.reminders, { id, hhmm, message, recur, days }] });
   $('newMsg').value = '';
 });
 $('newMsg').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addReminder').click(); });

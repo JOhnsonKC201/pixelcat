@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const config = require('./config');
+const { fillPlaceholders } = require('./template');
 const themes = require('./themes');
 const { PATTERN_NAMES } = require('./patterns');
 
@@ -27,6 +28,7 @@ let scheduleTimer;                                     // break-timer + reminder
 let breakAnchor = 0;                                   // ms timestamp the break countdown started
 let lastMinuteKey = '';                                // 'YYYY-M-D-HH:MM' for reminder dedupe
 let firedThisMinute = new Set();                       // reminder ids already fired this minute
+let lastReminder = null;                                // last reminder fired (tray snooze)
 let hookStarted = false;
 let ignoring = true;                                   // current click-through state
 let origin = { x: 0, y: 0 };                           // overlay top-left in screen px
@@ -302,6 +304,11 @@ function rebuildTrayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Settings…', click: openSettings },
     { label: 'Start break now', click: triggerBreak },
+    { label: 'Snooze last reminder', submenu: [
+      { label: '5 minutes', click: () => snoozeLast(5) },
+      { label: '10 minutes', click: () => snoozeLast(10) },
+      { label: '30 minutes', click: () => snoozeLast(30) },
+    ] },
     { type: 'separator' },
     { label: 'Coat', submenu: coatItems },
     { label: 'Follow cursor', type: 'checkbox', checked: !!(cfg && cfg.followCursor), click: () => persistAndBroadcast({ ...cfg, followCursor: !cfg.followCursor }) },
@@ -344,6 +351,11 @@ function openSettings() {
 }
 
 // ---- break timer + reminder scheduler (lives in MAIN; renderer may be paused) --
+function snoozeLast(min) {
+  if (!lastReminder) return;
+  const lr = lastReminder;
+  setTimeout(() => notify(lr.message, { source: 'reminder', dedupeKey: 'snz:' + lr.id + ':' + min }), min * 60000);
+}
 function triggerBreak() {
   if (win && !win.isDestroyed()) win.webContents.send('break');
   notify('Break time! Stretch with me~', { source: 'break', bubble: false, sound: false });
@@ -384,8 +396,7 @@ function syncPomodoro() {
 // Fill {name} in main (which always has cfg) so reminders are correct even if the
 // overlay hasn't received its config copy yet (e.g. the immediate launch tick).
 function nameFill(msg) {
-  const n = cfg && cfg.name ? cfg.name : '';
-  return String(msg || '').replace(/\{name\}/g, n).replace(/\s+([,!?.])/g, '$1').trim();
+  return fillPlaceholders(msg, { name: cfg && cfg.name ? cfg.name : '' });
 }
 // Single choke-point for every user-facing message: an in-overlay speech bubble
 // (the renderer plays the meow) plus an optional Windows toast. Every producer —
@@ -393,7 +404,7 @@ function nameFill(msg) {
 const notifyRecent = new Map();   // dedupeKey -> last fire ms (drops rapid repeats)
 function notify(message, opts) {
   opts = opts || {};
-  const msg = nameFill(message);
+  const msg = fillPlaceholders(message, { name: cfg && cfg.name ? cfg.name : '', count: opts.count });
   if (!msg) return;
   const now = Date.now();
   const key = opts.dedupeKey || ('msg:' + msg);
@@ -410,6 +421,16 @@ function notify(message, opts) {
   }
 }
 
+// Is this reminder scheduled to fire on date d? (recurrence gate.)
+function reminderDueOn(r, d) {
+  const recur = r.recur || 'daily';
+  if (recur === 'daily') return true;
+  const dow = d.getDay();   // 0 Sun .. 6 Sat
+  if (recur === 'weekdays') return dow >= 1 && dow <= 5;
+  if (recur === 'weekly') return Array.isArray(r.days) && r.days.includes(dow);
+  if (recur === 'once') return !r.lastFired;   // fire a single time, then never again
+  return true;
+}
 let lastTickAt = 0;
 function tick() {
   if (!cfg || !win || win.isDestroyed()) return;
@@ -428,15 +449,16 @@ function tick() {
     }
   }
   lastTickAt = now.getTime();
+  let onceFired = false;
   for (const r of cfg.reminders) {
-    if (r.hhmm === hhmm && !firedThisMinute.has(r.id)) {
-      firedThisMinute.add(r.id);
-      notify(r.message, { source: 'reminder', dedupeKey: 'rem:' + r.id });
-    } else if (skipped.has(r.hhmm) && !firedThisMinute.has(r.id)) {
-      firedThisMinute.add(r.id);
-      notify(r.message, { source: 'reminder', dedupeKey: 'rem:' + r.id });   // missed during sleep/stall
-    }
+    const hit = (r.hhmm === hhmm) || skipped.has(r.hhmm);
+    if (!hit || firedThisMinute.has(r.id) || !reminderDueOn(r, now)) continue;
+    firedThisMinute.add(r.id);
+    lastReminder = { id: r.id, message: r.message };
+    notify(r.message, { source: 'reminder', dedupeKey: 'rem:' + r.id });
+    if ((r.recur || 'daily') === 'once') { r.lastFired = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate(); onceFired = true; }
   }
+  if (onceFired) persistAndBroadcast({ ...cfg });
   if (cfg.breakMinutes > 0 && Date.now() - breakAnchor >= cfg.breakMinutes * 60000) triggerBreak();
   // Pomodoro catch-up: if the exact-time flip was lost to a sleep/stall, flip now.
   if (cfg.pomodoro && cfg.pomodoro.on && pomoEndsAt && Date.now() > pomoEndsAt + 1000) pomoFlip();
