@@ -230,6 +230,20 @@
       <span class="hint" id="emailStatus">Use an app-password (Gmail/Outlook), not your login password.</span>
     </section>
 
+    <!-- CALENDAR -->
+    <section class="card">
+      <div class="card-h">calendar</div>
+      <label class="check"><input type="checkbox" id="calOn" /><span class="t">Event nudges<span class="sub">the cat reminds you before calendar events (.ics)</span></span></label>
+      <div class="row"><label class="lbl" for="calUrl">Secret .ics URL</label><input type="password" id="calUrl" placeholder="https://…/basic.ics" /></div>
+      <div class="row inline">
+        <label class="lbl" for="calLead">Nudge</label>
+        <input type="number" id="calLead" min="0" max="1440" />
+        <span class="hint">min before</span>
+        <button class="ghost" id="calTest">Test</button>
+      </div>
+      <span class="hint" id="calStatus">In Google/Outlook Calendar, copy the secret address in iCal (.ics) format.</span>
+    </section>
+
     <!-- WINDOW / PLAY AREA -->
     <section class="card">
       <div class="card-h">window</div>

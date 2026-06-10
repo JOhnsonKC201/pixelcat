@@ -66,6 +66,10 @@ function render() {
   if (document.activeElement !== $('emailPort')) $('emailPort').value = String(em.port || 993);
   if (document.activeElement !== $('emailInterval')) $('emailInterval').value = String(em.intervalMin || 5);
   refreshEmailPassState();
+  const cal = cfg.calendar || {};
+  $('calOn').checked = !!cal.on;
+  if (document.activeElement !== $('calUrl')) $('calUrl').value = cal.icsUrl || '';
+  if (document.activeElement !== $('calLead')) $('calLead').value = String(cal.leadMin == null ? 10 : cal.leadMin);
   renderReminders();
   drawPreview();
 }
@@ -179,6 +183,16 @@ $('emailTest').addEventListener('click', async () => {
   const r = await window.settings.emailTest(pw);
   $('emailStatus').textContent = r && r.ok ? ('Connected \u2014 ' + r.unread + ' unread.') : ('Failed: ' + ((r && r.error) || 'unknown error'));
   if (pw) { await window.settings.emailSetPassword(pw); $('emailPass').value = ''; refreshEmailPassState(); }
+});
+
+function calSave() {
+  save({ calendar: { on: $('calOn').checked, icsUrl: $('calUrl').value.trim(), leadMin: Number($('calLead').value) || 0 } });
+}
+['calOn', 'calUrl', 'calLead'].forEach((id) => $(id).addEventListener('change', calSave));
+$('calTest').addEventListener('click', async () => {
+  $('calStatus').textContent = 'Testing\u2026'; calSave();
+  const r = await window.settings.calendarTest();
+  $('calStatus').textContent = r && r.ok ? (r.next ? ('Loaded \u2014 next: ' + r.next) : 'Loaded \u2014 no upcoming events.') : ('Failed: ' + ((r && r.error) || 'unknown error'));
 });
 
 // "Test meow" is a real user gesture, so playing audio here always unlocks cleanly.

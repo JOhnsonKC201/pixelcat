@@ -27,6 +27,7 @@ const DEFAULTS = {
   pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
   reminders: [],       // [{ id, hhmm: 'HH:MM', message, recur, days, lastFired }]
   email: { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 }, // IMAP unread alerts (app-password stored separately, encrypted)
+  calendar: { on: false, icsUrl: '', leadMin: 10 }, // nudge before events from a secret .ics URL
 };
 
 function filePath() {
@@ -83,6 +84,13 @@ function normalize(cfg) {
         secure: e.secure === undefined ? true : !!e.secure,
         intervalMin: clampInt(e.intervalMin, 1, 60, 5),
       };
+    })(),
+    calendar: (() => {
+      const k = (c.calendar && typeof c.calendar === 'object') ? c.calendar : {};
+      let url = String(k.icsUrl == null ? '' : k.icsUrl).trim().slice(0, 2000);
+      if (/^webcal:\/\//i.test(url)) url = 'https://' + url.slice(9);
+      if (url && !/^https?:\/\//i.test(url)) url = '';
+      return { on: !!k.on, icsUrl: url, leadMin: clampInt(k.leadMin, 0, 1440, 10) };
     })(),
     reminders: reminders.reduce((out, r) => {
       if (!r || typeof r !== 'object') return out;

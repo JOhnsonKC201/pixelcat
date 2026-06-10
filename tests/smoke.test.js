@@ -106,6 +106,17 @@ test('email config normalizes + clamps', () => {
   assert.deepStrictEqual(normalize({ email: 'junk' }).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 });
 });
 
+test('calendar config normalizes (url validation + webcal + clamp)', () => {
+  const { normalize } = require(path.join(ROOT, 'src', 'config.js'));
+  assert.deepStrictEqual(normalize({}).calendar, { on: false, icsUrl: '', leadMin: 10 });
+  assert.strictEqual(normalize({ calendar: { icsUrl: 'https://x/basic.ics' } }).calendar.icsUrl, 'https://x/basic.ics');
+  assert.strictEqual(normalize({ calendar: { icsUrl: 'webcal://x/basic.ics' } }).calendar.icsUrl, 'https://x/basic.ics');
+  assert.strictEqual(normalize({ calendar: { icsUrl: 'ftp://nope' } }).calendar.icsUrl, '', 'non-http url dropped');
+  assert.strictEqual(normalize({ calendar: { leadMin: 99999 } }).calendar.leadMin, 1440);
+  assert.strictEqual(normalize({ calendar: { on: 1 } }).calendar.on, true);
+  assert.deepStrictEqual(normalize({ calendar: 'junk' }).calendar, { on: false, icsUrl: '', leadMin: 10 });
+});
+
 test('fillPlaceholders expands {name}{time}{date}{count} and tidies punctuation', () => {
   const { fillPlaceholders } = require(path.join(ROOT, 'src', 'template.js'));
   const now = new Date(2026, 0, 2, 9, 5); // 2026-01-02 09:05 (local)

@@ -45,6 +45,11 @@ when you drag it.
   any IMAP) and it **tells you when new mail arrives**. Your app-password is stored
   **encrypted at rest** (Electron `safeStorage` / Windows DPAPI), never in
   `settings.json`, and the IMAP connection runs in an isolated worker process.
+- **Calendar nudges** — paste your calendar's **secret `.ics` URL** (Google /
+  Outlook both provide one) and the cat **nudges you a few minutes before each
+  event**. The feed is fetched and parsed in an isolated worker.
+- **Notify the cat** — any script, build step, or cron job can push an arbitrary
+  message (bubble + toast + meow) via `node scripts/notify.js "…"`.
 - **Pinned note** — pin an important message and it **stays in a bubble above the
   cat's head** until you clear it (reminders briefly take over, then it returns).
 - **Calls you by name** — tell the cat your name in Settings (or use `{name}` in a
