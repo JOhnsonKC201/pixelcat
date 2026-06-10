@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -307,6 +307,7 @@ function openSettings() {
 // ---- break timer + reminder scheduler (lives in MAIN; renderer may be paused) --
 function triggerBreak() {
   if (win && !win.isDestroyed()) win.webContents.send('break');
+  notify('Break time! Stretch with me~', { source: 'break', bubble: false, sound: false });
   breakAnchor = Date.now();
 }
 
@@ -326,7 +327,7 @@ function pomoFlip() {
     triggerBreak();                                              // big stretch + meow
   } else {
     pomoPhase = 'focus'; pomoEndsAt = Date.now() + cfg.pomodoro.focusMin * 60000;
-    if (win && !win.isDestroyed()) win.webContents.send('remind', { message: nameFill('Back to focus, {name}!') });
+    notify('Back to focus, {name}!', { source: 'pomo' });
   }
   sendPomo(); armPomoTimer();
 }
@@ -347,6 +348,29 @@ function nameFill(msg) {
   const n = cfg && cfg.name ? cfg.name : '';
   return String(msg || '').replace(/\{name\}/g, n).replace(/\s+([,!?.])/g, '$1').trim();
 }
+// Single choke-point for every user-facing message: an in-overlay speech bubble
+// (the renderer plays the meow) plus an optional Windows toast. Every producer —
+// reminders, pomodoro, break, email, calendar, the external bridge — routes here.
+const notifyRecent = new Map();   // dedupeKey -> last fire ms (drops rapid repeats)
+function notify(message, opts) {
+  opts = opts || {};
+  const msg = nameFill(message);
+  if (!msg) return;
+  const now = Date.now();
+  const key = opts.dedupeKey || ('msg:' + msg);
+  if (now - (notifyRecent.get(key) || 0) < (opts.dedupeMs == null ? 4000 : opts.dedupeMs)) return;
+  notifyRecent.set(key, now);
+  if (notifyRecent.size > 200) { for (const k of notifyRecent.keys()) { notifyRecent.delete(k); if (notifyRecent.size <= 100) break; } }
+  if (opts.bubble !== false && win && !win.isDestroyed()) {
+    win.webContents.send('notify', { message: msg, ttl: opts.ttl || 5000, level: opts.level || 'info', sound: opts.sound !== false });
+  }
+  const wantOs = opts.os !== undefined ? opts.os : !(cfg && cfg.notifyOn === false);
+  if (wantOs) {
+    try { if (Notification.isSupported()) new Notification({ title: opts.title || 'pixelcat', body: msg, silent: true }).show(); }
+    catch (e) { /* toasts are best-effort */ }
+  }
+}
+
 let lastTickAt = 0;
 function tick() {
   if (!cfg || !win || win.isDestroyed()) return;
@@ -368,10 +392,10 @@ function tick() {
   for (const r of cfg.reminders) {
     if (r.hhmm === hhmm && !firedThisMinute.has(r.id)) {
       firedThisMinute.add(r.id);
-      win.webContents.send('remind', { message: nameFill(r.message) });
+      notify(r.message, { source: 'reminder', dedupeKey: 'rem:' + r.id });
     } else if (skipped.has(r.hhmm) && !firedThisMinute.has(r.id)) {
       firedThisMinute.add(r.id);
-      win.webContents.send('remind', { message: nameFill(r.message) });   // missed during sleep/stall
+      notify(r.message, { source: 'reminder', dedupeKey: 'rem:' + r.id });   // missed during sleep/stall
     }
   }
   if (cfg.breakMinutes > 0 && Date.now() - breakAnchor >= cfg.breakMinutes * 60000) triggerBreak();
@@ -431,7 +455,7 @@ ipcMain.on('settings:open', () => openSettings());
 ipcMain.on('settings:save-pattern', (_e, i) => { if (cfg) persistAndBroadcast({ ...cfg, pattern: i }); });
 ipcMain.on('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close(); });
 ipcMain.on('settings:testSound', () => {
-  if (win && !win.isDestroyed()) win.webContents.send('remind', { message: cfg && cfg.name ? `Hi ${cfg.name}!` : 'Meow!' });
+  notify('Hi {name}!', { source: 'test', dedupeMs: 0 });
 });
 ipcMain.handle('settings:get', () => cfg);
 ipcMain.handle('settings:save', (_e, partial) => { persistAndBroadcast({ ...cfg, ...(partial || {}) }); return cfg; });
@@ -458,6 +482,7 @@ ipcMain.handle('themes:import', async () => {
 
 app.whenReady().then(() => {
   if (isSecondary) return;
+  try { app.setAppUserModelId('com.johnsonkc.pixelcat'); } catch (e) { /* Windows toast identity */ }
   themesCache = themes.load();
   if (!SHOT && !SHEET) {
     setAutostart(!process.argv.includes('--autostart=off'));

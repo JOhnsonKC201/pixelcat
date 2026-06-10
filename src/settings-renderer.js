@@ -48,6 +48,7 @@ function render() {
   $('huntOn').checked = !!cfg.huntOn;
   $('moodOn').checked = cfg.moodOn === undefined ? true : !!cfg.moodOn;
   $('soundOn').checked = !!cfg.soundOn;
+  $('notifyOn').checked = cfg.notifyOn === undefined ? true : !!cfg.notifyOn;
   $('volume').value = cfg.volume === undefined ? 100 : cfg.volume;
   $('volumeVal').textContent = ($('volume').value | 0) + '%';
   $('onTop').checked = cfg.onTop === undefined ? true : !!cfg.onTop;
@@ -91,6 +92,7 @@ $('followCursor').addEventListener('change', () => save({ followCursor: $('follo
 $('huntOn').addEventListener('change', () => save({ huntOn: $('huntOn').checked }));
 $('moodOn').addEventListener('change', () => save({ moodOn: $('moodOn').checked }));
 $('soundOn').addEventListener('change', () => save({ soundOn: $('soundOn').checked }));
+$('notifyOn').addEventListener('change', () => save({ notifyOn: $('notifyOn').checked }));
 $('volume').addEventListener('input', () => { $('volumeVal').textContent = ($('volume').value | 0) + '%'; });
 $('volume').addEventListener('change', () => save({ volume: Number($('volume').value) }));
 $('onTop').addEventListener('change', () => save({ onTop: $('onTop').checked }));

@@ -466,6 +466,7 @@ if (window.cat) {
     resumeRaf();
   });
   if (window.cat.onRemind) window.cat.onRemind((d) => triggerReminder(d && d.message));
+  if (window.cat.onNotify) window.cat.onNotify((d) => triggerNotify(d));
   if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
 }
@@ -475,6 +476,16 @@ function catName() { return config && config.name ? config.name : ''; }
 function template(msg) {
   const n = catName();
   return String(msg || '').replace(/\{name\}/g, n).replace(/\s+([,!?.])/g, '$1').replace(/,\s*!/g, '!').trim();
+}
+// A generic notification from main: speech bubble + optional meow.
+// (Any Windows toast is raised in main; here we just draw + chirp.)
+function triggerNotify(d) {
+  if (!d) return;
+  bubbleText = template(d.message) || 'Meow!';
+  bubbleUntil = performance.now() + (d.ttl || 5000);
+  stretchT0 = performance.now();
+  if (config && config.soundOn && d.sound !== false) playMeow();
+  resumeRaf();
 }
 // A reminder/break: show a speech bubble, do the big stretch, meow.
 function triggerReminder(message) {

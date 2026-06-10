@@ -48,6 +48,10 @@ test('config.normalize fills defaults and clamps', () => {
   assert.strictEqual(normalize({}).pinnedNote, '');
   assert.strictEqual(normalize({ pinnedNote: '  hi  ' }).pinnedNote, 'hi');
   assert.strictEqual(normalize({ pinnedNote: 'x'.repeat(200) }).pinnedNote.length, 80);
+  // desktop alerts default on, coerces
+  assert.strictEqual(normalize({}).notifyOn, true);
+  assert.strictEqual(normalize({ notifyOn: false }).notifyOn, false);
+  assert.strictEqual(normalize({ notifyOn: 1 }).notifyOn, true);
 });
 
 test('themes.clean keeps valid coats and drops invalid/dupes', () => {
