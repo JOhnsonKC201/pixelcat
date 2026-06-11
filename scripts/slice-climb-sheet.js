@@ -56,6 +56,15 @@ names.forEach((n, i) => {
   for (let y = 0; y < ch; y++) { push(0, y); push(cw - 1, y); }
   while (st.length) { const q = st.pop(), x = q % cw, y = (q / cw) | 0; push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1); }
   for (let q = 0; q < cw * ch; q++) if (seen[q]) buf[q * 4 + 3] = 0;
+  // strip near-full-height vertical lines hugging the left/right edges — these are
+  // leftover panel-divider/border lines the key missed. The real climbing rope is
+  // central (never in the outer columns), so it's safe; debris flecks are preserved.
+  {
+    const colFrac = (x) => { let c = 0; for (let y = 0; y < ch; y++) if (buf[(y * cw + x) * 4 + 3] > 16) c++; return c / ch; };
+    const EDGE = 7, FULL = 0.85;
+    for (let x = 0; x < EDGE; x++) if (colFrac(x) > FULL) for (let y = 0; y < ch; y++) buf[(y * cw + x) * 4 + 3] = 0;
+    for (let x = cw - 1; x >= cw - EDGE; x--) if (colFrac(x) > FULL) for (let y = 0; y < ch; y++) buf[(y * cw + x) * 4 + 3] = 0;
+  }
   // tight-trim to non-transparent bounds
   let mnX = cw, mnY = ch, mxX = 0, mxY = 0;
   for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (buf[(y * cw + x) * 4 + 3] > 16) { if (x < mnX) mnX = x; if (x > mxX) mxX = x; if (y < mnY) mnY = y; if (y > mxY) mxY = y; }
