@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="pixelcat logo" width="180" />
+
 # 🐈 pixelcat
 
 **A cute pixel cat that lives on your desktop.**
