@@ -455,11 +455,13 @@ function drawDoneSpark(x, y, t) {
   ctx.fillRect(x + 9, y - 5, 2, 2); ctx.fillRect(x - 11, y - 2, 2, 2);  // sparkles
   ctx.globalAlpha = 1;
 }
-function drawHeart(x, y, color, alpha) {
+function drawHeart(x, y, color, alpha, s) {
+  s = s || 1;
   ctx.globalAlpha = alpha; ctx.fillStyle = color;
-  ctx.fillRect(x - 5, y - 4, 3, 3); ctx.fillRect(x + 2, y - 4, 3, 3);    // two top bumps
-  ctx.fillRect(x - 5, y - 1, 10, 3);                                      // wide middle
-  ctx.fillRect(x - 4, y + 2, 8, 2); ctx.fillRect(x - 2, y + 4, 4, 2); ctx.fillRect(x - 1, y + 6, 2, 1);  // taper to a point
+  const r = (dx, dy, w, h) => ctx.fillRect(Math.round(x + dx * s), Math.round(y + dy * s), Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)));
+  r(-5, -4, 3, 3); r(2, -4, 3, 3);                          // two top bumps
+  r(-5, -1, 10, 3);                                         // wide middle
+  r(-4, 2, 8, 2); r(-2, 4, 4, 2); r(-1, 6, 2, 1);           // taper to a point
   ctx.globalAlpha = 1;
 }
 let lastHot = null;
@@ -1254,7 +1256,7 @@ function draw(t) {
       const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
       const grooming = FORCED_STATE === 'groom' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < groomUntil);
       const loafing = !grooming && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
-      const wig = (petting ? Math.round(Math.sin(t / 55)) : 0) + idleSway;
+      const wig = idleSway;   // calm "normal" patting — no fast side-to-side jitter while petted
       const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.7, y: 0.45 } : smoothLook;   // watch the roll beside it
       const breath = Math.sin(t / 1500);                              // gentle breathing
@@ -1282,7 +1284,7 @@ function draw(t) {
         // the baked planted left leg+paw (sprite grid x8-12, y24-29) so the reaching
         // paw doesn't read as a third limb. Drawn on the offscreen sprite so it
         // scales/flips with the cat.
-        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(32, 97 + bob, 15, 21);
+        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(30, 95 + bob, 20, 25);
       }
       ctx.save();
       ctx.translate(pos.x + wig, pos.y - hop);
@@ -1293,8 +1295,8 @@ function draw(t) {
       ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
       ctx.restore();
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
-      if (petting && t - lastHeart > 430) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 18, y: oy - 2, t0: t }); lastHeart = t; }
-      else if (bodyPet && t - lastHeart > 950) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 22, y: oy + 6, t0: t }); lastHeart = t; }
+      if (petting && t - lastHeart > 520) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 14, y: oy - 4, t0: t, s: 2.1 }); lastHeart = t; }   // big love hearts rising from the head
+      else if (bodyPet && t - lastHeart > 950) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 22, y: oy + 6, t0: t, s: 1.5 }); lastHeart = t; }
       if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
       else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
@@ -1355,7 +1357,7 @@ function draw(t) {
 
   // floating hearts (update + draw; persist after petting ends)
   hearts = hearts.filter((h) => t - h.t0 < 1100);
-  for (const h of hearts) { const a = (t - h.t0) / 1100; drawHeart(Math.round(h.x + Math.sin(a * 6) * 4), Math.round(h.y - a * 26), a < 0.5 ? '#ff5a6e' : '#ff8a98', (1 - a) * 0.95); }
+  for (const h of hearts) { const a = (t - h.t0) / 1100; drawHeart(Math.round(h.x + Math.sin(a * 6) * 4), Math.round(h.y - a * 30), a < 0.5 ? '#ff5a6e' : '#ff8a98', (1 - a) * 0.95, h.s || 1); }
   idleSparkles = idleSparkles.filter((s) => t - s.t0 < 400);
   for (const s of idleSparkles) { const a = (t - s.t0) / 400; ctx.globalAlpha = (1 - a) * 0.9; ctx.fillStyle = '#fff6d6'; ctx.fillRect(Math.round(s.x), Math.round(s.y - a * 12), 2, 2); ctx.fillRect(Math.round(s.x + 3), Math.round(s.y - a * 12 - 3), 1, 1); ctx.globalAlpha = 1; }
   loafZZZ = loafZZZ.filter((z) => t - z.t0 < 1100);
