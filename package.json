@@ -19,11 +19,14 @@
     "dist:mac": "electron-builder --mac",
     "test": "node --test",
     "hook": "node scripts/install-hook.js",
-    "test:boot": "node scripts/bootcheck.js"
+    "test:boot": "node scripts/bootcheck.js",
+    "demo": "node scripts/make-demo-gif.js mp4"
   },
   "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "gifenc": "^1.0.3"
   },
   "dependencies": {
     "imapflow": "^1.4.0",
