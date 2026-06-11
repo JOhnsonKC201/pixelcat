@@ -485,12 +485,11 @@ let loafZZZ = [], nextLoafZ = 0;
 let stretchT0 = -1, nextStretch = 0;
 let agentState = 'idle', doneHopT0 = -1, doneHopPending = false, doneIsAgent = false, errorPending = false;
 const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
-// scroll reaction (09): the cat plays with a prop while you scroll. The prop
-// rotates per scroll-session for variety (yarn ball / toilet roll / fish toy).
-let paperLen = 0, paperUntil = 0, scrollPulses = 0;
-const SCROLL_VARIANTS = 3;
-const forcedVariant = qp.get('pv');   // --pv=N pins the scroll prop for previews
-let scrollVariant = forcedVariant != null ? (Number(forcedVariant) || 0) % SCROLL_VARIANTS : 0;
+// scroll reaction (09): the cat grabs a vertical yarn rope and climbs it while you
+// scroll — hand-over-hand, up when you scroll up and down when you scroll down,
+// with a ball of yarn anchored on the floor. `paperLen` is the climb energy (grows
+// while scrolling, decays to a gentle hang). `climbDir` is the eased -1..+1 heading.
+let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir = -1;
 // liveliness: eased gaze, idle micro-actions, animated tail + frame governor
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
@@ -547,7 +546,7 @@ if (window.cat) {
     else agentState = 'idle';
     resumeRaf();
   });
-  if (window.cat.onScroll) window.cat.onScroll(() => { scrollPulses++; });
+  if (window.cat.onScroll) window.cat.onScroll((dir) => { scrollPulses++; if (typeof dir === 'number') scrollDirRaw = dir; });
   if (window.cat.onThemes) window.cat.onThemes((list) => { applyThemes(list); if (SHEET) renderSheet(); else resumeRaf(); });
   if (window.cat.onMood) window.cat.onMood((c) => {
     if (c === 'zoomies') energy = 96;
@@ -739,39 +738,11 @@ function drawPomoTimer(x, y, t) {
   ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
-// Ball of yarn, Comnyang-style: a wound coral ball sits BESIDE the cat at face
-// height and a thread unwinds from it, trailing straight down and pooling on the
-// floor — so the cat stays fully visible. cx = ball centre, topY = ball top.
-// The thread sways to read as "live", a tangle pools as you unwind more, and
-// little highlight twists travel down the strand while you actively scroll.
-function drawPaper(cx, topY, len, t, active) {
-  // A coral BALL OF YARN the cat bats while you scroll: the wound ball sits to the
-  // cat's left and a thread unwinds from it, trailing down and pooling on the floor.
-  // `len` is the unwound thread length (grows as you scroll, retracts when you stop).
+// Ball of yarn — a wound coral disc with wrap-strands and a glint. Shared by the
+// rope climb as the rope's anchor on the floor. (cx, cy) = ball centre.
+function drawYarnBall(cx, cy) {
   const YARN_OUT = '#c8455a', YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3', YARN_HI = '#ffd0d8';
-  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
-  const R = 11;
-  const bx = Math.round(cx) + Math.round(Math.sin(t / 220));   // gentle sway, like the roll had
-  const by = Math.round(topY) + 4;
-  const threadX = bx + R - 2, threadY = by - 4;                // loose end leaves the ball's right side
-  // trailing thread down toward the floor (drawn first, so the ball overlaps its root)
-  for (let i = 0; i < len; i++) {
-    const x = threadX + Math.sin(i / 9 + t / 240) * 3, y = threadY + i;
-    rect(x, y, 2, 2, YARN_MID);
-    if (i % 4 === 0) rect(x + 1.5, y, 1, 2, YARN_DK);          // one-sided edge shade for depth
-  }
-  // ground pool: the tangle grows the more you've unwound, shrinks as it rewinds
-  if (len > 30) {
-    const poolX = threadX + Math.sin(len / 9 + t / 240) * 3, groundY = threadY + len;
-    const loops = Math.min(3, Math.floor((len - 25) / 15));
-    for (let k = 0; k < loops; k++) {
-      const lx = poolX + (k - 1) * 5, ly = groundY - k * 2, lw = 14 - k * 2;
-      ctx.fillStyle = YARN_DK; ctx.beginPath(); ctx.ellipse(lx, ly + 1, lw / 2, 3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = YARN_MID; ctx.beginPath(); ctx.ellipse(lx, ly, lw / 2, 2.6, 0, 0, Math.PI * 2); ctx.fill();
-      rect(lx - 2, ly - 2.5, 4, 1, YARN_LT);                   // top highlight tick
-    }
-  }
-  // the ball: a wound coral disc with a grounded underside + glint
+  const R = 12, bx = Math.round(cx), by = Math.round(cy);
   ctx.fillStyle = YARN_MID; ctx.beginPath(); ctx.ellipse(bx, by, R, R, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = YARN_DK;  ctx.beginPath(); ctx.ellipse(bx, by + 4, R, R - 4, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save();                                                  // wrap strands, clipped to the disc
@@ -783,119 +754,84 @@ function drawPaper(cx, topY, len, t, active) {
   ctx.strokeStyle = YARN_OUT;
   ctx.beginPath(); ctx.moveTo(bx + R, by - 9); ctx.lineTo(bx - R + 1, by + 9); ctx.stroke();
   ctx.restore();
-  rect(bx - 7, by - 8, 4, 3, YARN_HI);                         // top-left glint
-  // active "unwinding" sparkle twisting down the strand (replaces the old motion dashes)
-  if (active && len > 6) {
-    const dOff = (t / 4) % 14;
-    ctx.globalAlpha = 0.7; ctx.fillStyle = YARN_LT;
-    for (let i = 0; i < 3; i++) {
-      const yy = (dOff + i * 14) % Math.max(14, len - 4);
-      rect(threadX + Math.sin(yy / 9 + t / 240) * 3 - 1, threadY + yy, 2, 3);
-    }
-    ctx.globalAlpha = 1;
-  }
+  ctx.fillStyle = YARN_HI; ctx.fillRect(bx - 8, by - 9, 4, 3);   // top-left glint
 }
-// Scroll prop variant 1 — an unspooling toilet-paper roll (the original): a side-
-// view roll sits beside the cat and a plain sheet feeds straight down. `len` is
-// the sheet length. The paw PULLS this one (motion 'pull').
-function drawPaperRoll(cx, topY, len, t, active) {
-  const w = 16, sway = Math.round(Math.sin(t / 220) * 1.2);
-  const xs = Math.round(cx - w / 2) + sway;
-  topY = Math.round(topY);
-  ctx.fillStyle = '#fbfbf7'; ctx.fillRect(xs, topY, w, len);
-  ctx.fillStyle = '#e6e6df'; ctx.fillRect(xs, topY, 1, len); ctx.fillRect(xs + w - 1, topY, 1, len);
-  const off = (t / 18) % 12;
-  ctx.fillStyle = '#e9e9e0';
-  for (let yy = topY + 6 + off; yy < topY + len - 5; yy += 12) ctx.fillRect(xs + 1, Math.round(yy), w - 2, 1);
-  if (len > 8) {
-    ctx.fillStyle = '#fbfbf7';
-    ctx.fillRect(xs + 1, topY + len, w - 1, 2); ctx.fillRect(xs + 3, topY + len + 2, w - 2, 2);
-    ctx.fillStyle = '#efefe8'; ctx.fillRect(xs + 4, topY + len + 3, w - 3, 1);
-  }
-  const bw = w + 9, bx = xs - 5, by = topY - 13;
-  ctx.fillStyle = '#3a3f48'; ctx.fillRect(bx - 1, by - 1, bw + 2, 15);
-  ctx.fillStyle = '#ecece4'; ctx.fillRect(bx, by, bw, 13);
-  ctx.fillStyle = '#f7f7f0'; ctx.fillRect(bx + 2, by + 1, bw - 4, 2);
-  ctx.fillStyle = '#d8d8cc'; ctx.fillRect(bx + 2, by + 10, bw - 4, 2);
-  const ex = bx + 1, ey = by + 6.5;
-  ctx.fillStyle = '#3a3f48'; ctx.beginPath(); ctx.ellipse(ex, ey, 6.2, 7.7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#f4f4ec'; ctx.beginPath(); ctx.ellipse(ex, ey, 5, 6.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#c9c9bf'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(ex, ey, 3, 4, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = '#6a707a'; ctx.beginPath(); ctx.ellipse(ex, ey, 1.7, 2.2, 0, 0, Math.PI * 2); ctx.fill();
-  if (active && len > 6) {
-    const dOff = (t / 4) % 14;
-    ctx.fillStyle = '#9aa0a8'; ctx.globalAlpha = 0.7;
-    for (let i = 0; i < 3; i++) {
-      const dy = topY + 6 + ((dOff + i * 14) % Math.max(14, len - 4));
-      ctx.fillRect(xs - 5, Math.round(dy), 2, 5);
-    }
-    ctx.globalAlpha = 1;
-  }
-}
-// Scroll prop variant 2 — a teal felt fish cat-toy lying beside the cat, head
-// facing the cat so the paw can BAT it. It flops harder the more you scroll
-// (`len` drives the wiggle amplitude). No trailing thread — it's a toy.
-function drawPaperFish(cx, topY, len, t, active) {
-  const wig = active ? Math.sin(t / 90) * Math.min(0.55, 0.18 + len / 150) : Math.sin(t / 320) * 0.1;
-  const bx = Math.round(cx), by = Math.round(topY) + 6;
-  const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
-  const OUT = '#1f6b73', BODY = '#3fb6c4', LT = '#9fe6ec', BELLY = '#d2f0f2', FIN = '#2a93a0';
-  ctx.save(); ctx.translate(bx, by); ctx.rotate(wig);
-  ctx.fillStyle = OUT; ctx.beginPath(); ctx.moveTo(-15, -7); ctx.lineTo(-6, 0); ctx.lineTo(-15, 7); ctx.closePath(); ctx.fill();   // tail (left)
-  ctx.fillStyle = FIN; ctx.beginPath(); ctx.moveTo(-13, -5); ctx.lineTo(-7, 0); ctx.lineTo(-13, 5); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = OUT; ctx.beginPath(); ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2); ctx.fill();                                   // body
-  ctx.fillStyle = BODY; ctx.beginPath(); ctx.ellipse(0, 0, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = BELLY; ctx.beginPath(); ctx.ellipse(0, 2, 7, 2.4, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = FIN; ctx.beginPath(); ctx.moveTo(-3, -5); ctx.lineTo(2, -10); ctx.lineTo(5, -5); ctx.closePath(); ctx.fill();    // top fin
-  r(-3, -5, 2, 2, LT); r(1, -4, 3, 1, LT);                                                                                        // highlights
-  r(2, -3, 1, 6, FIN);                                                                                                            // gill line
-  r(5, -2, 3, 3, '#ffffff'); r(6, -1, 2, 2, '#22242b');                                                                           // eye (head, right)
-  ctx.restore();
-}
-// The cat's raised front paw interacting with a scroll prop. (px, py) is the
-// target. `motion` selects the cycle: 'bat' swats sideways at a ball/toy (toes
-// splay on contact); 'pull' strokes straight down to drag a sheet (toes splay on
-// the lift). Idle (not active) = a gentle resting bob. The arm is a rotated
-// two-tone slab from the shoulder (sx,sy), so it reads blocky at any angle.
-function drawFeedPaw(palRGB, sx, sy, px, py, t, active, motion) {
+
+// One gripping front paw on the rope: a rotated two-tone arm slab from the shoulder
+// (sx,sy) to the grip (px,py), capped with a white mitt. `splay` shows pink toe-beans
+// as the paw re-grabs. Same blocky language as the old drawFeedPaw.
+function drawGripPaw(palRGB, sx, sy, px, py, splay) {
   const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
   const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
-  const pull = motion === 'pull';
-  let pxb = px, pyb = py, ph = -1, splayed = false;
-  if (active) {
-    ph = (t / 700) % 1;
-    if (pull) {
-      const STROKE = 22;
-      if (ph < 0.6) { pyb = py + (ph / 0.6) * STROKE; }                 // downstroke: drag the sheet
-      else { const r = (ph - 0.6) / 0.4; pyb = py + (1 - r) * STROKE; pxb = px + Math.sin(r * Math.PI) * 4.5; }   // lift back up
-      splayed = ph >= 0.6;                                              // toes show on the lift
-    } else {
-      const BAT = 9;
-      if (ph < 0.45) { const k = ph / 0.45; pxb = px - k * BAT; pyb = py - (1 - k) * 6; }   // wind up & strike
-      else if (ph < 0.70) { pxb = px - BAT + Math.sin(t / 40); pyb = py + Math.sin(t / 40); }   // contact: tap + jitter
-      else { const r = (ph - 0.70) / 0.30; pxb = px - BAT + r * BAT * 1.2; pyb = py - r * 6; }   // recoil up-and-right
-      splayed = ph >= 0.45 && ph < 0.70;                               // toes splay on contact
-    }
-  } else {
-    pyb = py + Math.round(Math.sin(t / 600) * 2);
-  }
-  const pwW = 13, pwH = 7;
-  const pY = Math.round(pyb - pwH / 2);
-  const adx = pxb - sx, ady = pyb - sy, aLen = Math.hypot(adx, ady) || 1, aAng = Math.atan2(ady, adx);
-  ctx.save();
-  ctx.translate(sx, sy); ctx.rotate(aAng);
+  const pwW = 12, pwH = 7, pY = Math.round(py - pwH / 2);
+  const adx = px - sx, ady = py - sy, aLen = Math.hypot(adx, ady) || 1, aAng = Math.atan2(ady, adx);
+  ctx.save(); ctx.translate(sx, sy); ctx.rotate(aAng);
   ctx.fillStyle = O; ctx.fillRect(0, -5, aLen + 3, 10);   // outline slab
   ctx.fillStyle = C; ctx.fillRect(0, -3, aLen + 3, 6);    // coat core
   ctx.restore();
-  const pX = pxb - pwW / 2;
-  rect(pX - 2, pY - 2, pwW + 4, pwH + 4, O);
-  rect(pX, pY, pwW, pwH, W);
-  if (active && splayed) {
-    rect(pxb - 3, pY + 3.5, 6, 3, '#ff8fa3');
-    rect(pxb - 6.5, pY + 0.5, 3, 3, '#ff8fa3');
-    rect(pxb + 3.5, pY + 0.5, 3, 3, '#ff8fa3');
+  const pX = px - pwW / 2;
+  rect(pX - 2, pY - 2, pwW + 4, pwH + 4, O);   // paw outline
+  rect(pX, pY, pwW, pwH, W);                    // white mitt
+  if (splay) {
+    rect(px - 3, pY + 3.5, 6, 3, '#ff8fa3'); rect(px - 6.5, pY + 0.5, 3, 3, '#ff8fa3'); rect(px + 3.5, pY + 0.5, 3, 3, '#ff8fa3');
   } else {
-    rect(pxb - 1, pY + 2, 2, pwH - 2, O);
+    rect(px - 1, pY + 2, 2, pwH - 2, O);       // closed grip: toe-split line
+  }
+}
+
+// Rope climb (scroll reaction): a vertical coral yarn rope hangs past the cat down
+// to a ball on the floor; the cat grips it hand-over-hand and hauls UP when you
+// scroll up (dir<0) or lowers DOWN when you scroll down (dir>0). `energy` (0..70)
+// scales liveliness; `climbing` = actively scrolling vs just hanging on.
+function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
+  const YARN_OUT = '#c8455a', YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3';
+  const ropeX = Math.round(pos.x - 26);                      // just left of centre, in front of the chest
+  const topY = Math.round(pos.y - SH - 55);                  // plenty of rope rising above the head
+  const ballY = Math.round(pos.y - 6);                       // ball rests on the floor line
+  const dirN = clamp(dir, -1, 1);
+  const sway = Math.sin(t / 220) * (1 + energy / 40);        // whole-rope sway, livelier with energy
+  const ropeAt = (y) => ropeX + Math.sin((y - topY) / 16 + t / 240) * sway;   // rope x at height y
+
+  // rope: a twisted two-strand coral cord; the twist phase scrolls with climb dir
+  const texOff = climbing ? t * 0.05 * dirN : 0;
+  for (let y = topY; y < ballY; y++) {
+    const x = Math.round(ropeAt(y)), k = y - topY;
+    ctx.fillStyle = YARN_MID; ctx.fillRect(x, y, 3, 1);
+    if ((((k + texOff) % 5) + 5) % 5 < 2) { ctx.fillStyle = YARN_DK; ctx.fillRect(x + 2, y, 1, 1); }
+    else { ctx.fillStyle = YARN_LT; ctx.fillRect(x, y, 1, 1); }
+  }
+
+  // ball anchored on the floor (bobs a touch while climbing)
+  const ballBob = climbing ? Math.round(Math.sin(t / 120) * 1.5) : 0;
+  drawYarnBall(ropeAt(ballY), ballY + ballBob);
+
+  // two gripping paws, hand-over-hand (one holds while the other re-grabs)
+  const shX = pos.x - 6, shY = Math.round(pos.y - SH * 0.42);   // shoulders at the chest
+  const gripBaseY = Math.round(pos.y - SH * 0.42), SPAN = 22;
+  const ph = (t / (climbing ? 460 : 1100)) % 1;                // faster cycle while actively climbing
+  for (let i = 0; i < 2; i++) {
+    const phi = (ph + i * 0.5) % 1;
+    const yo = Math.cos(phi * Math.PI * 2) * (SPAN / 2);       // this paw rides high<->low
+    const reach = phi < 0.5 ? Math.sin((phi / 0.5) * Math.PI) : 0;   // 0..1..0 arc on the re-grab
+    const gy = gripBaseY + yo + (climbing ? reach * 6 * dirN : 0);   // bias the re-grab toward climb dir
+    drawGripPaw(palRGB, shX, shY, ropeAt(gripBaseY + yo) + reach * 3.5, gy, climbing && reach > 0.55);
+  }
+
+  // falling debris flecks + bright twists riding the rope while actively climbing
+  if (climbing && energy > 6) {
+    const span = ballY - topY - 10;
+    ctx.globalAlpha = 0.7;
+    for (let i = 0; i < 3; i++) {                              // lint falls (gravity), regardless of dir
+      const yy = ((t / 6 + i * 37) % span + span) % span;
+      ctx.fillStyle = i === 1 ? YARN_OUT : YARN_LT;
+      ctx.fillRect(Math.round(ropeAt(topY + yy) - 5 - i), Math.round(topY + 8 + yy), 2, 2);
+    }
+    ctx.fillStyle = '#fff0d6';
+    for (let i = 0; i < 2; i++) {                              // highlight twists travel in the climb dir
+      const yy = ((-t / 5 * dirN + i * 50) % span + span) % span;
+      ctx.fillRect(Math.round(ropeAt(topY + yy)), Math.round(topY + 6 + yy), 2, 3);
+    }
+    ctx.globalAlpha = 1;
   }
 }
 // Grooming: the cat raises a front paw to its muzzle and licks it, washing its face.
@@ -1022,14 +958,15 @@ function draw(t) {
   }
   const startleActive = FORCED_STATE === 'startle' || (startleT0 >= 0 && t < startleUntil);
 
-  // paper unroll: scrolling grows the paper; it retracts when you stop.
+  // rope climb: scrolling builds climb energy; it bleeds off to a gentle hang.
   if (scrollPulses > 0) {
-    if (paperLen <= 1) scrollVariant = Math.floor(Math.random() * SCROLL_VARIANTS);   // new scroll session -> pick a fresh prop
     paperUntil = t + 700; paperLen = Math.min(70, paperLen + scrollPulses * 7); addEnergy(scrollPulses * 4); scrollPulses = 0;
   }
-  if (FORCED_STATE === 'paper') paperLen = 50;
+  if (FORCED_STATE === 'paper') { paperLen = 50; scrollDirRaw = qp.get('dir') === 'down' ? 1 : -1; }   // --dir=up|down for shots
   else if (t > paperUntil) paperLen = Math.max(0, paperLen - dt * 0.06);
   const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
+  const climbing = paperActive && (t < paperUntil || FORCED_STATE === 'paper');   // actively scrolling vs just hanging
+  climbDir += (scrollDirRaw - climbDir) * Math.min(1, dt * 0.012);                 // eased -1 (up) .. +1 (down)
 
   // Mouse-hunt: when enabled in settings, a fast cursor flick (far enough away)
   // makes the cat crouch, stalk, and pounce. Off by config (or when the cat is set
@@ -1258,7 +1195,7 @@ function draw(t) {
       const loafing = !grooming && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
       const wig = idleSway;   // calm "normal" patting — no fast side-to-side jitter while petted
       const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
-      const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.7, y: 0.45 } : smoothLook;   // watch the roll beside it
+      const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 } : smoothLook;   // look the way it climbs the rope
       const breath = Math.sin(t / 1500);                              // gentle breathing
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (stretching) {
@@ -1280,11 +1217,10 @@ function draw(t) {
       octx.clearRect(0, 0, oc.width, oc.height);
       drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet });
       if (paperActive && !petting && !stretching) {
-        // the cat lifts its LEFT front paw to play with the scroll prop — paint over
-        // the baked planted left leg+paw (sprite grid x8-12, y24-29) so the reaching
-        // paw doesn't read as a third limb. Drawn on the offscreen sprite so it
-        // scales/flips with the cat.
-        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(30, 95 + bob, 20, 25);
+        // both front paws lift off the ground to grip the rope, so paint over the
+        // baked planted front legs+paws on the offscreen sprite (so it scales/flips
+        // with the cat) — otherwise they read as extra limbs behind the climbing arms.
+        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
       }
       ctx.save();
       ctx.translate(pos.x + wig, pos.y - hop);
@@ -1301,26 +1237,7 @@ function draw(t) {
       else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
       if (paperActive && !petting && !stretching) {
-        // The scroll prop varies per session (scrollVariant): the left front paw is
-        // hidden above and raised here to play. Shoulder = the planted-paw spot so
-        // the raised paw reads as that leg lifting. Variant 1 PULLS, others BAT.
-        const feeding = t < paperUntil || FORCED_STATE === 'paper';
-        const shX = pos.x - 8, shY = pos.y - SH * 0.12, propLen = Math.round(paperLen);
-        if (scrollVariant === 1) {                                        // toilet-paper roll: paw pulls the sheet down
-          const rollX = Math.max(18, pos.x - SW / 2 + 10), paperTop = pos.y - SH * 0.52;
-          const dl = Math.min(propLen, Math.round(pos.y - paperTop + 4));
-          drawPaperRoll(rollX, paperTop, dl, t, feeding);
-          drawFeedPaw(palRGB, shX, shY, rollX + 5, paperTop + 5, t, feeding, 'pull');
-        } else if (scrollVariant === 2) {                                 // felt fish toy: paw bats it
-          const fishX = Math.max(24, pos.x - SW / 2 + 16), fishTop = pos.y - SH * 0.44;
-          drawPaperFish(fishX, fishTop, propLen, t, feeding);
-          drawFeedPaw(palRGB, shX, shY, fishX + 9, fishTop + 4, t, feeding, 'bat');
-        } else {                                                          // ball of yarn: paw bats it, thread pools
-          const ballX = Math.max(22, pos.x - SW / 2 + 14), ballTop = pos.y - SH * 0.50;
-          const dl = Math.min(propLen, Math.round(pos.y - ballTop - 2));
-          drawPaper(ballX, ballTop, dl, t, feeding);
-          drawFeedPaw(palRGB, shX, shY, ballX + 12, ballTop + 2, t, feeding, 'bat');
-        }
+        drawRopeClimb(palRGB, pos, t, climbing, climbDir, Math.round(paperLen));
       }
       if (grooming && !paperActive) drawGroom(palRGB, pos.x + wig, oy + SH * 0.30, t);   // raise a paw, wash its face
       if (t < labelUntil) {

@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('cat', {
   onCursor: sub('cursor', (d) => d),
   onKey: sub('keydown'),
   onAgent: sub('agent', (s) => s),
-  onScroll: sub('scroll'),
+  onScroll: sub('scroll', (dir) => dir),
   onConfig: sub('config', (cfg) => cfg),
   onThemes: sub('themes', (list) => list),
   onMood: sub('mood', (c) => c),

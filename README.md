@@ -64,6 +64,7 @@ to your cursor, to your typing, and to its own internal mood.
 | 👆 **Tap it** | A quick pet — happy eyes, hearts, a chirp. |
 | 👀 **Move your cursor** | The cat watches it and blinks now and then. Flick it fast and the cat crouches, stalks, and **pounces**. A sudden jolt **startles** it (puffs up, freezes, then bolts or creeps back). |
 | ⌨️ **Type in any app** | It leans onto two big keys and **kneads them with its paws**; type fast and it **overheats** (turns red with steam), then cools down. |
+| 🧶 **Scroll anywhere** | Grabs a yarn rope and **climbs** it hand-over-hand — up when you scroll up, down when you scroll down — with a ball of yarn anchored on the floor. |
 
 <details>
 <summary><b>🎨 Coats &amp; pixel art</b> — 12 built-in patterns, custom coats, polished sticker look</summary>
@@ -193,6 +194,7 @@ calling it while the cat is closed is harmless.
 | **Rest cursor on its head** | Happy eyes + floating hearts + purr |
 | **Rest cursor on its body** | Leans/arches into your hand, tail up, trills |
 | **Type** (any app) | Front-paw tapping; fast typing → overheat |
+| **Scroll** (any app) | Climbs a yarn rope — up or down with your scroll |
 | **Double-click** the cat | Opens **Settings** (name, timer, reminders, coat) |
 | **Tray icon** | Settings, Start break now, coat picker, **Play area**, sound/hunt/mood toggles, **Quit** |
 

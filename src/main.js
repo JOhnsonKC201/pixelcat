@@ -39,7 +39,7 @@ let hot = { x: 0, y: 0, w: 0, h: 0, dragging: false }; // cat's interactive regi
 // Optional `--state=` / `--pattern=` force a pose/coat for --shot previews.
 const stateArg = (process.argv.find((a) => a.startsWith('--state=')) || '').split('=')[1] || '';
 const patternArg = (process.argv.find((a) => a.startsWith('--pattern=')) || '').split('=')[1] || '';
-const pvArg = (process.argv.find((a) => a.startsWith('--pv=')) || '').split('=')[1] || '';   // force a scroll-prop variant for --shot previews
+const dirArg = (process.argv.find((a) => a.startsWith('--dir=')) || '').split('=')[1] || '';   // force climb direction (up|down) for --shot previews
 const SHOT = process.argv.includes('--shot');
 const SHEET = process.argv.includes('--sheet');   // contact-sheet QA capture
 // `--at=<ms>` sets how long to let the scene animate before the --shot capture, so
@@ -91,7 +91,7 @@ function createWindow() {
   const params = [];
   if (stateArg) params.push(`state=${stateArg}`);
   if (patternArg) params.push(`pattern=${patternArg}`);
-  if (pvArg) params.push(`pv=${pvArg}`);
+  if (dirArg) params.push(`dir=${dirArg}`);
   if (SHOT) params.push('shot=1');
   if (SHEET) params.push('sheet=1');
   win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });
@@ -117,7 +117,8 @@ function createWindow() {
     try {
       const { uIOhook } = require('uiohook-napi');
       uIOhook.on('keydown', () => { if (win && !win.isDestroyed()) win.webContents.send('keydown'); });
-      uIOhook.on('wheel', () => { if (win && !win.isDestroyed()) win.webContents.send('scroll'); });
+      // sign of rotation = scroll direction (-1 up / +1 down) so the cat can climb the right way
+      uIOhook.on('wheel', (e) => { if (win && !win.isDestroyed()) win.webContents.send('scroll', Math.sign(e && e.rotation) || -1); });
       uIOhook.start();
       hookStarted = true;
     } catch (e) {
