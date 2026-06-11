@@ -844,9 +844,9 @@ function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
 }
 
 // --- raster climb: painterly tuxedo sprite frames blitted over the procedural rope ---
-const CLIMB_TARGET_H = 1.55;    // frame height as a multiple of the seated sprite height
-const CLIMB_GRIP_FX = 0.5;      // horizontal fraction of the frame where the gripping paws sit
-const CLIMB_GRIP_FY = 0.18;     // vertical fraction (from top) of the gripping paws
+const CLIMB_SCENE_H = 2.4;      // full painted scene (cat+rope+ball) height as a multiple of the seated sprite
+const CLIMB_ANCHOR_X = 0.5;     // horizontal anchor fraction of the frame (rope/cat centre over pos.x)
+const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on the floor line
 let climbImgs = {}, climbReady = false;
 (function loadClimbFrames() {
   if (typeof CLIMB_FRAMES === 'undefined') return;
@@ -867,16 +867,14 @@ function pickClimbImg(t, climbing, dir) {
   return (a ? f.down2 : f.down1) || f.idle;
 }
 
-// Draw the procedural rope + ball, then blit the painted cat frame gripping it.
-function drawClimbFrame(pos, t, climbing, dir, energy) {
-  drawRope(pos, t, climbing, dir, energy);
+// Blit the painted climb scene (cat + rope + ball, one self-contained image)
+// anchored so the yarn ball rests on the floor line.
+function drawClimbFrame(pos, t, climbing, dir) {
   const img = pickClimbImg(t, climbing, dir);
   if (!img || !img.naturalHeight) return;
-  const h = Math.round(SH * CLIMB_TARGET_H), w = Math.round(img.naturalWidth * (h / img.naturalHeight));
-  const g = ropeGeom(pos, t, energy);
-  const handY = Math.round(pos.y - h - 0) + h * CLIMB_GRIP_FY;        // where the painted paws sit
-  const dx = Math.round(g.ropeAt(handY) - w * CLIMB_GRIP_FX);         // align paws to the rope
-  const dy = Math.round(pos.y - h);                                   // hang with feet/tail near the floor
+  const h = Math.round(SH * CLIMB_SCENE_H), w = Math.round(img.naturalWidth * (h / img.naturalHeight));
+  const dx = Math.round(pos.x - w * CLIMB_ANCHOR_X);
+  const dy = Math.round(pos.y - h + CLIMB_DROP);
   ctx.drawImage(img, dx, dy, w, h);
 }
 // Grooming: the cat raises a front paw to its muzzle and licks it, washing its face.
@@ -1263,7 +1261,7 @@ function draw(t) {
       if (climbRaster) {
         // painterly raster climb: the tuxedo sprite frame grips the procedural rope
         // (the seated procedural cat is skipped entirely while climbing).
-        drawClimbFrame(pos, t, climbing, climbDir, Math.round(paperLen));
+        drawClimbFrame(pos, t, climbing, climbDir);
       } else {
       octx.clearRect(0, 0, oc.width, oc.height);
       drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet });

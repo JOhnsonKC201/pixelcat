@@ -1,8 +1,21 @@
 # Scroll rope-climb sprite frames
 
-Drop **5 PNG frames** here, then run `npm run climb-frames` to embed them into
-`src/climb-frames.js`. Until they exist, the cat falls back to the procedural
-rope-climb (a seated cat gripping the rope) — nothing breaks.
+The cat that climbs a yarn rope while you scroll. Each frame is a **self-contained
+painted scene** (cat + rope + yarn ball) on a transparent background. Until these
+exist, the cat falls back to the procedural rope-climb — nothing breaks.
+
+**Two ways to populate this folder:**
+
+1. **Already have 5 transparent PNGs?** Drop them in (names below) and run
+   `npm run climb-frames`.
+2. **Have a 5-panel contact sheet** (idle | up | up | down | down on a *dark*
+   background)? Slice + background-key it automatically, then embed:
+   ```
+   node scripts/slice-climb-sheet.js path/to/sheet.png
+   npm run climb-frames
+   ```
+   This only works when the sheet's background is clearly darker than the cat's
+   fur (pass a threshold as the 2nd arg to tune).
 
 | File        | Pose |
 |-------------|------|
