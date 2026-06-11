@@ -489,7 +489,7 @@ const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
 // scroll — hand-over-hand, up when you scroll up and down when you scroll down,
 // with a ball of yarn anchored on the floor. `paperLen` is the climb energy (grows
 // while scrolling, decays to a gentle hang). `climbDir` is the eased -1..+1 heading.
-let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir = -1;
+let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir = -1, climbAnim = 0;
 // liveliness: eased gaze, idle micro-actions, animated tail + frame governor
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
@@ -873,7 +873,7 @@ let climbImgs = {}, climbReady = false;   // { coat: { idle, up1, up2, down1, do
 function pickClimbImg(t, climbing, dir, coat) {
   const f = climbImgs[coat] || climbImgs[CLIMB_DEFAULT_COAT] || {};
   if (!climbing || Math.abs(dir) < 0.25) return f.idle;
-  const a = Math.floor(t / 140) % 2;
+  const a = Math.floor(climbAnim) % 2;   // alternation rate scales with scroll intensity (see climbFps)
   if (dir < 0) return (a ? f.up2 : f.up1) || f.idle;
   return (a ? f.down2 : f.down1) || f.idle;
 }
@@ -1021,6 +1021,8 @@ function draw(t) {
   const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
   const climbing = paperActive && (t < paperUntil || FORCED_STATE === 'paper');   // actively scrolling vs just hanging
   climbDir += (scrollDirRaw - climbDir) * Math.min(1, dt * 0.012);                 // eased -1 (up) .. +1 (down)
+  const climbFps = climbing ? 3 + (Math.min(70, paperLen) / 70) * 11 : 0;          // hand-over-hand speeds up the harder you scroll (3..14 fps)
+  climbAnim += (dt / 1000) * climbFps;                                             // frame accumulator (whole numbers = frame swaps)
 
   // Mouse-hunt: when enabled in settings, a fast cursor flick (far enough away)
   // makes the cat crouch, stalk, and pounce. Off by config (or when the cat is set
