@@ -8,10 +8,11 @@ const path = require('path');
 
 const { PATTERN_NAMES } = require('./patterns');
 const MAX_PATTERN = PATTERN_NAMES.length - 1;
+const DEFAULT_PATTERN = Math.max(0, PATTERN_NAMES.indexOf('Tuxedo'));   // tuxedo is the out-of-box coat
 
 const DEFAULTS = {
   name: '',
-  pattern: 0,
+  pattern: DEFAULT_PATTERN,
   breakMinutes: 0,     // 0 = break timer off
   soundOn: true,
   huntOn: true,        // Comnyang hunts the cursor by default; user-toggleable
@@ -58,7 +59,7 @@ function normalize(cfg) {
   const reminders = Array.isArray(c.reminders) ? c.reminders : [];
   return {
     name: String(c.name == null ? '' : c.name).trim().slice(0, 24),
-    pattern: clampInt(c.pattern, 0, MAX_PATTERN, 0),
+    pattern: clampInt(c.pattern, 0, MAX_PATTERN, DEFAULT_PATTERN),
     breakMinutes: clampInt(c.breakMinutes, 0, 240, 0),
     soundOn: c.soundOn === undefined ? true : !!c.soundOn,
     huntOn: c.huntOn === undefined ? true : !!c.huntOn,

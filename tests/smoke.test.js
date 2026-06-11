@@ -49,7 +49,8 @@ test('config.normalize fills defaults and clamps', () => {
   const c = normalize({});
   assert.strictEqual(c.moodOn, true);
   assert.strictEqual(c.soundOn, true);
-  assert.strictEqual(c.pattern, 0);
+  const { PATTERN_NAMES } = require(path.join(ROOT, 'src', 'patterns.js'));
+  assert.strictEqual(c.pattern, PATTERN_NAMES.indexOf('Tuxedo'));   // tuxedo is the default coat
   assert.ok(Array.isArray(c.reminders));
   assert.strictEqual(normalize({ pattern: 999 }).pattern <= (DEFAULTS ? 11 : 11), true);
   assert.strictEqual(normalize({ moodOn: false }).moodOn, false);

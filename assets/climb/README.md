@@ -1,10 +1,15 @@
 # Scroll rope-climb sprite frames (per coat)
 
 The cat that climbs a yarn rope while you scroll. Frames are **per coat**: each coat
-folder holds 5 self-contained painted scenes (cat + rope + yarn ball). Any coat
-**without** its own folder falls back to **`tuxedo`** (the default set), so the
-painted climb shows on every coat. If no folders exist at all, the cat falls back to
-the procedural rope-climb — nothing breaks.
+folder holds 5 self-contained painted scenes (cat + rope + yarn ball). A coat
+**with** its own folder uses the painted art; a coat **without** one uses the
+**procedural** rope-climb in its own colours (no cross-coat fallback). **Tuxedo** is
+the default coat out of the box.
+
+Painted coats currently shipped: `tuxedo`, `orange-tabby`, `mackerel-tabby`, `gray`.
+Every other coat (siamese, calico, black, …) climbs procedurally until a sheet is
+added for it. (`black` was supplied on a checkerboard background that couldn't be
+keyed cleanly — re-send it on a solid/transparent background to enable it.)
 
 ## Layout
 

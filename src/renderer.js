@@ -179,8 +179,10 @@ const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeSit
 const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 24, () => composeTypeFront({ tabby: TABBY[i], fluff: BUILDS[b].fluff })));
 // and a dedicated loaf (resting) body per coat — same 24x30 size as the sit sprite
 const loafSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeLoaf({ ...BUILDS[b], tabby: TABBY[i] })));
-let patternIndex = Number(localStorage.getItem('pattern') || 0);
-if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
+const DEFAULT_PATTERN = Math.max(0, PATTERNS.findIndex((p) => p.name === 'Tuxedo'));   // tuxedo is the out-of-box coat
+const storedPattern = localStorage.getItem('pattern');
+let patternIndex = storedPattern != null ? Number(storedPattern) : DEFAULT_PATTERN;
+if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
 const forcedPattern = qp.get('pattern');
 if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
 
@@ -203,7 +205,7 @@ function applyThemes(list) {
     typeSprites.push(buildSprite(24, 24, () => composeTypeFront({ tabby: !!th.tabby, fluff: BUILDS[build].fluff })));
     loafSprites.push(buildSprite(24, 30, () => composeLoaf({ ...BUILDS[build], tabby: !!th.tabby })));
   }
-  if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = 0;
+  if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
   if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
 }
 
@@ -489,7 +491,7 @@ const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
 // scroll — hand-over-hand, up when you scroll up and down when you scroll down,
 // with a ball of yarn anchored on the floor. `paperLen` is the climb energy (grows
 // while scrolling, decays to a gentle hang). `climbDir` is the eased -1..+1 heading.
-let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir = -1, climbAnim = 0;
+let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir = -1, climbAnim = 0, scrollRate = 0;
 // liveliness: eased gaze, idle micro-actions, animated tail + frame governor
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
@@ -843,35 +845,33 @@ function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
   }
 }
 
-// --- raster climb: painted per-coat sprite frames; any coat without its own set
-// falls back to the DEFAULT (tuxedo) set, so the painted climb shows on every coat ---
+// --- raster climb: painted PER-COAT sprite frames. A coat with its own set climbs
+// with the painted art; a coat WITHOUT one uses the procedural climb in its colours ---
 const CLIMB_SCENE_H = 2.4;      // full painted scene (cat+rope+ball) height as a multiple of the seated sprite
 const CLIMB_ANCHOR_X = 0.5;     // horizontal anchor fraction of the frame (rope/cat centre over pos.x)
 const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on the floor line
-const CLIMB_DEFAULT_COAT = 'tuxedo';   // the set every other coat falls back to
 const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-');
-let climbImgs = {}, climbReady = false;   // { coat: { idle, up1, up2, down1, down2: Image } }
+let climbImgs = {};   // { coat: { idle, up1, up2, down1, down2: Image } }
 (function loadClimbFrames() {
   if (typeof CLIMB_FRAMES === 'undefined') return;
   for (const coat of Object.keys(CLIMB_FRAMES)) {
     climbImgs[coat] = climbImgs[coat] || {};
     for (const frame of Object.keys(CLIMB_FRAMES[coat])) {
       const im = new Image();
-      im.onload = () => {
-        climbImgs[coat][frame] = im;
-        const d = climbImgs[CLIMB_DEFAULT_COAT];
-        climbReady = !!(d && d.idle && d.idle.complete);   // ready once the fallback set's idle decodes
-        if (typeof resumeRaf === 'function') resumeRaf();
-      };
+      im.onload = () => { climbImgs[coat][frame] = im; if (typeof resumeRaf === 'function') resumeRaf(); };
       im.src = CLIMB_FRAMES[coat][frame];
     }
   }
 })();
 
-// Pick a frame for this coat (falling back to the default set): idle when hanging,
-// alternating up1/up2 climbing up, down1/down2 climbing down.
+// True only when THIS coat has its own decoded painted set (no cross-coat fallback).
+const coatHasFrames = (coat) => { const f = climbImgs[coat]; return !!(f && f.idle && f.idle.complete); };
+
+// Pick a frame for this coat: idle when hanging, alternating up1/up2 climbing up,
+// down1/down2 climbing down. Returns null if the coat has no painted set.
 function pickClimbImg(t, climbing, dir, coat) {
-  const f = climbImgs[coat] || climbImgs[CLIMB_DEFAULT_COAT] || {};
+  const f = climbImgs[coat];
+  if (!f) return null;
   if (!climbing || Math.abs(dir) < 0.25) return f.idle;
   const a = Math.floor(climbAnim) % 2;   // alternation rate scales with scroll intensity (see climbFps)
   if (dir < 0) return (a ? f.up2 : f.up1) || f.idle;
@@ -1013,6 +1013,7 @@ function draw(t) {
   const startleActive = FORCED_STATE === 'startle' || (startleT0 >= 0 && t < startleUntil);
 
   // rope climb: scrolling builds climb energy; it bleeds off to a gentle hang.
+  const pulses = scrollPulses;   // how many wheel ticks since last frame (= instantaneous scroll speed)
   if (scrollPulses > 0) {
     paperUntil = t + 700; paperLen = Math.min(70, paperLen + scrollPulses * 7); addEnergy(scrollPulses * 4); scrollPulses = 0;
   }
@@ -1021,7 +1022,9 @@ function draw(t) {
   const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
   const climbing = paperActive && (t < paperUntil || FORCED_STATE === 'paper');   // actively scrolling vs just hanging
   climbDir += (scrollDirRaw - climbDir) * Math.min(1, dt * 0.012);                 // eased -1 (up) .. +1 (down)
-  const climbFps = climbing ? 3 + (Math.min(70, paperLen) / 70) * 11 : 0;          // hand-over-hand speeds up the harder you scroll (3..14 fps)
+  const instRate = dt > 0 ? pulses / (dt / 1000) : 0;                              // wheel ticks/sec this frame (spiky)
+  scrollRate += (instRate - scrollRate) * Math.min(1, dt * 0.005);                 // heavily smoothed scroll speed
+  const climbFps = climbing ? clamp(1 + scrollRate * 0.09, 1, 6) : 0;             // gentle scroll ~1 fps .. hard flick ~6 fps
   climbAnim += (dt / 1000) * climbFps;                                             // frame accumulator (whole numbers = frame swaps)
 
   // Mouse-hunt: when enabled in settings, a fast cursor flick (far enough away)
@@ -1252,7 +1255,7 @@ function draw(t) {
       const wig = idleSway;   // calm "normal" patting — no fast side-to-side jitter while petted
       const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 } : smoothLook;   // look the way it climbs the rope
-      const climbRaster = paperActive && !petting && !stretching && climbReady;   // painterly sprite climb available?
+      const climbRaster = paperActive && !petting && !stretching && coatHasFrames(coatSlug(P.name));   // painted climb for THIS coat?
       const breath = Math.sin(t / 1500);                              // gentle breathing
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (stretching) {
