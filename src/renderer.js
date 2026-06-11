@@ -843,24 +843,35 @@ function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
   }
 }
 
-// --- raster climb: painterly tuxedo sprite frames blitted over the procedural rope ---
+// --- raster climb: painted per-coat sprite frames; any coat without its own set
+// falls back to the DEFAULT (tuxedo) set, so the painted climb shows on every coat ---
 const CLIMB_SCENE_H = 2.4;      // full painted scene (cat+rope+ball) height as a multiple of the seated sprite
 const CLIMB_ANCHOR_X = 0.5;     // horizontal anchor fraction of the frame (rope/cat centre over pos.x)
 const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on the floor line
-let climbImgs = {}, climbReady = false;
+const CLIMB_DEFAULT_COAT = 'tuxedo';   // the set every other coat falls back to
+const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-');
+let climbImgs = {}, climbReady = false;   // { coat: { idle, up1, up2, down1, down2: Image } }
 (function loadClimbFrames() {
   if (typeof CLIMB_FRAMES === 'undefined') return;
-  const names = Object.keys(CLIMB_FRAMES);
-  for (const n of names) {
-    const im = new Image();
-    im.onload = () => { climbImgs[n] = im; climbReady = !!(climbImgs.idle && climbImgs.idle.complete); if (typeof resumeRaf === 'function') resumeRaf(); };
-    im.src = CLIMB_FRAMES[n];
+  for (const coat of Object.keys(CLIMB_FRAMES)) {
+    climbImgs[coat] = climbImgs[coat] || {};
+    for (const frame of Object.keys(CLIMB_FRAMES[coat])) {
+      const im = new Image();
+      im.onload = () => {
+        climbImgs[coat][frame] = im;
+        const d = climbImgs[CLIMB_DEFAULT_COAT];
+        climbReady = !!(d && d.idle && d.idle.complete);   // ready once the fallback set's idle decodes
+        if (typeof resumeRaf === 'function') resumeRaf();
+      };
+      im.src = CLIMB_FRAMES[coat][frame];
+    }
   }
 })();
 
-// Pick the frame: idle when hanging, alternating up1/up2 climbing up, down1/down2 down.
-function pickClimbImg(t, climbing, dir) {
-  const f = climbImgs;
+// Pick a frame for this coat (falling back to the default set): idle when hanging,
+// alternating up1/up2 climbing up, down1/down2 climbing down.
+function pickClimbImg(t, climbing, dir, coat) {
+  const f = climbImgs[coat] || climbImgs[CLIMB_DEFAULT_COAT] || {};
   if (!climbing || Math.abs(dir) < 0.25) return f.idle;
   const a = Math.floor(t / 140) % 2;
   if (dir < 0) return (a ? f.up2 : f.up1) || f.idle;
@@ -869,8 +880,8 @@ function pickClimbImg(t, climbing, dir) {
 
 // Blit the painted climb scene (cat + rope + ball, one self-contained image)
 // anchored so the yarn ball rests on the floor line.
-function drawClimbFrame(pos, t, climbing, dir) {
-  const img = pickClimbImg(t, climbing, dir);
+function drawClimbFrame(pos, t, climbing, dir, coat) {
+  const img = pickClimbImg(t, climbing, dir, coat);
   if (!img || !img.naturalHeight) return;
   const h = Math.round(SH * CLIMB_SCENE_H), w = Math.round(img.naturalWidth * (h / img.naturalHeight));
   const dx = Math.round(pos.x - w * CLIMB_ANCHOR_X);
@@ -1261,7 +1272,7 @@ function draw(t) {
       if (climbRaster) {
         // painterly raster climb: the tuxedo sprite frame grips the procedural rope
         // (the seated procedural cat is skipped entirely while climbing).
-        drawClimbFrame(pos, t, climbing, climbDir);
+        drawClimbFrame(pos, t, climbing, climbDir, coatSlug(P.name));
       } else {
       octx.clearRect(0, 0, oc.width, oc.height);
       drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet });

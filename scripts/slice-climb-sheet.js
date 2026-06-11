@@ -3,9 +3,12 @@
 // each panel's borders (stops at the cats' brighter rim-light/fur). Works when the
 // sheet's background is clearly DARKER than the fur; tune the threshold otherwise.
 //
-//   node scripts/slice-climb-sheet.js <sheet.png> [bgThreshold]
+//   node scripts/slice-climb-sheet.js <sheet.png> <coat-slug> [bgThreshold]
 //   npm run climb-frames        # then embed the sliced frames for the renderer
 //
+// coat-slug: which coat these frames belong to, e.g. tuxedo, orange-tabby, calico
+//   (matches a PATTERNS name lowercased with spaces->hyphens). Frames are written to
+//   assets/climb/<coat-slug>/. 'tuxedo' is the default set every other coat falls back to.
 // bgThreshold: a pixel whose brightest channel is below this, reachable from a panel
 // border, is treated as background. Raise it if dark fur leaves halos; lower it if
 // the body gets eaten.
@@ -13,8 +16,9 @@ const fs = require('fs'), zlib = require('zlib'), path = require('path');
 const { decodePng } = require('./logo-source.js');
 
 const SRC = process.argv[2];
-if (!SRC) { console.error('usage: node scripts/slice-climb-sheet.js <sheet.png> [bgThreshold]'); process.exit(1); }
-const BG_MAX = Number(process.argv[3]) || 30;
+if (!SRC) { console.error('usage: node scripts/slice-climb-sheet.js <sheet.png> <coat-slug> [bgThreshold]'); process.exit(1); }
+const COAT = (process.argv[3] || 'tuxedo').toLowerCase();
+const BG_MAX = Number(process.argv[4]) || 30;
 const full = decodePng(fs.readFileSync(SRC));
 const W = full.width, H = full.height;
 
@@ -31,8 +35,9 @@ function encodePng(buf, w, h) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ih), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
-const dir = path.join(__dirname, '..', 'assets', 'climb');
+const dir = path.join(__dirname, '..', 'assets', 'climb', COAT);
 fs.mkdirSync(dir, { recursive: true });
+console.log(`slicing ${path.basename(SRC)} -> assets/climb/${COAT}/ (bg<${BG_MAX})`);
 
 names.forEach((n, i) => {
   // crop this panel (small inset to skip dividers)
