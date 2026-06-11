@@ -14,6 +14,7 @@
     "autostart:off": "electron . --autostart=off",
     "sheet": "electron . --sheet",
     "icon": "node scripts/make-logo-icons.js",
+    "climb-frames": "node scripts/embed-climb-frames.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac",

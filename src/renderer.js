@@ -779,31 +779,39 @@ function drawGripPaw(palRGB, sx, sy, px, py, splay) {
   }
 }
 
-// Rope climb (scroll reaction): a vertical coral yarn rope hangs past the cat down
-// to a ball on the floor; the cat grips it hand-over-hand and hauls UP when you
-// scroll up (dir<0) or lowers DOWN when you scroll down (dir>0). `energy` (0..70)
-// scales liveliness; `climbing` = actively scrolling vs just hanging on.
-function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
-  const YARN_OUT = '#c8455a', YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3';
+// Shared rope geometry so the rope, the procedural grip-paws, AND the raster climb
+// frame all line up: a vertical strand from above the head down to a floor ball.
+function ropeGeom(pos, t, energy) {
   const ropeX = Math.round(pos.x - 26);                      // just left of centre, in front of the chest
   const topY = Math.round(pos.y - SH - 55);                  // plenty of rope rising above the head
   const ballY = Math.round(pos.y - 6);                       // ball rests on the floor line
-  const dirN = clamp(dir, -1, 1);
   const sway = Math.sin(t / 220) * (1 + energy / 40);        // whole-rope sway, livelier with energy
   const ropeAt = (y) => ropeX + Math.sin((y - topY) / 16 + t / 240) * sway;   // rope x at height y
+  return { ropeX, topY, ballY, sway, ropeAt };
+}
 
-  // rope: a twisted two-strand coral cord; the twist phase scrolls with climb dir
-  const texOff = climbing ? t * 0.05 * dirN : 0;
-  for (let y = topY; y < ballY; y++) {
-    const x = Math.round(ropeAt(y)), k = y - topY;
+// The coral yarn rope + the floor ball (no cat) — shared by the procedural climb
+// and the raster climb (which blits a painted cat over this).
+function drawRope(pos, t, climbing, dir, energy) {
+  const YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3';
+  const g = ropeGeom(pos, t, energy), dirN = clamp(dir, -1, 1);
+  const texOff = climbing ? t * 0.05 * dirN : 0;             // twist phase scrolls with climb dir
+  for (let y = g.topY; y < g.ballY; y++) {
+    const x = Math.round(g.ropeAt(y)), k = y - g.topY;
     ctx.fillStyle = YARN_MID; ctx.fillRect(x, y, 3, 1);
     if ((((k + texOff) % 5) + 5) % 5 < 2) { ctx.fillStyle = YARN_DK; ctx.fillRect(x + 2, y, 1, 1); }
     else { ctx.fillStyle = YARN_LT; ctx.fillRect(x, y, 1, 1); }
   }
-
-  // ball anchored on the floor (bobs a touch while climbing)
   const ballBob = climbing ? Math.round(Math.sin(t / 120) * 1.5) : 0;
-  drawYarnBall(ropeAt(ballY), ballY + ballBob);
+  drawYarnBall(g.ropeAt(g.ballY), g.ballY + ballBob);
+}
+
+// Procedural rope climb (FALLBACK when no raster frames are present): seated cat's
+// two paws grip the rope hand-over-hand, hauling UP (dir<0) or DOWN (dir>0).
+function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
+  const YARN_OUT = '#c8455a', YARN_LT = '#ff8fa3';
+  const g = ropeGeom(pos, t, energy), dirN = clamp(dir, -1, 1);
+  drawRope(pos, t, climbing, dir, energy);
 
   // two gripping paws, hand-over-hand (one holds while the other re-grabs)
   const shX = pos.x - 6, shY = Math.round(pos.y - SH * 0.42);   // shoulders at the chest
@@ -814,25 +822,62 @@ function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
     const yo = Math.cos(phi * Math.PI * 2) * (SPAN / 2);       // this paw rides high<->low
     const reach = phi < 0.5 ? Math.sin((phi / 0.5) * Math.PI) : 0;   // 0..1..0 arc on the re-grab
     const gy = gripBaseY + yo + (climbing ? reach * 6 * dirN : 0);   // bias the re-grab toward climb dir
-    drawGripPaw(palRGB, shX, shY, ropeAt(gripBaseY + yo) + reach * 3.5, gy, climbing && reach > 0.55);
+    drawGripPaw(palRGB, shX, shY, g.ropeAt(gripBaseY + yo) + reach * 3.5, gy, climbing && reach > 0.55);
   }
 
   // falling debris flecks + bright twists riding the rope while actively climbing
   if (climbing && energy > 6) {
-    const span = ballY - topY - 10;
+    const span = g.ballY - g.topY - 10;
     ctx.globalAlpha = 0.7;
     for (let i = 0; i < 3; i++) {                              // lint falls (gravity), regardless of dir
       const yy = ((t / 6 + i * 37) % span + span) % span;
       ctx.fillStyle = i === 1 ? YARN_OUT : YARN_LT;
-      ctx.fillRect(Math.round(ropeAt(topY + yy) - 5 - i), Math.round(topY + 8 + yy), 2, 2);
+      ctx.fillRect(Math.round(g.ropeAt(g.topY + yy) - 5 - i), Math.round(g.topY + 8 + yy), 2, 2);
     }
     ctx.fillStyle = '#fff0d6';
     for (let i = 0; i < 2; i++) {                              // highlight twists travel in the climb dir
       const yy = ((-t / 5 * dirN + i * 50) % span + span) % span;
-      ctx.fillRect(Math.round(ropeAt(topY + yy)), Math.round(topY + 6 + yy), 2, 3);
+      ctx.fillRect(Math.round(g.ropeAt(g.topY + yy)), Math.round(g.topY + 6 + yy), 2, 3);
     }
     ctx.globalAlpha = 1;
   }
+}
+
+// --- raster climb: painterly tuxedo sprite frames blitted over the procedural rope ---
+const CLIMB_TARGET_H = 1.55;    // frame height as a multiple of the seated sprite height
+const CLIMB_GRIP_FX = 0.5;      // horizontal fraction of the frame where the gripping paws sit
+const CLIMB_GRIP_FY = 0.18;     // vertical fraction (from top) of the gripping paws
+let climbImgs = {}, climbReady = false;
+(function loadClimbFrames() {
+  if (typeof CLIMB_FRAMES === 'undefined') return;
+  const names = Object.keys(CLIMB_FRAMES);
+  for (const n of names) {
+    const im = new Image();
+    im.onload = () => { climbImgs[n] = im; climbReady = !!(climbImgs.idle && climbImgs.idle.complete); if (typeof resumeRaf === 'function') resumeRaf(); };
+    im.src = CLIMB_FRAMES[n];
+  }
+})();
+
+// Pick the frame: idle when hanging, alternating up1/up2 climbing up, down1/down2 down.
+function pickClimbImg(t, climbing, dir) {
+  const f = climbImgs;
+  if (!climbing || Math.abs(dir) < 0.25) return f.idle;
+  const a = Math.floor(t / 140) % 2;
+  if (dir < 0) return (a ? f.up2 : f.up1) || f.idle;
+  return (a ? f.down2 : f.down1) || f.idle;
+}
+
+// Draw the procedural rope + ball, then blit the painted cat frame gripping it.
+function drawClimbFrame(pos, t, climbing, dir, energy) {
+  drawRope(pos, t, climbing, dir, energy);
+  const img = pickClimbImg(t, climbing, dir);
+  if (!img || !img.naturalHeight) return;
+  const h = Math.round(SH * CLIMB_TARGET_H), w = Math.round(img.naturalWidth * (h / img.naturalHeight));
+  const g = ropeGeom(pos, t, energy);
+  const handY = Math.round(pos.y - h - 0) + h * CLIMB_GRIP_FY;        // where the painted paws sit
+  const dx = Math.round(g.ropeAt(handY) - w * CLIMB_GRIP_FX);         // align paws to the rope
+  const dy = Math.round(pos.y - h);                                   // hang with feet/tail near the floor
+  ctx.drawImage(img, dx, dy, w, h);
 }
 // Grooming: the cat raises a front paw to its muzzle and licks it, washing its face.
 // Drawn over the seated sprite (cx = body centre, faceY = muzzle height).
@@ -1196,6 +1241,7 @@ function draw(t) {
       const wig = idleSway;   // calm "normal" patting — no fast side-to-side jitter while petted
       const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 } : smoothLook;   // look the way it climbs the rope
+      const climbRaster = paperActive && !petting && !stretching && climbReady;   // painterly sprite climb available?
       const breath = Math.sin(t / 1500);                              // gentle breathing
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (stretching) {
@@ -1205,7 +1251,7 @@ function draw(t) {
       const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop);
       const shadowA = (petting || bodyPet) ? 0.14 + Math.sin(t / 800) * 0.05 : 0.18;
       drawShadow(pos.x + wig, pos.y, shadowA);
-      if (!stretching && !thinking && !working && !loafing) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);   // loaf has a baked, wrapped tail
+      if (!stretching && !thinking && !working && !loafing && !climbRaster) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);   // loaf has a baked, wrapped tail; the climb frame has its own tail
       if (restIdle && band === 'calm' && !paperActive && t > nextIdleSparkle) {
         idleSparkles.push({ x: pos.x + (Math.random() - 0.5) * 8, y: oy, t0: t });
         nextIdleSparkle = t + 5000 + Math.random() * 4000;
@@ -1214,6 +1260,11 @@ function draw(t) {
         loafZZZ.push({ x: pos.x + 10 + Math.random() * 8, y: oy + 8, t0: t, sz: Math.random() < 0.4 ? 2 : 1 });
         nextLoafZ = t + 1800 + Math.random() * 1600;
       }
+      if (climbRaster) {
+        // painterly raster climb: the tuxedo sprite frame grips the procedural rope
+        // (the seated procedural cat is skipped entirely while climbing).
+        drawClimbFrame(pos, t, climbing, climbDir, Math.round(paperLen));
+      } else {
       octx.clearRect(0, 0, oc.width, oc.height);
       drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet });
       if (paperActive && !petting && !stretching) {
@@ -1238,6 +1289,7 @@ function draw(t) {
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
       if (paperActive && !petting && !stretching) {
         drawRopeClimb(palRGB, pos, t, climbing, climbDir, Math.round(paperLen));
+      }
       }
       if (grooming && !paperActive) drawGroom(palRGB, pos.x + wig, oy + SH * 0.30, t);   // raise a paw, wash its face
       if (t < labelUntil) {

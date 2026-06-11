@@ -8,8 +8,9 @@
 
 It sits in the corner, follows your cursor, kneads your keyboard when you type,
 purrs when you pet it, and stretches like mochi when you drag it. A from-scratch
-desktop pet built with Electron — every sprite, animation, and sound is original
-and procedural (no asset files).
+desktop pet built with Electron — nearly every sprite, animation, and sound is
+original and procedural (the optional scroll rope-climb can use painterly sprite
+frames; everything else is pure code).
 
 [![CI](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml/badge.svg)](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml)
 ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20(beta)-blue)
