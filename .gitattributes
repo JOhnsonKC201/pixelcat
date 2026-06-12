@@ -1,0 +1,14 @@
+# Normalize line endings to LF in the repo (stops the "LF will be replaced by
+# CRLF" warnings on Windows checkouts) and mark binary assets so git never tries
+# to diff or convert them.
+* text=auto eol=lf
+
+*.png  binary
+*.ico  binary
+*.gif  binary
+*.mp4  binary
+*.jpg  binary
+*.jpeg binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
