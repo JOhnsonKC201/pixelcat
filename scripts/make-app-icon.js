@@ -1,4 +1,4 @@
-// Generates assets/icon.png (256) and assets/icon.ico (16/32/48/64/128/256) — the
+// Generates assets/icon.png (256) and assets/icon.ico (16/32/48/64/128/256) - the
 // "pixelcat" logo: a bold ORANGE cat face (the shared logo mark) centred on a vibrant
 // indigo rounded app-tile. The same face is used for the tray glyph (make-tray-icon.js)
 // so the brand is consistent and instantly recognizable. Run: node scripts/make-app-icon.js

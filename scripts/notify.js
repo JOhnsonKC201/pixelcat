@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Push an arbitrary message to the running desktop cat: it shows a speech bubble,
-// pops a Windows toast, and meows. ANY script or tool can call this — an email
-// checker, CI, cron, a build step — to turn the cat into your notifier.
+// pops a Windows toast, and meows. ANY script or tool can call this - an email
+// checker, CI, cron, a build step - to turn the cat into your notifier.
 //
 // Usage:
 //   node scripts/notify.js "Build finished" --title CI --level success
@@ -10,14 +10,14 @@
 // Flags:  --title <T>   --level info|success|warn|alert   --ttl <ms>   --no-sound
 //
 // It appends one JSON line to %TEMP%/pixelcat-notify.jsonl (append-only); the cat
-// tails that file. Safe to call when the cat isn't running — the line is just
+// tails that file. Safe to call when the cat isn't running - the line is just
 // ignored (the cat only reads lines written after it started).
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 // Hook-safe: drain any piped stdin (hook runners send JSON then close stdin).
-try { fs.readFileSync(0); } catch (e) { /* no stdin — fine */ }
+try { fs.readFileSync(0); } catch (e) { /* no stdin - fine */ }
 
 const argv = process.argv.slice(2);
 let message = '', title = '', level = 'info', ttl = 5000, sound = true;

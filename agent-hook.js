@@ -19,7 +19,7 @@ const path = require('path');
 
 // Drain any piped stdin event (hook runners send JSON then close stdin -> EOF;
 // when there is no stdin this throws EAGAIN/ENXIO, which we ignore).
-try { fs.readFileSync(0); } catch (e) { /* no stdin — fine */ }
+try { fs.readFileSync(0); } catch (e) { /* no stdin - fine */ }
 
 const state = (process.argv[2] || 'idle').trim();
 try { fs.writeFileSync(path.join(os.tmpdir(), 'pixelcat-agent.state'), state); }

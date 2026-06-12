@@ -1,4 +1,4 @@
-// Custom coat themes — user-defined colour palettes layered on top of the 12
+// Custom coat themes - user-defined colour palettes layered on top of the 12
 // built-in coats. Stored in themes.json in the per-user app-data dir (next to
 // settings.json). Tolerant load (missing/corrupt -> []), atomic save, strict
 // validation: every colour role must be a #rrggbb hex or the theme is dropped.

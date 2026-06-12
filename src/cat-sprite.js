@@ -1,11 +1,11 @@
-// Shared cat-sprite core — the single source of truth for the sit sprite geometry,
+// Shared cat-sprite core - the single source of truth for the sit sprite geometry,
 // grid primitives, coat palettes, and colour helpers. Loaded as a classic script
-// by the overlay (index.html) and the settings window (settings.html) — its
+// by the overlay (index.html) and the settings window (settings.html) - its
 // top-level const/function declarations live in the shared global lexical scope,
-// so renderer.js / cat-preview.js use them as bare identifiers — and required as a
+// so renderer.js / cat-preview.js use them as bare identifiers - and required as a
 // CommonJS module by scripts/make-app-icon.js (Node). Pose-specific composers
 // (hunt/type/sleep) and the animated drawCat stay in renderer.js.
-const CELL = 4;   // px per sprite cell — sets the cat's overall size (was 5; 4 ≈ 20% smaller)
+const CELL = 4;   // px per sprite cell - sets the cat's overall size (was 5; 4 ≈ 20% smaller)
 
 // ---- sprite builder (writes to current target G/GC/GR) ----------------------
 let G, GC, GR;
@@ -80,7 +80,7 @@ function composeSit(B) {
   ellipse(CX, 8, headRx, headRy, 'C');
   if (cheek) { ellipse(CX - headRx * 0.7, 9.6, 1.7, 2.2, 'C'); ellipse(CX + headRx * 0.7, 9.6, 1.7, 2.2, 'C'); }
   if (fluff) { ellipse(5.4, 10.4, 1.9, 2.4, 'C'); ellipse(18.6, 10.4, 1.9, 2.4, 'C'); } // cheek ruff
-  // ears — proper cat triangles on top of the head, slight outward tilt
+  // ears - proper cat triangles on top of the head, slight outward tilt
   triangle(CX - eo - 0.5, earY, CX - eo - ew, 7.6, CX - eo + ew, 6.4, 'K');
   triangle(CX + eo + 0.5, earY, CX + eo + ew, 7.6, CX + eo - ew, 6.4, 'K');
   const iw = ew * 0.55;
@@ -124,7 +124,7 @@ const PATTERNS = [
   { name: 'Slate', coat: '#8d97ac', mark: '#6f7892', white: '#8d97ac', patch: '#8d97ac', eye: '#ffffff', nose: '#ff9aa2', inner: '#ff9aa2', outline: '#2e323d' },
 ];
 
-// Body-build archetypes — different breeds get different silhouettes.
+// Body-build archetypes - different breeds get different silhouettes.
 const BUILDS = {
   standard: { earApexY: 1, earW: 2.4, earOut: 4 },
   slender: { bodyW: 0.85, headRx: 5.7, headRy: 5.4, earApexY: -1, earW: 2.3, earOut: 4.2, eyeRx: 2.1, eyeRy: 2.0 },

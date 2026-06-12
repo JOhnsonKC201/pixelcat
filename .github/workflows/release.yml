@@ -7,7 +7,7 @@ on:
     tags: ['v*']
 
 # Serialize releases, but never cancel a run that may already be uploading
-# artifacts — interrupting a publish can leave a half-created GitHub Release.
+# artifacts - interrupting a publish can leave a half-created GitHub Release.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false

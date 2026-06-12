@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Print a ready-to-use pixelcat work-status hook config for a given agent, with
 // the absolute path to agent-hook.js already filled in (the one manual step in
-// integrations/). It only PRINTS — copy the output into the noted location; it
+// integrations/). It only PRINTS - copy the output into the noted location; it
 // never edits your agent's config for you.
 //
 //   node scripts/install-hook.js <claude-code|codex|cursor|antigravity|kiro>
@@ -34,7 +34,7 @@ txt = txt.split('/ABSOLUTE/PATH/TO/pixelcat').join(dir)
   .split('/ABS/PATH/pixelcat').join(dir)
   .split('/ABS/PATH').join(dir);
 
-console.log(`# pixelcat work-status hook — ${agent}`);
+console.log(`# pixelcat work-status hook - ${agent}`);
 console.log(`# agent-hook.js: ${hookAbs}`);
 console.log(`# place into:    ${target}`);
 console.log('# ' + '-'.repeat(64) + '\n');

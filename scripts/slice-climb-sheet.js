@@ -56,7 +56,7 @@ names.forEach((n, i) => {
   for (let y = 0; y < ch; y++) { push(0, y); push(cw - 1, y); }
   while (st.length) { const q = st.pop(), x = q % cw, y = (q / cw) | 0; push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1); }
   for (let q = 0; q < cw * ch; q++) if (seen[q]) buf[q * 4 + 3] = 0;
-  // strip near-full-height vertical lines hugging the left/right edges — these are
+  // strip near-full-height vertical lines hugging the left/right edges - these are
   // leftover panel-divider/border lines the key missed. The real climbing rope is
   // central (never in the outer columns), so it's safe; debris flecks are preserved.
   {

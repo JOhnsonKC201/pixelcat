@@ -23,5 +23,5 @@ if (!fs.existsSync(png) || fs.statSync(png).size < 1000) {
   console.error('BOOT TEST FAILED: no/empty render produced (overlay or renderer likely crashed)');
   process.exit(1);
 }
-console.log('boot test OK —', fs.statSync(png).size, 'byte render');
+console.log('boot test OK - ', fs.statSync(png).size, 'byte render');
 try { fs.unlinkSync(png); } catch { /* ignore */ }

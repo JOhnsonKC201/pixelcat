@@ -17,5 +17,5 @@ command = 'node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" working'
 type = "command"
 command = 'node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" done'
 
-# Alternative (no hooks): a desktop-style notifier on turn completion —
+# Alternative (no hooks): a desktop-style notifier on turn completion -
 #   notify = ["node", "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js", "done"]

@@ -47,16 +47,16 @@ function composeHunt() {
 // --- typing cat (FRONT-FACING "keyboard kneading", Comnyang-style): the cat
 //     faces the viewer and leans forward over two big keycaps. Grid 24x24. Both
 //     eyes visible (they look down at the keys), tail curls up the right side.
-//     Forelegs are NOT baked — drawn live kneading the keys in renderTypeFront,
+//     Forelegs are NOT baked - drawn live kneading the keys in renderTypeFront,
 //     where the keycaps are drawn too.
 function composeTypeFront(B) {
   B = B || {};
   const CX = 12, fluff = !!B.fluff;
-  // tail: emerges behind the right haunch and curls up beside the body — kept
+  // tail: emerges behind the right haunch and curls up beside the body - kept
   // clear of the torso silhouette so it reads as a tail, with a pale tip.
   [[20.6, 20.0], [22.0, 17.2], [22.4, 14.0], [21.6, 11.2]].forEach(([c, r]) => ellipse(c, r, 1.6, 1.6, 'C'));
   ellipse(21.6, 10.8, 1.0, 1.0, 'W', ['C']);               // tail tip (hooked over)
-  // body: leaning forward — chest/shoulder mass under the head, haunches planted
+  // body: leaning forward - chest/shoulder mass under the head, haunches planted
   // wider at the bottom (the rear stays down while the cat reaches for the keys).
   ellipse(CX, 16, 6.0, 5.4, 'C');                          // shoulders / chest
   ellipse(6.6, 20.2, 3.4, 3.2, 'C');                       // left haunch
@@ -64,7 +64,7 @@ function composeTypeFront(B) {
   // head front-centre, slightly low (the forward lean)
   ellipse(CX, 8.5, 6.3, 5.6, 'C');
   if (fluff) { ellipse(5.6, 10.8, 1.9, 2.3, 'C'); ellipse(18.4, 10.8, 1.9, 2.3, 'C'); }  // cheek ruff
-  // ears — proper cat triangles on top, slight outward tilt
+  // ears - proper cat triangles on top, slight outward tilt
   triangle(CX - 4.5, 1.2, CX - 6.4, 6.8, CX - 1.8, 5.6, 'K');
   triangle(CX + 4.5, 1.2, CX + 6.4, 6.8, CX + 1.8, 5.6, 'K');
   triangle(CX - 4.3, 3.0, CX - 5.4, 6.3, CX - 2.8, 5.6, 'I');
@@ -74,9 +74,9 @@ function composeTypeFront(B) {
   ellipse(9, 8.7, 2.0, 2.4, 'E'); ellipse(15, 8.7, 2.0, 2.4, 'E');
   ellipse(CX, 12.2, 3, 2, 'W', ['C']);
   setCell(12, 11, 'N'); setCell(11, 11, 'N');
-  // white chest bib — kept narrow so the lifted white paws never vanish against it
+  // white chest bib - kept narrow so the lifted white paws never vanish against it
   ellipse(CX, 17.8, 2.1, 3.2, 'W', ['C']);
-  // forelegs/paws are NOT baked — drawn live in drawKneadPaws (knead the keys)
+  // forelegs/paws are NOT baked - drawn live in drawKneadPaws (knead the keys)
   if (B.tabby) {
     [[11, 5], [12, 6], [13, 5]].forEach(([c, r]) => { if (G[r] && G[r][c] === 'C') setCell(c, r, 'K'); });  // forehead M
     for (let r = 13; r < 22; r += 2) for (let c = 3; c < 21; c++) if (G[r] && G[r][c] === 'C' && c % 2 === 0) setCell(c, r, 'K');
@@ -86,7 +86,7 @@ function composeTypeFront(B) {
 }
 
 // --- loafing cat ("cat bread"): a compact, content resting pose. The body is a
-//     low rounded mound (no upright legs — paws are tucked under), the head rests
+//     low rounded mound (no upright legs - paws are tucked under), the head rests
 //     low and forward on top, and the tail wraps around the front. Grid 24x30 so
 //     SW/SH match the sit sprite (the draw loop swaps sprites at the same size).
 //     Built per coat from the same build descriptor B as composeSit.
@@ -101,14 +101,14 @@ function composeLoaf(B) {
   // baked tail wrapped around the front-right base (drawn first, behind the body)
   [[20.4, 26.6], [18.6, 28.2], [16.2, 29.2]].forEach(([c, r]) => ellipse(c, r, 1.7, 1.6, 'C'));
   ellipse(16.2, 29.2, 0.9, 0.9, 'W', ['C']);               // pale tail tip curled to the front
-  // body: a wide, low loaf mound — base sits on the ground line (row ~29)
+  // body: a wide, low loaf mound - base sits on the ground line (row ~29)
   ellipse(CX, 25, 8.9 * bw, 4.7 + (fluff ? 0.4 : 0), 'C'); // broad base
   ellipse(CX, 21, 8.0 * bw, 4.0, 'C');                     // rounded upper mound
   // head resting low and forward on the mound
   ellipse(CX, 8 + EH, headRx, headRy, 'C');
   if (cheek) { ellipse(CX - headRx * 0.7, 9.6 + EH, 1.7, 2.2, 'C'); ellipse(CX + headRx * 0.7, 9.6 + EH, 1.7, 2.2, 'C'); }
   if (fluff) { ellipse(5.4, 10.4 + EH, 1.9, 2.4, 'C'); ellipse(18.6, 10.4 + EH, 1.9, 2.4, 'C'); } // cheek ruff
-  // ears — same triangles as the sit head, dropped by EH
+  // ears - same triangles as the sit head, dropped by EH
   triangle(CX - eo - 0.5, earY + EH, CX - eo - ew, 7.6 + EH, CX - eo + ew, 6.4 + EH, 'K');
   triangle(CX + eo + 0.5, earY + EH, CX + eo + ew, 7.6 + EH, CX + eo - ew, 6.4 + EH, 'K');
   const iw = ew * 0.55;
@@ -142,7 +142,7 @@ const SW = 24 * CELL, SH = 30 * CELL;            // sit dims (mochi uses these)
 const HW = spriteHunt.SW, HH = spriteHunt.SH;    // hunt dims
 let playArea = null;   // { x,y,w,h } fractions of the screen; the cat stays inside it
 // X margins from the cat's CENTER: the body is SW/2 wide each side, and the sit
-// tail sweeps a further ~55px to the RIGHT (see drawTail) — so the right margin
+// tail sweeps a further ~55px to the RIGHT (see drawTail) - so the right margin
 // is bigger, ensuring a hard throw at the screen edge never clips the tail.
 const EDGE_L = SW / 2 + 8, EDGE_R = SW / 2 + 60;
 function zoneClampX(v) {
@@ -156,7 +156,7 @@ function zoneClampY(v) {
   return clamp(v, Math.min(a, b), Math.max(a, b));
 }
 // The cat's resting foot line = the top edge of the taskbar/Dock. Derived from
-// the BOTTOM work-area inset only — on macOS the menu bar is a TOP inset
+// the BOTTOM work-area inset only - on macOS the menu bar is a TOP inset
 // (availTop > 0) and must not raise the cat; the Dock (if at the bottom) is the
 // remainder. Falls back to a small margin when there's no bottom inset.
 function groundBaselineY() {
@@ -177,7 +177,7 @@ const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeSit
 // each coat also gets its own typing (kneading) body, so every breed types differently
 // one shared front "kneading cat" shape, recoloured per coat (+ tabby stripes / fluffy tufts)
 const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 24, () => composeTypeFront({ tabby: TABBY[i], fluff: BUILDS[b].fluff })));
-// and a dedicated loaf (resting) body per coat — same 24x30 size as the sit sprite
+// and a dedicated loaf (resting) body per coat - same 24x30 size as the sit sprite
 const loafSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeLoaf({ ...BUILDS[b], tabby: TABBY[i] })));
 const DEFAULT_PATTERN = Math.max(0, PATTERNS.findIndex((p) => p.name === 'Tuxedo'));   // tuxedo is the out-of-box coat
 const storedPattern = localStorage.getItem('pattern');
@@ -293,11 +293,11 @@ function drawKey(cx, topY, w, h, lit, label) {
     ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
   }
 }
-// The two forelegs the profile cat taps with — drawn live (NOT baked into the
+// The two forelegs the profile cat taps with - drawn live (NOT baked into the
 // sprite) so the paws lift and strike. They reach forward-right from the chest
 // (shX, shY) onto the two keys; two-tone (outline + coat) so they read on any coat.
 // The cat's forelegs in true PIXEL-SPRITE style (like the Comnyang reference):
-// chunky grid-aligned columns with the same dark outline as the body — no smooth
+// chunky grid-aligned columns with the same dark outline as the body - no smooth
 // vector curves. Each leg hops on/off its key in whole-pixel steps like real
 // sprite animation; the paw is a white pixel mitt with a toe split, and square
 // pink toe beans flash on the underside while a paw is lifted.
@@ -314,7 +314,7 @@ function drawKneadPaws(palRGB, lcx, rcx, keyTop, lp, rp, shY) {
     const pX = cx - pwW / 2;
     const ax = cx - side * 2 - 6, aw = 11;            // leg column, a touch inboard of its key
     const top = Math.round(shY), aH = pY - top + 3;
-    // leg: outline slab + flat fur core — same blocky look as the body sprite
+    // leg: outline slab + flat fur core - same blocky look as the body sprite
     rect(ax, top, aw, aH, O);
     rect(ax + 2.5, top, aw - 5, aH, C);
     // paw: outlined white pixel mitt
@@ -500,7 +500,7 @@ let stretchT0 = -1, nextStretch = 0;
 let agentState = 'idle', doneHopT0 = -1, doneHopPending = false, doneIsAgent = false, errorPending = false;
 const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
 // scroll reaction (09): the cat grabs a vertical yarn rope and climbs it while you
-// scroll — hand-over-hand, up when you scroll up and down when you scroll down,
+// scroll - hand-over-hand, up when you scroll up and down when you scroll down,
 // with a ball of yarn anchored on the floor. `paperLen` is the climb energy (grows
 // while scrolling, decays to a gentle hang). `climbDir` is the eased -1..+1 heading.
 let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir = -1, climbAnim = 0, scrollRate = 0;
@@ -514,7 +514,7 @@ let lowPower = false;   // main's derived low-power flag (user toggle and/or on 
 // Comnyang-style productivity layer: settings from main + reminder/break bubble
 let config = null;
 let bubbleText = '', bubbleUntil = 0;
-let pomo = null;   // { on, phase: 'focus'|'break', endsAt } — main owns the clock
+let pomo = null;   // { on, phase: 'focus'|'break', endsAt } - main owns the clock
 let purring = false;
 // Comnyang mood/energy model: 0-100, decays over time, bumped by stimuli. Bands
 // (calm/playful/zoomies) gate + scale every behavior; see bandOf()/intensity.
@@ -696,7 +696,7 @@ function playChirp() {
   o.connect(g); o.start(t0); o.stop(t0 + 0.24);
   o.onended = () => { try { g.disconnect(); } catch (e) { /* ignore */ } };
 }
-// Startled "mrrp" — a short falling growl (sudden jolt / agent error).
+// Startled "mrrp" - a short falling growl (sudden jolt / agent error).
 function playMrrp() {
   const ac = audio(); if (!ac) return;
   const t0 = ac.currentTime, g = ac.createGain(); g.connect(master);
@@ -712,7 +712,7 @@ function playMrrp() {
   o.onended = () => { try { g.disconnect(); lp.disconnect(); } catch (e) { /* ignore */ } };
 }
 
-// Speech bubble above the head — same dark-rounded style as the coat label.
+// Speech bubble above the head - same dark-rounded style as the coat label.
 function drawBubble(cx, topY, text, alpha) {
   ctx.globalAlpha = alpha;
   ctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
@@ -728,7 +728,7 @@ function drawBubble(cx, topY, text, alpha) {
   ctx.globalAlpha = 1;
 }
 
-// Pomodoro pixel timer — a tiny dark panel with a phase dot (tomato = focus,
+// Pomodoro pixel timer - a tiny dark panel with a phase dot (tomato = focus,
 // green = break) and an mm:ss countdown, floating beside the cat.
 function drawPomoTimer(x, y, t) {
   const remain = Math.max(0, (pomo.endsAt || 0) - Date.now());
@@ -754,7 +754,7 @@ function drawPomoTimer(x, y, t) {
   ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
 }
 
-// Ball of yarn — a wound coral disc with wrap-strands and a glint. Shared by the
+// Ball of yarn - a wound coral disc with wrap-strands and a glint. Shared by the
 // rope climb as the rope's anchor on the floor. (cx, cy) = ball centre.
 function drawYarnBall(cx, cy) {
   const YARN_OUT = '#c8455a', YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3', YARN_HI = '#ffd0d8';
@@ -806,7 +806,7 @@ function ropeGeom(pos, t, energy) {
   return { ropeX, topY, ballY, sway, ropeAt };
 }
 
-// The coral yarn rope + the floor ball (no cat) — shared by the procedural climb
+// The coral yarn rope + the floor ball (no cat) - shared by the procedural climb
 // and the raster climb (which blits a painted cat over this).
 function drawRope(pos, t, climbing, dir, energy) {
   const YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3';
@@ -832,7 +832,7 @@ function drawRopeClimb(palRGB, pos, t, climbing, dir, energy, bob, sway) {
 
   // two gripping paws, hand-over-hand (one holds while the other re-grabs). The
   // shoulders ride the body heave (bob/sway) while the grip points stay on the rope,
-  // so the arms visibly extend and compress with each pull — a smooth climbing stroke.
+  // so the arms visibly extend and compress with each pull - a smooth climbing stroke.
   const shX = pos.x - 6 + sway, shY = Math.round(pos.y - SH * 0.42 - bob);   // shoulders at the chest
   const gripBaseY = Math.round(pos.y - SH * 0.42), SPAN = 22;
   const ph = (t / (climbing ? 460 : 1100)) % 1;                // faster cycle while actively climbing
@@ -870,7 +870,7 @@ const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on t
 const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-');
 // Coats whose painted climb art doesn't match the coat: skip them so they fall back
 // to the procedural climb in their OWN colours. 'gray' is painted as a green-eyed
-// gray+white bicolor, but the gray coat is solid gray with gold eyes — repaint to re-enable.
+// gray+white bicolor, but the gray coat is solid gray with gold eyes - repaint to re-enable.
 const CLIMB_FRAME_SKIP = new Set(['gray']);
 let climbImgs = {};   // { coat: { idle, up1, up2, down1, down2: Image } }
 (function loadClimbFrames() {
@@ -961,7 +961,7 @@ const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUN
 const ENERGY_DECAY = 0.0012;
 const CALM_MAX = 50, PLAYFUL_MAX = 80;
 const STARTLE_VEL = 3.5, STARTLE_JUMP = 320, STARTLE_MS = 820, ZOOMIES_MS = 2500;
-const STARTLE_RANGE = 160;   // only flinch when the cursor lunges NEAR the cat — not on every fast move across the screen
+const STARTLE_RANGE = 160;   // only flinch when the cursor lunges NEAR the cat - not on every fast move across the screen
 function bandOf(e) { return e <= CALM_MAX ? 'calm' : e <= PLAYFUL_MAX ? 'playful' : 'zoomies'; }
 function addEnergy(n) { energy = clamp(energy + n, 0, 100); }
 
@@ -1084,7 +1084,7 @@ function draw(t) {
   if (petting) addEnergy(0.6 * step);   // affection nudges mood up toward calm/playful
 
   // body touch (not the head): the cat leans/arches into your hand, tail up, looks
-  // at you, and trills now and then — a different reaction than the head-pet purr.
+  // at you, and trills now and then - a different reaction than the head-pet purr.
   const bodyBox = { x: pos.x - SW / 2, y: pos.y - SH * 0.58, w: SW, h: SH * 0.58 };
   const inBody = cursor.x >= bodyBox.x && cursor.x <= bodyBox.x + bodyBox.w && cursor.y >= bodyBox.y && cursor.y <= bodyBox.y + bodyBox.h;
   const bodyPet = !FORCED_STATE && !petting && !grabbing && !hunting && !startleActive && inBody && velEMA < 0.25;
@@ -1264,7 +1264,7 @@ function draw(t) {
     smoothLook.x += (gaze.x - smoothLook.x) * 0.18 * step;   // snappier cursor tracking
     smoothLook.y += (gaze.y - smoothLook.y) * 0.18 * step;
     // continuous subtle body-lean toward the cursor (the cat "watches" it), only
-    // when following and idle-ish — never fights a grab/throw/typing pose.
+    // when following and idle-ish - never fights a grab/throw/typing pose.
     const leanWant = (follow && !grabbing && !typing && !startleActive) ? clamp((cursor.x - pos.x) / 200, -0.08, 0.08) : 0;
     cursorLean += (leanWant - cursorLean) * 0.06 * step;
 
@@ -1293,7 +1293,7 @@ function draw(t) {
       const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
       const grooming = FORCED_STATE === 'groom' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < groomUntil);
       const loafing = !grooming && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
-      const wig = idleSway;   // calm "normal" patting — no fast side-to-side jitter while petted
+      const wig = idleSway;   // calm "normal" patting - no fast side-to-side jitter while petted
       const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 } : smoothLook;   // look the way it climbs the rope
       const climbRaster = paperActive && !petting && !stretching && coatHasFrames(coatSlug(P.name));   // painted climb for THIS coat?
@@ -1330,7 +1330,7 @@ function draw(t) {
       if (paperActive && !petting && !stretching) {
         // both front paws lift off the ground to grip the rope, so paint over the
         // baked planted front legs+paws on the offscreen sprite (so it scales/flips
-        // with the cat) — otherwise they read as extra limbs behind the climbing arms.
+        // with the cat) - otherwise they read as extra limbs behind the climbing arms.
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
       }
       ctx.save();
@@ -1392,13 +1392,13 @@ function draw(t) {
   loafZZZ = loafZZZ.filter((z) => t - z.t0 < 1100);
   for (const z of loafZZZ) { const a = (t - z.t0) / 1100, yOff = a * 14, fade = a < 0.15 ? a / 0.15 : a > 0.75 ? (1 - a) / 0.25 : 1; ctx.globalAlpha = fade * 0.65; ctx.fillStyle = '#8ab4cc'; const zx = Math.round(z.x), zy = Math.round(z.y - yOff), s = z.sz; ctx.fillRect(zx, zy, s * 4, s); ctx.fillRect(zx + s * 2, zy + s, s * 2, s); ctx.fillRect(zx + s, zy + s * 2, s * 2, s); ctx.fillRect(zx, zy + s * 3, s * 4, s); ctx.globalAlpha = 1; }
 
-  // reminder/break speech bubble — drawn here (outside the pose branches) so it's
+  // reminder/break speech bubble - drawn here (outside the pose branches) so it's
   // visible even if a reminder fires mid-hunt or mid-type. A transient bubble
   // outranks the pinned note so reminders never get masked.
   if (t < bubbleUntil && bubbleText) drawBubble(pos.x, pos.y - SH - 6, bubbleText, Math.min(1, (bubbleUntil - t) / 400));
   else if (config && config.pinnedNote) drawBubble(pos.x, pos.y - SH - 6, '📌 ' + template(config.pinnedNote), 0.95);
 
-  // pomodoro pixel timer — floats beside the cat in every pose; main owns the
+  // pomodoro pixel timer - floats beside the cat in every pose; main owns the
   // clock (phase + endsAt), we just count it down locally.
   if (pomo && pomo.on) drawPomoTimer(pos.x + SW / 2 + 10, pos.y - SH + 6, t);
 

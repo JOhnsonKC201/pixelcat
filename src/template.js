@@ -1,4 +1,4 @@
-// Shared message-placeholder filler — the single source of truth for
+// Shared message-placeholder filler - the single source of truth for
 // {name} {time} {date} {count} substitution plus the "tidy stray whitespace
 // before punctuation" cleanup (so "Hi {name}!" with no name reads "Hi!").
 //

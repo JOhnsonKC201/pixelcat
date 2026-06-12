@@ -1,4 +1,4 @@
-// Shared "pixelcat" logo mark — a bold, friendly FRONT-FACING cat face that reads
+// Shared "pixelcat" logo mark - a bold, friendly FRONT-FACING cat face that reads
 // at 16px and scales up crisply. Brand orange on a dark outline + light halo so it
 // stays visible on a dark Windows taskbar (the old dark cat-head vanished there).
 //
@@ -8,15 +8,15 @@
 // scripts/make-tray-icon.js (tray) and scripts/make-app-icon.js (app tile).
 
 const COL = {
-  1: [232, 148, 60],   // coat  — brand orange
-  2: [181, 100, 29],   // mark  — tabby stripes
-  3: [247, 241, 230],  // cream — muzzle / chin
-  4: [240, 170, 165],  // earin — inner ear
+  1: [232, 148, 60],   // coat - brand orange
+  2: [181, 100, 29],   // mark - tabby stripes
+  3: [247, 241, 230],  // cream - muzzle / chin
+  4: [240, 170, 165],  // earin - inner ear
   5: [38, 40, 48],     // eye
-  6: [255, 255, 255],  // shine — eye sparkle
+  6: [255, 255, 255],  // shine - eye sparkle
   7: [224, 136, 143],  // nose
-  8: [60, 36, 18],     // line  — dark outline
-  9: [255, 252, 246],  // halo  — light contrast ring
+  8: [60, 36, 18],     // line - dark outline
+  9: [255, 252, 246],  // halo - light contrast ring
 };
 
 function sign(px, py, ax, ay, bx, by) { return (px - bx) * (ay - by) - (ax - bx) * (py - by); }

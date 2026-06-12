@@ -1,7 +1,7 @@
 // Forked calendar worker. Receives { url } once, fetches + parses the .ics feed
 // (node-ical), and reports upcoming events within a ~26h window back to the parent,
 // then exits. Runs in its own process so a slow/large feed can't stall the overlay.
-// The .ics URL is a secret (it grants read access to the calendar) — never logged.
+// The .ics URL is a secret (it grants read access to the calendar) - never logged.
 function classify(e) {
   const m = String((e && e.message) || e || '').toLowerCase();
   if (m.includes('enotfound') || m.includes('getaddrinfo') || m.includes('econnrefused')) return 'Could not reach the calendar URL.';

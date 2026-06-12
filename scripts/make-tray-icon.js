@@ -1,4 +1,4 @@
-// Generates assets/tray.png (16px) and assets/tray@2x.png (32px) — the "pixelcat"
+// Generates assets/tray.png (16px) and assets/tray@2x.png (32px) - the "pixelcat"
 // logo mark: a bold ORANGE cat face with a dark outline and light halo, so it stays
 // visible on a dark Windows taskbar (the previous dark cat-head was invisible there).
 // Artwork comes from the shared scripts/logo-glyph.js. Run: node scripts/make-tray-icon.js

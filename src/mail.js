@@ -1,7 +1,7 @@
 // IMAP unread-mail watcher (main process). The actual IMAP connection runs in a
 // short-lived forked worker (mail-worker.js) so a hung socket can never freeze the
 // overlay. Main owns the app-password: it is stored encrypted-at-rest via Electron
-// safeStorage (DPAPI on Windows) in userData/email.cred — never in settings.json —
+// safeStorage (DPAPI on Windows) in userData/email.cred - never in settings.json -
 // and decrypted only in-memory before being handed to the worker.
 //
 // The first poll after launch only establishes a baseline, so we never announce

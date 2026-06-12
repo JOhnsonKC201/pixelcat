@@ -1,17 +1,17 @@
 // Forked IMAP worker. Receives { host, port, user, pass, secure } once over the
 // process channel, connects, counts unseen messages in INBOX, reports back, and
 // exits. Runs in its own process so a hung socket or library crash can never
-// freeze the overlay. The password is used in-memory only — never logged.
+// freeze the overlay. The password is used in-memory only - never logged.
 const { ImapFlow } = require('imapflow');
 
 function classify(e) {
   const m = String((e && e.message) || e || '').toLowerCase();
   if (m.includes('auth') || m.includes('credential') || m.includes('login') || m.includes('password')) {
-    return 'Authentication failed — check your email and app-password.';
+    return 'Authentication failed - check your email and app-password.';
   }
-  if (m.includes('timeout') || m.includes('timed out')) return 'Connection timed out — check host and port.';
+  if (m.includes('timeout') || m.includes('timed out')) return 'Connection timed out - check host and port.';
   if (m.includes('enotfound') || m.includes('getaddrinfo') || m.includes('econnrefused') || m.includes('ehostunreach')) {
-    return 'Could not reach the mail server — check host and port.';
+    return 'Could not reach the mail server - check host and port.';
   }
   if (m.includes('certificate') || m.includes('self-signed') || m.includes('tls')) return 'TLS/certificate problem connecting to the server.';
   return 'Could not connect to the mailbox.';

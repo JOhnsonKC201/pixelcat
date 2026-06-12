@@ -1,4 +1,4 @@
-// Generates assets/pixelcat-demo.gif — a short looping clip that shows what the
+// Generates assets/pixelcat-demo.gif - a short looping clip that shows what the
 // desktop pet DOES: it sits and follows your cursor, naps when idle, taps its
 // paws when you type, pounces to hunt, and purrs when you pet it. Pure JS, no
 // browser / no native deps: the sprite geometry comes from src/cat-sprite.js
@@ -150,7 +150,7 @@ function composeSleepCurl() {
 }
 
 // ---- palette ----------------------------------------------------------------
-const P = S.PATTERNS[0];                // Orange Tabby — the default "my cat"
+const P = S.PATTERNS[0];                // Orange Tabby - the default "my cat"
 const rgb = (h) => S.hexToRgb(h);
 const PAL = { O: rgb(P.outline), C: rgb(P.coat), K: rgb(P.mark), W: rgb(P.white),
   X: rgb(P.patch), I: rgb(P.inner), N: rgb(P.nose), E: rgb(P.eye), H: rgb(S.HALO) };
@@ -273,7 +273,7 @@ const frames = [];
 const push = (buf, delay) => frames.push({ buf, delay });
 function blinkAt(i, period, openMode) { return (i % period) < 2 ? 'blink' : openMode; }
 
-// 1) intro — sits and watches you (pupils sweep to "follow the cursor")
+// 1) intro - sits and watches you (pupils sweep to "follow the cursor")
 for (let i = 0; i < 26; i++) {
   const buf = newFrame();
   drawText(buf, 'PIXELCAT', 40, 5, [255, 196, 92]);
@@ -342,9 +342,9 @@ if (process.env.DUMP) {
 }
 const out = path.join(__dirname, '..', 'assets', 'pixelcat-demo.gif');
 fs.writeFileSync(out, Buffer.from(gif.bytes()));
-console.log(`wrote ${path.relative(path.join(__dirname, '..'), out)} — ${frames.length} frames, ${(gif.bytes().length / 1024).toFixed(0)} KB`);
+console.log(`wrote ${path.relative(path.join(__dirname, '..'), out)} - ${frames.length} frames, ${(gif.bytes().length / 1024).toFixed(0)} KB`);
 
-// ---- optional MP4 (H.264) for phones — `node scripts/make-demo-gif.js mp4` ---
+// ---- optional MP4 (H.264) for phones - `node scripts/make-demo-gif.js mp4` ---
 // Re-times the clip to a constant ~12fps (each GIF frame's delay -> repeated
 // frames) and pipes raw RGB to a bundled static ffmpeg. yuv420p + even dims so
 // it plays everywhere (iOS/Android galleries, Quicktime).
@@ -363,6 +363,6 @@ if (process.argv.includes('mp4')) {
   const r = spawnSync(ffmpeg, ['-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', `${W}x${H}`, '-r', String(FPS),
     '-i', 'pipe:0', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-crf', '20', mp4],
     { input: raw, stdio: ['pipe', 'ignore', 'inherit'] });
-  if (r.status === 0) console.log(`wrote ${path.relative(path.join(__dirname, '..'), mp4)} — ${(fs.statSync(mp4).size / 1024).toFixed(0)} KB`);
+  if (r.status === 0) console.log(`wrote ${path.relative(path.join(__dirname, '..'), mp4)} - ${(fs.statSync(mp4).size / 1024).toFixed(0)} KB`);
   else console.error('ffmpeg failed', r.status);
 }

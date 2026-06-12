@@ -97,7 +97,7 @@ function createWindow() {
   };
   if (SHOT || SHEET) {
     // Small focusable window for previews (no overlay/click-through). The sheet
-    // window stays hidden — it exports its canvas via IPC, not a screen capture.
+    // window stays hidden - it exports its canvas via IPC, not a screen capture.
     Object.assign(opts, { x: b.x + 80, y: b.y + 80, width: 240, height: 360, focusable: true, show: !SHEET });
   } else {
     // Full-display, click-through overlay; non-focusable so it never steals keys.
@@ -121,7 +121,7 @@ function createWindow() {
   if (SHEET) params.push('sheet=1');
   win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });
 
-  // Log GPU/renderer crashes — and, for the live pet, auto-recover by reloading
+  // Log GPU/renderer crashes - and, for the live pet, auto-recover by reloading
   // so a transparent-overlay GPU crash never leaves a dead, invisible window.
   win.webContents.on('render-process-gone', (_e, details) => {
     console.log('[render-process-gone]', JSON.stringify(details));
@@ -136,7 +136,7 @@ function createWindow() {
   win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) { applyConfigToOverlay(); sendPomo(); } });
 
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
-  // (Skipped for --shot previews — a screenshot has no need for a global hook,
+  // (Skipped for --shot previews - a screenshot has no need for a global hook,
   // which also avoids a macOS Accessibility prompt for the preview process.)
   if (!SHOT && !SHEET) {
     try {
@@ -167,14 +167,14 @@ function createWindow() {
 
   // Cursor loop: feed local cursor to the renderer AND drive the click-through
   // toggle from here (main's own loop) so a renderer stall can never leave the
-  // screen stuck capturing clicks — we default back to pass-through whenever the
+  // screen stuck capturing clicks - we default back to pass-through whenever the
   // cursor isn't over the cat (and isn't mid-drag).
   let lastCurX = null, lastCurY = null;
   const cursorTick = () => {
     if (!win || win.isDestroyed()) return;
     const pt = screen.getCursorScreenPoint();
     const lx = pt.x - origin.x, ly = pt.y - origin.y;
-    // Only forward the cursor when it actually moved — a still cursor carries no
+    // Only forward the cursor when it actually moved - a still cursor carries no
     // new info, so an idle desktop costs zero cursor IPC.
     if (lx !== lastCurX || ly !== lastCurY) {
       win.webContents.send('cursor', { x: lx, y: ly });
@@ -383,7 +383,7 @@ function openSettings() {
   settingsWin = new BrowserWindow({
     width: 400, height: 560, resizable: false, fullscreenable: false, maximizable: false,
     title: 'pixelcat settings', skipTaskbar: false, alwaysOnTop: true,
-    show: false, backgroundColor: '#191b22',   // dark from the first paint — no white flash
+    show: false, backgroundColor: '#191b22',   // dark from the first paint - no white flash
     webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   settingsWin.setMenuBarVisibility(false);
@@ -441,8 +441,8 @@ function nameFill(msg) {
   return fillPlaceholders(msg, { name: cfg && cfg.name ? cfg.name : '' });
 }
 // Single choke-point for every user-facing message: an in-overlay speech bubble
-// (the renderer plays the meow) plus an optional Windows toast. Every producer —
-// reminders, pomodoro, break, email, calendar, the external bridge — routes here.
+// (the renderer plays the meow) plus an optional Windows toast. Every producer -
+// reminders, pomodoro, break, email, calendar, the external bridge - routes here.
 const notifyRecent = new Map();   // dedupeKey -> last fire ms (drops rapid repeats)
 function notify(message, opts) {
   opts = opts || {};
@@ -610,7 +610,7 @@ app.whenReady().then(() => {
   }
 });
 
-// Don't quit just because the settings window closed — the overlay is the app.
+// Don't quit just because the settings window closed - the overlay is the app.
 // We exit only via the tray's Quit (app.quit()), which fires 'before-quit'.
 app.on('window-all-closed', () => {
   if (win && !win.isDestroyed()) return;  // overlay still alive: stay running
