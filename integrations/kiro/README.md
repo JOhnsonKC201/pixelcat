@@ -1,6 +1,6 @@
 # Kiro → pixelcat
 
-Kiro has two surfaces — the **IDE** (UI hooks) and the **CLI** (config file).
+Kiro has two surfaces - the **IDE** (UI hooks) and the **CLI** (config file).
 
 ## Kiro IDE (Agent Hooks UI)
 
@@ -19,7 +19,7 @@ Kiro has two surfaces — the **IDE** (UI hooks) and the **CLI** (config file).
 
 ## Kiro CLI (config file)
 
-CLI hooks live in an agent JSON file — local `.kiro/agents/<name>.json` or global
+CLI hooks live in an agent JSON file - local `.kiro/agents/<name>.json` or global
 `~/.kiro/agents/<name>.json`. Add a `hooks` block:
 
 ```json

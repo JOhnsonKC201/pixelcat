@@ -9,7 +9,7 @@ the default coat out of the box.
 Painted coats currently shipped: `tuxedo`, `orange-tabby`, `mackerel-tabby`, `gray`.
 Every other coat (siamese, calico, black, …) climbs procedurally until a sheet is
 added for it. (`black` was supplied on a checkerboard background that couldn't be
-keyed cleanly — re-send it on a solid/transparent background to enable it.)
+keyed cleanly - re-send it on a solid/transparent background to enable it.)
 
 ## Layout
 
@@ -34,7 +34,7 @@ hyphens: `Orange Tabby` → `orange-tabby`, `Tuxedo` → `tuxedo`, `Calico` → 
 ## Add / replace a coat
 
 1. **From a 5-panel contact sheet** (idle \| up \| up \| down \| down on a *dark*
-   background — darker than the fur):
+   background - darker than the fur):
    ```
    node scripts/slice-climb-sheet.js path/to/sheet.png <coat-slug> [bgThreshold]
    npm run climb-frames

@@ -9,4 +9,4 @@ Mapping: `UserPromptSubmit` → thinking · `PreToolUse` → working · `Stop` �
 Codex supports lifecycle **hooks** (used here) and a `notify` command (commented
 alternative). Docs: <https://developers.openai.com/codex/hooks>.
 Note: Codex ignores `notify`/hook overrides from project-local `.codex/config.toml`
-— put these in your **user-level** `~/.codex/config.toml`.
+ - put these in your **user-level** `~/.codex/config.toml`.
