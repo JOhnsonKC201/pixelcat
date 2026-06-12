@@ -54,6 +54,8 @@ function render() {
   $('onTop').checked = cfg.onTop === undefined ? true : !!cfg.onTop;
   $('roamOn').checked = cfg.roamOn === undefined ? true : !!cfg.roamOn;
   $('reducedMotion').checked = !!cfg.reducedMotion;
+  $('lowPower').checked = !!cfg.lowPower;
+  $('lowPowerOnBattery').checked = cfg.lowPowerOnBattery === undefined ? true : !!cfg.lowPowerOnBattery;
   const pomo = cfg.pomodoro || { on: false, focusMin: 25, breakMin: 5 };
   $('pomoOn').checked = !!pomo.on;
   $('pomoFocus').value = String(pomo.focusMin || 25);
@@ -118,6 +120,8 @@ $('volume').addEventListener('change', () => save({ volume: Number($('volume').v
 $('onTop').addEventListener('change', () => save({ onTop: $('onTop').checked }));
 $('roamOn').addEventListener('change', () => save({ roamOn: $('roamOn').checked }));
 $('reducedMotion').addEventListener('change', () => save({ reducedMotion: $('reducedMotion').checked }));
+$('lowPower').addEventListener('change', () => save({ lowPower: $('lowPower').checked }));
+$('lowPowerOnBattery').addEventListener('change', () => save({ lowPowerOnBattery: $('lowPowerOnBattery').checked }));
 $('clearArea').addEventListener('click', () => save({ playArea: null }));
 const pomoSave = () => save({ pomodoro: { on: $('pomoOn').checked, focusMin: Number($('pomoFocus').value), breakMin: Number($('pomoBreak').value) } });
 $('pomoOn').addEventListener('change', pomoSave);

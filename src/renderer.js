@@ -415,25 +415,30 @@ function drawTail(footX, footY, t, pal, flickT0, petting) {
 }
 // Thinking indicator: three dots that pulse near the head (AI agent working).
 function drawThinkBubble(x, y, t) {
+  // a little thought puff: two rising tail bubbles + three dots that fill in a wave.
+  // Each dot has a light fill AND a dark rim so it reads on any desktop background.
+  const dot = (dx, dy, r, alpha) => {
+    ctx.globalAlpha = alpha; ctx.fillStyle = '#f3f6fb';
+    ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = alpha * 0.45; ctx.strokeStyle = '#3a3f4b'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2); ctx.stroke();
+  };
+  dot(-3, 7, 1.3, 0.5);                                  // tail bubbles trailing to the head
+  dot(0, 4, 1.8, 0.7);
   for (let i = 0; i < 3; i++) {
-    const a = (Math.sin(t / 170 - i * 0.9) + 1) / 2;
-    ctx.globalAlpha = 0.35 + a * 0.6; ctx.fillStyle = '#3a3f4b';
-    ctx.fillRect(Math.round(x + i * 6), Math.round(y - a * 2), 4, 4);
+    const a = (Math.sin(t / 240 - i * 0.9) + 1) / 2;     // brighten left-to-right
+    dot(i * 6, -a * 1.5, 2.4, 0.35 + a * 0.6);
   }
   ctx.globalAlpha = 1;
 }
 // "Working" spinner near the head while an AI agent is editing/testing/building.
 function drawWorkBubble(x, y, t) {
-  const cx = x + 4, cy = y - 1, R = 4.6, a = t / 260;
+  const cx = x + 4, cy = y - 1, R = 5.2, a = t / 220;
   ctx.lineWidth = 2; ctx.lineCap = 'round';
-  for (let i = 0; i < 8; i++) {
-    const ang = a + i * Math.PI / 4;
-    ctx.globalAlpha = 0.2 + 0.7 * (i / 8); ctx.strokeStyle = '#5a8f5a';
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(ang) * (R - 2), cy + Math.sin(ang) * (R - 2));
-    ctx.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R);
-    ctx.stroke();
-  }
+  ctx.globalAlpha = 0.18; ctx.strokeStyle = '#5a8f5a';   // faint full track
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.globalAlpha = 0.95; ctx.strokeStyle = '#7bc47b';   // bright sweeping arc reads as "loading"
+  ctx.beginPath(); ctx.arc(cx, cy, R, a, a + Math.PI * 1.15); ctx.stroke();
   ctx.globalAlpha = 1;
 }
 // Stroke a smooth curve through points (quadratic via segment midpoints).
@@ -452,9 +457,16 @@ function drawDoneSpark(x, y, t) {
   ctx.fillStyle = '#ffd54a';
   ctx.fillRect(x - 1, y - 7, 2, 5); ctx.fillRect(x - 1, y - 1, 2, 2);   // exclamation
   ctx.fillStyle = '#fff3b0';
-  const tw = (Math.sin(t / 90) + 1) / 2;
-  ctx.globalAlpha = 0.5 + tw * 0.5;
-  ctx.fillRect(x + 9, y - 5, 2, 2); ctx.fillRect(x - 11, y - 2, 2, 2);  // sparkles
+  // a few twinkling 4-point stars pulsing out of phase -> a celebratory little burst
+  const star = (dx, dy, sp) => {
+    const tw = (Math.sin(t / sp) + 1) / 2;
+    const r = Math.round(1 + tw * 1.5);
+    ctx.globalAlpha = 0.35 + tw * 0.65;
+    const sx = Math.round(x + dx), sy = Math.round(y + dy);
+    ctx.fillRect(sx, sy - r, 1, r * 2 + 1);                             // vertical spoke
+    ctx.fillRect(sx - r, sy, r * 2 + 1, 1);                             // horizontal spoke
+  };
+  star(10, -5, 100); star(-11, -2, 135); star(6, -12, 168);
   ctx.globalAlpha = 1;
 }
 function drawHeart(x, y, color, alpha, s) {
@@ -498,6 +510,7 @@ let lookTarget = null, lookTargetUntil = 0;
 let nextIdleAt = 0, leanTarget = 0, lean = 0, cursorLean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0, groomUntil = 0;
 let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null;   // autonomous wandering
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
+let lowPower = false;   // main's derived low-power flag (user toggle and/or on battery)
 // Comnyang-style productivity layer: settings from main + reminder/break bubble
 let config = null;
 let bubbleText = '', bubbleUntil = 0;
@@ -565,6 +578,7 @@ if (window.cat) {
     if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
     resumeRaf();
   });
+  if (window.cat.onPower) window.cat.onPower((p) => { lowPower = !!(p && p.lowPower); resumeRaf(); });
   if (window.cat.onRemind) window.cat.onRemind((d) => triggerReminder(d && d.message));
   if (window.cat.onNotify) window.cat.onNotify((d) => triggerNotify(d));
   if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
@@ -810,13 +824,16 @@ function drawRope(pos, t, climbing, dir, energy) {
 
 // Procedural rope climb (FALLBACK when no raster frames are present): seated cat's
 // two paws grip the rope hand-over-hand, hauling UP (dir<0) or DOWN (dir>0).
-function drawRopeClimb(palRGB, pos, t, climbing, dir, energy) {
+function drawRopeClimb(palRGB, pos, t, climbing, dir, energy, bob, sway) {
   const YARN_OUT = '#c8455a', YARN_LT = '#ff8fa3';
   const g = ropeGeom(pos, t, energy), dirN = clamp(dir, -1, 1);
+  bob = bob || 0; sway = sway || 0;
   drawRope(pos, t, climbing, dir, energy);
 
-  // two gripping paws, hand-over-hand (one holds while the other re-grabs)
-  const shX = pos.x - 6, shY = Math.round(pos.y - SH * 0.42);   // shoulders at the chest
+  // two gripping paws, hand-over-hand (one holds while the other re-grabs). The
+  // shoulders ride the body heave (bob/sway) while the grip points stay on the rope,
+  // so the arms visibly extend and compress with each pull — a smooth climbing stroke.
+  const shX = pos.x - 6 + sway, shY = Math.round(pos.y - SH * 0.42 - bob);   // shoulders at the chest
   const gripBaseY = Math.round(pos.y - SH * 0.42), SPAN = 22;
   const ph = (t / (climbing ? 460 : 1100)) % 1;                // faster cycle while actively climbing
   for (let i = 0; i < 2; i++) {
@@ -880,12 +897,12 @@ function pickClimbImg(t, climbing, dir, coat) {
 
 // Blit the painted climb scene (cat + rope + ball, one self-contained image)
 // anchored so the yarn ball rests on the floor line.
-function drawClimbFrame(pos, t, climbing, dir, coat) {
+function drawClimbFrame(pos, t, climbing, dir, coat, bob) {
   const img = pickClimbImg(t, climbing, dir, coat);
   if (!img || !img.naturalHeight) return;
   const h = Math.round(SH * CLIMB_SCENE_H), w = Math.round(img.naturalWidth * (h / img.naturalHeight));
   const dx = Math.round(pos.x - w * CLIMB_ANCHOR_X);
-  const dy = Math.round(pos.y - h + CLIMB_DROP);
+  const dy = Math.round(pos.y - h + CLIMB_DROP - (bob || 0));   // continuous heave on top of the crisp pose swap
   ctx.drawImage(img, dx, dy, w, h);
 }
 // Grooming: the cat raises a front paw to its muzzle and licks it, washing its face.
@@ -893,9 +910,18 @@ function drawClimbFrame(pos, t, climbing, dir, coat) {
 function drawGroom(palRGB, cx, faceY, t) {
   const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
   const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
-  const u = (Math.sin(t / 200) + 1) / 2;                          // 0..1 lick cycle
+  // Two timescales: a slow lift/hold/lower envelope, plus quick tongue flicks on top.
+  // The paw rises to the muzzle and settles there while the cat licks it several times
+  // per raise, instead of one sleepy full-travel bob per cycle.
+  const CYCLE = 2400;
+  const c = (t % CYCLE) / CYCLE;                                   // 0..1 within a raise
+  let lift = c < 0.16 ? c / 0.16 : c > 0.80 ? (1 - c) / 0.20 : 1;  // ease up, hold, ease down
+  lift = Math.max(0, Math.min(1, lift));
+  lift = lift * lift * (3 - 2 * lift);                            // smoothstep
+  const licking = c > 0.16 && c < 0.80;                           // tongue works while paw is up
+  const lick = licking ? (Math.sin(t / 90) + 1) / 2 : 0;          // fast flick, ~3 per raise
   const shY = faceY + 32;                                          // chest anchor y
-  const pawX = cx - 2, pawY = faceY + 11 - u * 11;                // paw rises to the muzzle
+  const pawX = cx - 2, pawY = faceY + 12 - lift * 11 + lick * 1.2; // rests at muzzle, nods per lick
   const pwW = 13, pwH = 7;
   const pY = Math.round(pawY - pwH / 2);
   const aw = 10, ax = Math.round(pawX - aw / 2);
@@ -904,15 +930,17 @@ function drawGroom(palRGB, cx, faceY, t) {
   if (aH > 0) { rect(ax, aTop, aw, aH, O); rect(ax + 2, aTop, aw - 4, aH, C); }
   rect(pawX - pwW / 2 - 2, pY - 2, pwW + 4, pwH + 4, O);          // paw outline
   rect(pawX - pwW / 2, pY, pwW, pwH, W);                           // white mitt
-  if (u > 0.70) {                                                  // paw near face: show toe beans on underside
+  if (lift > 0.6) {                                                // paw near face: show toe beans on underside
     rect(pawX - 3, pY + 3.5, 6, 3, '#ff8fa3');
     rect(pawX - 6.5, pY + 0.5, 3, 3, '#ff8fa3'); rect(pawX + 3.5, pY + 0.5, 3, 3, '#ff8fa3');
   } else {
     rect(pawX - 1, pY + 2, 2, pwH - 2, O);                        // contact: toe-split line
   }
-  if (u > 0.55) {                                                  // little pink tongue licking the paw
-    ctx.globalAlpha = (u - 0.55) / 0.45;
-    rect(pawX - 2, pY + pwH, 4, 3, '#ff9aa8'); rect(pawX - 1, pY + pwH + 3, 2, 1, '#ff9aa8');
+  if (licking) {                                                  // pink tongue flicking the paw
+    ctx.globalAlpha = 0.45 + lick * 0.55;                         // wet flash on each reach
+    const th = 2 + Math.round(lick * 3);                          // tongue extends, then retracts
+    rect(pawX - 2, pY + pwH - 1, 4, th, '#ff9aa8');               // tongue
+    rect(pawX - 1, pY + pwH - 1 + th, 2, 1, '#ff8090');           // pointed wet tip
     ctx.globalAlpha = 1;
   }
   const sp = (t % 1600) / 1600;                                   // occasional "squeaky clean" sparkle
@@ -939,8 +967,10 @@ function persistPos() { localStorage.setItem('pos', JSON.stringify({ x: pos.x, y
 function draw(t) {
   // self-schedule; fully pause when the page is hidden (resumes on visibility)
   if (!document.hidden) requestAnimationFrame(draw); else { rafPaused = true; return; }
-  // idle throttle: when nothing interactive is happening, render ~33fps not 60
-  if (!wantHighFps && t - lastDrawn < 28) return;
+  // idle throttle: when nothing interactive is happening, render at a low fps to
+  // spare the GPU (it composites the whole transparent overlay every drawn frame).
+  // ~20fps normally, ~12fps in low power; active animation stays 60fps via wantHighFps.
+  if (!wantHighFps && t - lastDrawn < (lowPower ? 80 : 48)) return;
   lastDrawn = t;
 
   const dt = Math.min(64, t - prevT); prevT = t;
@@ -957,7 +987,7 @@ function draw(t) {
   // shake-wobble: while held, fast side-to-side shaking (direction flips) makes
   // the stretched body wobble like jello. Flips expire quickly so a slow waggle
   // doesn't count; reduced motion skips the whole reaction.
-  if (grabbing && !(config && config.reducedMotion)) {
+  if (grabbing && !((config && config.reducedMotion) || lowPower)) {
     const dir = cursorDx > 6 ? 1 : cursorDx < -6 ? -1 : 0;
     if (dir && shakeDir && dir !== shakeDir) {
       shakeFlips = (t - lastFlipAt < 220) ? shakeFlips + 1 : 1;
@@ -1026,6 +1056,12 @@ function draw(t) {
   scrollRate += (instRate - scrollRate) * Math.min(1, dt * 0.005);                 // heavily smoothed scroll speed
   const climbFps = climbing ? clamp(1 + scrollRate * 0.09, 1, 6) : 0;             // gentle scroll ~1 fps .. hard flick ~6 fps
   climbAnim += (dt / 1000) * climbFps;                                             // frame accumulator (whole numbers = frame swaps)
+  // Smooth climb heave: the body hauls up and dips with each hand-over-hand pull, so
+  // the torso reads as climbing instead of hanging frozen. Amplitude grows a little
+  // with scroll intensity; a gentle dangle remains while just hanging on the rope.
+  const climbStroke = (t / (climbing ? 460 : 1100)) % 1;                          // matches the grip cycle in drawRopeClimb
+  const climbBob = paperActive ? Math.sin(climbStroke * Math.PI * 2) * (climbing ? 2.2 + Math.min(scrollRate, 45) * 0.045 : 1.1) : 0;
+  const climbSway = paperActive ? Math.cos(climbStroke * Math.PI * 2) * (climbing ? 1.0 : 0.6) : 0;
 
   // Mouse-hunt: when enabled in settings, a fast cursor flick (far enough away)
   // makes the cat crouch, stalk, and pounce. Off by config (or when the cat is set
@@ -1175,7 +1211,7 @@ function draw(t) {
     // --- autonomous roaming: a real cat wanders. When calm (not busy), now
     // and then stroll to a random spot inside the play area with a little hop-walk.
     if (nextRoam === 0) nextRoam = t + 15000 + Math.random() * 15000;
-    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && agentState === 'idle' && !(config && config.roamOn === false) && !(config && config.reducedMotion);
+    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && agentState === 'idle' && !(config && config.roamOn === false) && !((config && config.reducedMotion) || lowPower);
     if (roamIdle && roamUntil < t && t > nextRoam) {
       roamFrom = { x: pos.x, y: pos.y };
       const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
@@ -1212,8 +1248,8 @@ function draw(t) {
         else if (roll < 0.78) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else if (roll < 0.92 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (not when hyper)
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
-        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4 && !(config && config.reducedMotion)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
-        if (band === 'zoomies' && Math.random() < 0.3 && !(config && config.reducedMotion)) spinUntil = t + 650;   // tail-chase pirouette
+        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4 && !((config && config.reducedMotion) || lowPower)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
+        if (band === 'zoomies' && Math.random() < 0.3 && !((config && config.reducedMotion) || lowPower)) spinUntil = t + 650;   // tail-chase pirouette
       }
     } else { nextIdleAt = 0; }
     if (lookTarget && t > lookTargetUntil) lookTarget = null;
@@ -1260,24 +1296,29 @@ function draw(t) {
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (stretching) {
         const se = FORCED_STATE === 'stretch' ? ((t % STRETCH_MS) / STRETCH_MS) : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
-        const k = Math.sin(se * Math.PI); sy = 1 + k * 0.32; sx = 1 + k * 0.10;
+        // squash-and-stretch: a brief anticipation crouch, then a TALL + NARROW reach
+        // (it pinches in as it rises, instead of just inflating bigger), then settles.
+        let k;   // -ve = crouched/wider, +ve = tall/narrow
+        if (se < 0.16) k = -Math.sin(se / 0.16 * Math.PI) * 0.5;
+        else { const r = (se - 0.16) / 0.84; k = Math.sin(r * Math.PI); }
+        sy = 1 + k * 0.42; sx = 1 - k * 0.14;
       }
       const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop);
       const shadowA = (petting || bodyPet) ? 0.14 + Math.sin(t / 800) * 0.05 : 0.18;
       drawShadow(pos.x + wig, pos.y, shadowA);
       if (!stretching && !thinking && !working && !loafing && !climbRaster) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);   // loaf has a baked, wrapped tail; the climb frame has its own tail
-      if (restIdle && band === 'calm' && !paperActive && t > nextIdleSparkle) {
+      if (!lowPower && restIdle && band === 'calm' && !paperActive && t > nextIdleSparkle) {   // ambient sparkles off in low power (they pin the loop at 60fps)
         idleSparkles.push({ x: pos.x + (Math.random() - 0.5) * 8, y: oy, t0: t });
         nextIdleSparkle = t + 5000 + Math.random() * 4000;
       }
-      if (loafing && calm && t > nextLoafZ) {
+      if (!lowPower && loafing && calm && t > nextLoafZ) {   // sleep Z's off in low power
         loafZZZ.push({ x: pos.x + 10 + Math.random() * 8, y: oy + 8, t0: t, sz: Math.random() < 0.4 ? 2 : 1 });
         nextLoafZ = t + 1800 + Math.random() * 1600;
       }
       if (climbRaster) {
         // painterly raster climb: the tuxedo sprite frame grips the procedural rope
         // (the seated procedural cat is skipped entirely while climbing).
-        drawClimbFrame(pos, t, climbing, climbDir, coatSlug(P.name));
+        drawClimbFrame(pos, t, climbing, climbDir, coatSlug(P.name), climbBob);
       } else {
       octx.clearRect(0, 0, oc.width, oc.height);
       drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet });
@@ -1288,7 +1329,7 @@ function draw(t) {
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
       }
       ctx.save();
-      ctx.translate(pos.x + wig, pos.y - hop);
+      ctx.translate(pos.x + wig + climbSway, pos.y - hop - climbBob);   // climb heave rides on top of the rest pose
       if (lean || cursorLean) ctx.rotate(lean + cursorLean);   // idle lean + watch-the-cursor tilt
       if (spinUntil > t) ctx.rotate((1 - (spinUntil - t) / 650) * Math.PI * 2);   // tail-chase spin
       const faceLeft = roamUntil > t && roamFrom && roamTo && roamTo.x < roamFrom.x;   // face where it walks
@@ -1302,7 +1343,7 @@ function draw(t) {
       else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
       if (paperActive && !petting && !stretching) {
-        drawRopeClimb(palRGB, pos, t, climbing, climbDir, Math.round(paperLen));
+        drawRopeClimb(palRGB, pos, t, climbing, climbDir, Math.round(paperLen), climbBob, climbSway);
       }
       }
       if (grooming && !paperActive) drawGroom(palRGB, pos.x + wig, oy + SH * 0.30, t);   // raise a paw, wash its face

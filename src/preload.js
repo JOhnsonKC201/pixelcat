@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('cat', {
   onAgent: sub('agent', (s) => s),
   onScroll: sub('scroll', (dir) => dir),
   onConfig: sub('config', (cfg) => cfg),
+  onPower: sub('power', (p) => p),
   onThemes: sub('themes', (list) => list),
   onMood: sub('mood', (c) => c),
   onSetArea: sub('setarea:start'),

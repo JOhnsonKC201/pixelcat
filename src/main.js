@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, Notification } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, Notification, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -33,6 +33,8 @@ let firedThisMinute = new Set();                       // reminder ids already f
 let lastReminder = null;                                // last reminder fired (tray snooze)
 let hookStarted = false;
 let ignoring = true;                                   // current click-through state
+let onBattery = false;                                 // running unplugged (powerMonitor)
+let lowPowerBroadcast = null;                          // last effective low-power state sent to the overlay
 let origin = { x: 0, y: 0 };                           // overlay top-left in screen px
 let hot = { x: 0, y: 0, w: 0, h: 0, dragging: false }; // cat's interactive region
 
@@ -59,6 +61,29 @@ if (process.platform === 'darwin' && app.dock && !SHOT && !SHEET) app.dock.hide(
 const APP_DIR = path.resolve(__dirname, '..');
 function setAutostart(enabled) {
   app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath, args: enabled ? [APP_DIR] : [] });
+}
+
+// --- low-power state -------------------------------------------------------
+// Effective low power = user toggled it on, OR (auto-on-battery is on AND we're
+// unplugged). The overlay and the cursor poll both react to this derived flag.
+function effectiveLowPower() {
+  return !!(cfg && (cfg.lowPower || (cfg.lowPowerOnBattery && onBattery)));
+}
+// Push the derived flag to the overlay only when it actually changes, and retune
+// the cursor poll to match (slower while sparing power).
+function broadcastPower() {
+  const low = effectiveLowPower();
+  if (low !== lowPowerBroadcast) {
+    lowPowerBroadcast = low;
+    if (win && !win.isDestroyed()) win.webContents.send('power', { lowPower: low });
+    if (cursorTickRef) startCursorTimer(cursorTickRef);
+  }
+}
+let cursorTickRef = null;
+function startCursorTimer(tick) {
+  cursorTickRef = tick;
+  if (cursorTimer) clearInterval(cursorTimer);
+  cursorTimer = setInterval(tick, effectiveLowPower() ? 50 : 33);
 }
 
 function createWindow() {
@@ -145,7 +170,7 @@ function createWindow() {
   // screen stuck capturing clicks — we default back to pass-through whenever the
   // cursor isn't over the cat (and isn't mid-drag).
   let lastCurX = null, lastCurY = null;
-  cursorTimer = setInterval(() => {
+  const cursorTick = () => {
     if (!win || win.isDestroyed()) return;
     const pt = screen.getCursorScreenPoint();
     const lx = pt.x - origin.x, ly = pt.y - origin.y;
@@ -163,7 +188,10 @@ function createWindow() {
       ignoring = wantIgnore;
       win.setIgnoreMouseEvents(wantIgnore, { forward: true });
     }
-  }, 16);
+  };
+  // Adaptive poll: ~30 Hz normally, ~20 Hz in low power. The renderer eases the
+  // cursor->eyes, so a coarser sample still tracks smoothly while sparing the CPU.
+  startCursorTimer(cursorTick);
 
   // Watch the AI-agent status file; forward changes to the renderer. Event-driven
   // via fs.watch (the filename filter skips unrelated temp churn); falls back to a
@@ -257,6 +285,7 @@ function applyConfigToOverlay() {
   if (win && !win.isDestroyed() && win.webContents) {
     try { win.setAlwaysOnTop(!cfg || cfg.onTop !== false, 'screen-saver'); } catch (e) { /* ignore */ }
     win.webContents.send('config', cfg);
+    broadcastPower();   // keep the derived low-power flag + cursor cadence in sync with config
   }
 }
 function sendThemes() {
@@ -341,6 +370,7 @@ function rebuildTrayMenu() {
     ] },
     { label: 'Always on top', type: 'checkbox', checked: !(cfg && cfg.onTop === false), click: () => persistAndBroadcast({ ...cfg, onTop: !(cfg && cfg.onTop !== false) }) },
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
+    { label: onBattery ? 'Low power mode (on battery)' : 'Low power mode', type: 'checkbox', checked: effectiveLowPower(), click: () => persistAndBroadcast({ ...cfg, lowPower: !(cfg && cfg.lowPower) }) },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
     { type: 'separator' },
     { label: 'Quit pixelcat', click: () => app.quit() },
@@ -569,7 +599,15 @@ app.whenReady().then(() => {
     cfg = config.load();
   }
   createWindow();
-  if (!SHOT && !SHEET) { createTray(); startScheduler(); mail.init(notify, () => cfg); mail.sync(cfg); cal.init(notify, () => cfg); cal.sync(cfg); }
+  if (!SHOT && !SHEET) {
+    createTray(); startScheduler(); mail.init(notify, () => cfg); mail.sync(cfg); cal.init(notify, () => cfg); cal.sync(cfg);
+    // Auto low-power on battery: track power state and re-derive the flag on change.
+    try { onBattery = powerMonitor.isOnBatteryPower(); } catch (e) { onBattery = false; }
+    try {
+      powerMonitor.on('on-battery', () => { onBattery = true; broadcastPower(); rebuildTrayMenu(); });
+      powerMonitor.on('on-ac', () => { onBattery = false; broadcastPower(); rebuildTrayMenu(); });
+    } catch (e) { /* powerMonitor unavailable: manual control only */ }
+  }
 });
 
 // Don't quit just because the settings window closed — the overlay is the app.

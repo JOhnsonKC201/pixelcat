@@ -24,6 +24,8 @@ const DEFAULTS = {
   roamOn: true,        // the cat autonomously wanders its play area
   volume: 100,         // master sound volume 0-100
   reducedMotion: false,// calm mode: no roaming/bouncing/screen-glow
+  lowPower: false,     // fewer idle frames + slower cursor polling to spare CPU/GPU
+  lowPowerOnBattery: true, // auto-enter low power while running on battery
   pinnedNote: '',      // fixed message pinned above the cat's head ('' = off)
   notifyOn: true,      // also pop a Windows toast for reminders/messages
   pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
@@ -71,6 +73,8 @@ function normalize(cfg) {
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,
     volume: clampInt(c.volume, 0, 100, 100),
     reducedMotion: !!c.reducedMotion,
+    lowPower: !!c.lowPower,
+    lowPowerOnBattery: c.lowPowerOnBattery === undefined ? true : !!c.lowPowerOnBattery,
     pinnedNote: String(c.pinnedNote == null ? '' : c.pinnedNote).trim().slice(0, 80),
     notifyOn: c.notifyOn === undefined ? true : !!c.notifyOn,
     pomodoro: (() => {

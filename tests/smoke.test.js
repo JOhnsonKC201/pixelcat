@@ -72,6 +72,12 @@ test('config.normalize fills defaults and clamps', () => {
   assert.strictEqual(normalize({}).notifyOn, true);
   assert.strictEqual(normalize({ notifyOn: false }).notifyOn, false);
   assert.strictEqual(normalize({ notifyOn: 1 }).notifyOn, true);
+  // low power off by default; auto-on-battery on by default; both coerce to bool
+  assert.strictEqual(normalize({}).lowPower, false);
+  assert.strictEqual(normalize({ lowPower: 1 }).lowPower, true);
+  assert.strictEqual(normalize({}).lowPowerOnBattery, true);
+  assert.strictEqual(normalize({ lowPowerOnBattery: false }).lowPowerOnBattery, false);
+  assert.strictEqual(normalize({ lowPowerOnBattery: 0 }).lowPowerOnBattery, false);
 });
 
 test('reminder recurrence normalizes (back-compat + clamps)', () => {
