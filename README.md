@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="pixelcat logo" width="180" />
+<img src="assets/icon-512.png" alt="pixelcat logo" width="180" />
 
 # 🐈 pixelcat
 

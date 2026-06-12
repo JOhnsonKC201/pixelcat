@@ -9,7 +9,7 @@
 const fs = require('fs');
 const zlib = require('zlib');
 const path = require('path');
-const { loadLogo, resizeSquare } = require('./logo-source.js');
+const { loadLogo, resizeSquare, stripBackground } = require('./logo-source.js');
 
 // --- minimal PNG (truecolor + alpha) encoder, for the 256 entry + the .png files ---
 function crc(b) { let c = ~0; for (let i = 0; i < b.length; i++) { c ^= b[i]; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1)); } return ~c >>> 0; }
@@ -56,7 +56,7 @@ function buildIco(entries) {  // entries: [{ size, data }]
   return Buffer.concat([head, ...dir, ...entries.map((e) => e.data)]);
 }
 
-const logo = loadLogo();
+const logo = stripBackground(loadLogo());   // transparent cat only (no scene background)
 const rgbaAt = (size) => resizeSquare(logo, size);
 const icoEntry = (size) => ({ size, data: size >= 256 ? encodePng(rgbaAt(size), size) : encodeBmp(rgbaAt(size), size) });
 
