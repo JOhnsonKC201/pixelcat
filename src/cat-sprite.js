@@ -106,6 +106,10 @@ function composeSit(B) {
   // carve sitting-leg outlines LAST so the halo draws them on ANY colour
   for (let r = 19; r <= 28; r++) setCell(12, r, '.');                          // between the front legs
   for (let r = 22; r <= 28; r++) { setCell(8, r, '.'); setCell(16, r, '.'); }  // each front leg vs haunch
+  // toe split on each planted paw -> the halo draws a dark notch, so the toes read
+  // even on solid coats where the paw is the same colour as the leg (Black/Gray/Slate/Tortie)
+  setCell(10, 27, '.'); setCell(10, 28, '.');
+  setCell(14, 27, '.'); setCell(14, 28, '.');
 }
 
 // ---- coat patterns ----------------------------------------------------------
