@@ -19,15 +19,19 @@
     "dist": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac",
     "test": "node --test",
+    "lint": "eslint .",
     "hook": "node scripts/install-hook.js",
     "test:boot": "node scripts/bootcheck.js",
     "demo": "node scripts/make-demo-gif.js mp4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
-    "gifenc": "^1.0.3"
+    "eslint": "^10.4.1",
+    "gifenc": "^1.0.3",
+    "globals": "^17.6.0"
   },
   "dependencies": {
     "imapflow": "^1.4.0",
