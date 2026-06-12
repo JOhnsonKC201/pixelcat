@@ -339,9 +339,17 @@ function rebuildTrayMenu() {
     label: name, type: 'radio', checked: cfg && cfg.pattern === i,
     click: () => persistAndBroadcast({ ...cfg, pattern: i }),
   }));
+  const recent = notifyHistory.slice(-10).reverse();
+  const recentItems = recent.length
+    ? recent.map((n) => ({
+        label: relTime(n.ts) + ' - ' + String(n.message || '').replace(/\s+/g, ' ').slice(0, 48),
+        click: () => notify(n.message, { source: 'recap', recap: true, dedupeMs: 0, os: false }),   // re-show as a bubble
+      })).concat([{ type: 'separator' }, { label: 'Clear', click: () => { notifyHistory = []; saveNotifyHistorySoon(); rebuildTrayMenu(); } }])
+    : [{ label: '(nothing yet)', enabled: false }];
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Settings…', click: openSettings },
     { label: 'Start break now', click: triggerBreak },
+    { label: 'Recent notifications', submenu: recentItems },
     { label: 'Snooze last reminder', submenu: [
       { label: '5 minutes', click: () => snoozeLast(5) },
       { label: '10 minutes', click: () => snoozeLast(10) },
@@ -444,6 +452,38 @@ function nameFill(msg) {
 // (the renderer plays the meow) plus an optional Windows toast. Every producer -
 // reminders, pomodoro, break, email, calendar, the external bridge - routes here.
 const notifyRecent = new Map();   // dedupeKey -> last fire ms (drops rapid repeats)
+
+// Rolling history of the cat's own notifications, so the user can recap what they
+// missed (tray "Recent notifications"). Persisted so it survives a restart.
+const NOTIFY_HISTORY_MAX = 50;
+let notifyHistory = [];
+let historySaveTimer = null;
+function notifyHistoryPath() { return path.join(app.getPath('userData'), 'notify-history.json'); }
+function loadNotifyHistory() {
+  try { const a = JSON.parse(fs.readFileSync(notifyHistoryPath(), 'utf8')); if (Array.isArray(a)) notifyHistory = a.slice(-NOTIFY_HISTORY_MAX); }
+  catch (e) { notifyHistory = []; }
+}
+function saveNotifyHistorySoon() {   // debounced: avoid a disk write per alert
+  if (historySaveTimer) return;
+  historySaveTimer = setTimeout(() => {
+    historySaveTimer = null;
+    try { fs.writeFileSync(notifyHistoryPath(), JSON.stringify(notifyHistory.slice(-NOTIFY_HISTORY_MAX))); } catch (e) { /* best effort */ }
+  }, 1500);
+}
+function recordNotify(source, message) {
+  notifyHistory.push({ ts: Date.now(), source: source || '', message });
+  if (notifyHistory.length > NOTIFY_HISTORY_MAX) notifyHistory = notifyHistory.slice(-NOTIFY_HISTORY_MAX);
+  saveNotifyHistorySoon();
+  rebuildTrayMenu();   // refresh the "Recent notifications" submenu
+}
+function relTime(ts) {
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return s + 's ago';
+  const m = Math.round(s / 60); if (m < 60) return m + 'm ago';
+  const h = Math.round(m / 60); if (h < 24) return h + 'h ago';
+  return Math.round(h / 24) + 'd ago';
+}
+
 function notify(message, opts) {
   opts = opts || {};
   const msg = fillPlaceholders(message, { name: cfg && cfg.name ? cfg.name : '', count: opts.count });
@@ -453,6 +493,7 @@ function notify(message, opts) {
   if (now - (notifyRecent.get(key) || 0) < (opts.dedupeMs == null ? 4000 : opts.dedupeMs)) return;
   notifyRecent.set(key, now);
   if (notifyRecent.size > 200) { for (const k of notifyRecent.keys()) { notifyRecent.delete(k); if (notifyRecent.size <= 100) break; } }
+  if (!opts.recap) recordNotify(opts.source, msg);   // log it (but not when re-showing from the recap)
   if (opts.bubble !== false && win && !win.isDestroyed()) {
     win.webContents.send('notify', { message: msg, ttl: opts.ttl || 5000, level: opts.level || 'info', sound: opts.sound !== false });
   }
@@ -597,6 +638,7 @@ app.whenReady().then(() => {
     setAutostart(!process.argv.includes('--autostart=off'));
     if (process.argv.includes('--autostart=off')) { console.log('[autostart disabled]'); return app.quit(); }
     cfg = config.load();
+    loadNotifyHistory();   // restore the recent-notifications recap from last session
   }
   createWindow();
   if (!SHOT && !SHEET) {
