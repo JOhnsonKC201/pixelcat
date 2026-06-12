@@ -199,7 +199,7 @@ function createWindow() {
   let lastAgent = '';
   const pushAgent = () => {
     if (!win || win.isDestroyed()) return;
-    let s = 'idle';
+    let s;
     try { s = (fs.readFileSync(AGENT_FILE, 'utf8').trim() || 'idle'); } catch (e) { s = 'idle'; }
     if (s !== lastAgent) { lastAgent = s; win.webContents.send('agent', s); }
   };
@@ -211,11 +211,11 @@ function createWindow() {
   try { notifyOffset = fs.statSync(NOTIFY_FILE).size; } catch (e) { notifyOffset = 0; }
   const pushNotify = () => {
     if (!win || win.isDestroyed()) return;
-    let size = 0;
+    let size;
     try { size = fs.statSync(NOTIFY_FILE).size; } catch (e) { return; }
     if (size < notifyOffset) { notifyOffset = 0; notifyTail = ''; }   // truncated/rotated
     if (size === notifyOffset) return;
-    let chunk = '';
+    let chunk;
     try {
       const fd = fs.openSync(NOTIFY_FILE, 'r');
       const buf = Buffer.alloc(size - notifyOffset);
@@ -442,11 +442,6 @@ function syncPomodoro() {
   if (cfg && cfg.pomodoro && cfg.pomodoro.on) { pomoPhase = 'focus'; pomoEndsAt = Date.now() + cfg.pomodoro.focusMin * 60000; }
   else { pomoEndsAt = 0; }
   sendPomo(); armPomoTimer();
-}
-// Fill {name} in main (which always has cfg) so reminders are correct even if the
-// overlay hasn't received its config copy yet (e.g. the immediate launch tick).
-function nameFill(msg) {
-  return fillPlaceholders(msg, { name: cfg && cfg.name ? cfg.name : '' });
 }
 // Single choke-point for every user-facing message: an in-overlay speech bubble
 // (the renderer plays the meow) plus an optional Windows toast. Every producer -

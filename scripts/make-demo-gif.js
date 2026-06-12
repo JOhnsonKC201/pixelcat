@@ -11,7 +11,6 @@ const { GIFEncoder, quantize, applyPalette } = require('gifenc');
 const S = require('../src/cat-sprite.js');
 
 // ---- grid machinery (own copy so the renderer poses share ONE grid) ---------
-const CELL = S.CELL;
 let G, GC, GR;
 const inb = (c, r) => c >= 0 && c < GC && r >= 0 && r < GR;
 function setCell(c, r, role) { if (inb(c, r)) G[r][c] = role; }
@@ -296,7 +295,6 @@ for (let i = 0; i < 24; i++) {
 for (let i = 0; i < 24; i++) {
   const buf = newFrame();
   drawText(buf, 'TAPS ITS PAWS WHEN YOU TYPE', 300, 2, [150, 156, 170]);
-  const tap = (i % 4) < 2 ? 0 : 2;
   const p = shadowAndPlace(buf, SP.type, BASE_Y, 0, 0, { eyeFill: true, eyeMode: blinkAt(i, 17, 'open') });
   // alternating paw-tap dots under the two forepaws
   const lit = (i % 2 === 0);

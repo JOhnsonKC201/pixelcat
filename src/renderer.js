@@ -387,8 +387,8 @@ function drawTail(footX, footY, t, pal, flickT0, petting) {
   // Screen-edge budget: never sweep further right than EDGE_R allows for.
   let reach = 0; for (const p of pts) reach = Math.max(reach, p[0] - baseX);
   if (reach > 56) { const f = 56 / reach; for (const p of pts) p[0] = baseX + (p[0] - baseX) * f; }
-  // Densify with quadratics through segment midpoints (same scheme as
-  // strokeSmooth) so the tapered per-piece strokes show no corners.
+  // Densify with quadratics through segment midpoints so the tapered
+  // per-piece strokes show no corners.
   const sm = [pts[0]]; let px = pts[0][0], py = pts[0][1];
   for (let i = 1; i < pts.length - 1; i++) {
     const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2;
@@ -440,17 +440,6 @@ function drawWorkBubble(x, y, t) {
   ctx.globalAlpha = 0.95; ctx.strokeStyle = '#7bc47b';   // bright sweeping arc reads as "loading"
   ctx.beginPath(); ctx.arc(cx, cy, R, a, a + Math.PI * 1.15); ctx.stroke();
   ctx.globalAlpha = 1;
-}
-// Stroke a smooth curve through points (quadratic via segment midpoints).
-function strokeSmooth(pts, style, width) {
-  ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-  for (let i = 1; i < pts.length - 1; i++) {
-    const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2;
-    ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
-  }
-  ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-  ctx.stroke();
 }
 // Little "!" + sparkles above the head when an AI agent finishes a task.
 function drawDoneSpark(x, y, t) {
@@ -1239,7 +1228,6 @@ function draw(t) {
     const axX = feet.x - head.x, axY = feet.y - head.y, len = Math.hypot(axX, axY) || 1, ang = Math.atan2(axY, axX), ratio = len / SH;
     const speed = Math.hypot(head.vx, head.vy) + Math.hypot(feet.vx, feet.vy);
     const calm = !grabbing && FORCED_STATE !== 'mochi' && Math.abs(ratio - 1) < 0.02 && speed < 0.45 && Math.abs(ang - Math.PI / 2) < 0.03;
-    const eyeMode = petting ? 'happy' : 'open';
     const bob = Math.round(Math.sin(t / (typing ? 220 : 700)) * 3);
 
     // --- mouse-idle stare: after 10s of a still cursor the cat fixates on it, then
