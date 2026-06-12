@@ -488,6 +488,7 @@ function sendHot(x, y, w, h, dragging) {
 
 // ---- live state -------------------------------------------------------------
 let cursor = { x: 0, y: 0 }, prevCursor = { x: 0, y: 0 }, velEMA = 0;
+let lastCursorMove = 0, staringT0 = -1, nextStareLook = 0;   // mouse-idle -> the cat stares at the cursor, then roams its eyes
 let shakeFlips = 0, shakeDir = 0, lastFlipAt = 0, wobbleUntil = 0;   // mochi shake-wobble
 let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
@@ -988,6 +989,8 @@ function draw(t) {
   const inst = moved / Math.max(1, dt);
   const cursorDx = cursor.x - prevCursor.x;
   velEMA = velEMA * 0.5 + inst * 0.5; prevCursor = { x: cursor.x, y: cursor.y };
+  // any real cursor movement refreshes the idle timer and drops a stare instantly
+  if (moved > 0.5) { lastCursorMove = t; if (staringT0 >= 0) { staringT0 = -1; lookTarget = null; } }
 
   // shake-wobble: while held, fast side-to-side shaking (direction flips) makes
   // the stretched body wobble like jello. Flips expire quickly so a slow waggle
@@ -1239,9 +1242,27 @@ function draw(t) {
     const eyeMode = petting ? 'happy' : 'open';
     const bob = Math.round(Math.sin(t / (typing ? 220 : 700)) * 3);
 
+    // --- mouse-idle stare: after 10s of a still cursor the cat fixates on it, then
+    // roams its eyes (mostly small wanders near the cursor, some glances around).
+    // Only while following + seated/idle; any cursor move drops it (handled above).
+    const canStare = follow && !hunting && !startleActive && !grabbing && !typing && !petting && !bodyPet && !paperActive && !FORCED_STATE && agentState === 'idle';
+    const staring = canStare && (t - lastCursorMove > 10000);
+    if (staring) {
+      if (staringT0 < 0) { staringT0 = t; nextStareLook = 0; lookTarget = null; }   // engage: fixate on the cursor
+      if (t - staringT0 >= 1800 && t > nextStareLook) {                              // after the fixate hold, roam
+        nextStareLook = t + 700 + Math.random() * 900;
+        if (Math.random() < 0.6) {                                                   // wander near the cursor
+          lookTarget = { x: clamp(look.x + (Math.random() * 2 - 1) * 0.35, -1, 1), y: clamp(look.y + (Math.random() * 2 - 1) * 0.3, -1, 1) };
+        } else {                                                                     // glance around the screen
+          lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 };
+        }
+        lookTargetUntil = nextStareLook + 250;
+      }
+    } else { staringT0 = -1; }
+
     // --- liveliness: eased gaze + periodic idle micro-actions ---------------
     const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && roamUntil < t && agentState === 'idle';
-    if (restIdle) {
+    if (restIdle && !staring) {
       const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
       if (nextIdleAt === 0) nextIdleAt = t + (2600 + Math.random() * 4200) * idleScale;
       if (t > nextIdleAt) {
@@ -1326,7 +1347,8 @@ function draw(t) {
         drawClimbFrame(pos, t, climbing, climbDir, coatSlug(P.name), climbBob);
       } else {
       octx.clearRect(0, 0, oc.width, oc.height);
-      drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet });
+      const stareDilate = (staring && t - staringT0 < 1800) ? 1.12 : 1;   // subtle wide-eyed fixate
+      drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet, dilate: stareDilate });
       if (paperActive && !petting && !stretching) {
         // both front paws lift off the ground to grip the rope, so paint over the
         // baked planted front legs+paws on the offscreen sprite (so it scales/flips
