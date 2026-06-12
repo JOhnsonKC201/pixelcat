@@ -124,6 +124,25 @@ test('calendar config normalizes (url validation + webcal + clamp)', () => {
   assert.deepStrictEqual(normalize({ calendar: 'junk' }).calendar, { on: false, icsUrl: '', leadMin: 10 });
 });
 
+test('imapHostFor infers/corrects the IMAP server', () => {
+  const { imapHostFor } = require(path.join(ROOT, 'src', 'mail.js'));
+  // infer from the email domain when the host is blank
+  assert.strictEqual(imapHostFor('me@gmail.com', ''), 'imap.gmail.com');
+  assert.strictEqual(imapHostFor('me@outlook.com', ''), 'outlook.office365.com');
+  assert.strictEqual(imapHostFor('me@yahoo.com', ''), 'imap.mail.yahoo.com');
+  assert.strictEqual(imapHostFor('me@icloud.com', ''), 'imap.mail.me.com');
+  // correct the obviously-wrong web host (the reported bug)
+  assert.strictEqual(imapHostFor('me@gmail.com', 'www.gmail.com'), 'imap.gmail.com');
+  assert.strictEqual(imapHostFor('me@gmail.com', 'mail.google.com'), 'imap.gmail.com');
+  // a bare provider domain typed as the host maps to its IMAP host
+  assert.strictEqual(imapHostFor('me@gmail.com', 'gmail.com'), 'imap.gmail.com');
+  // a real/custom host is left untouched (self-hosted must keep working)
+  assert.strictEqual(imapHostFor('me@gmail.com', 'imap.gmail.com'), 'imap.gmail.com');
+  assert.strictEqual(imapHostFor('me@corp.example', 'mail.corp.example'), 'mail.corp.example');
+  // unknown domain + blank host stays blank (no bad guess)
+  assert.strictEqual(imapHostFor('me@corp.example', ''), '');
+});
+
 test('fillPlaceholders expands {name}{time}{date}{count} and tidies punctuation', () => {
   const { fillPlaceholders } = require(path.join(ROOT, 'src', 'template.js'));
   const now = new Date(2026, 0, 2, 9, 5); // 2026-01-02 09:05 (local)

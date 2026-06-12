@@ -5,11 +5,16 @@
 const { ImapFlow } = require('imapflow');
 
 function classify(e) {
+  const code = String((e && e.code) || '').toLowerCase();
   const m = String((e && e.message) || e || '').toLowerCase();
+  // timeouts first: ImapFlow's connect/greeting timeout uses code CONNECT_TIMEOUT and
+  // the message "...establish connection in required time" (no literal "timeout").
+  if (code.includes('timeout') || m.includes('timeout') || m.includes('timed out') || m.includes('required time')) {
+    return 'Connection timed out - check the server and port.';
+  }
   if (m.includes('auth') || m.includes('credential') || m.includes('login') || m.includes('password')) {
     return 'Authentication failed - check your email and app-password.';
   }
-  if (m.includes('timeout') || m.includes('timed out')) return 'Connection timed out - check host and port.';
   if (m.includes('enotfound') || m.includes('getaddrinfo') || m.includes('econnrefused') || m.includes('ehostunreach')) {
     return 'Could not reach the mail server - check host and port.';
   }
@@ -28,6 +33,10 @@ process.once('message', async (creds) => {
       auth: { user: String((creds && creds.user) || ''), pass: String((creds && creds.pass) || '') },
       logger: false,
       emitLogs: false,
+      // fail fast on a wrong/unreachable host instead of hanging the test forever
+      connectionTimeout: 12000,
+      greetingTimeout: 8000,
+      socketTimeout: 30000,
     });
     await client.connect();
     const status = await client.status('INBOX', { unseen: true });

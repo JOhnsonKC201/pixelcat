@@ -182,10 +182,21 @@ $('emailPass').addEventListener('input', () => {
   }, 600);
 });
 $('emailTest').addEventListener('click', async () => {
+  const typedHost = $('emailHost').value.trim();
+  // light validation: a real IMAP host has a dot and no spaces
+  if (typedHost && (/\s/.test(typedHost) || !typedHost.includes('.'))) {
+    $('emailStatus').textContent = "That server doesn't look right - try imap.gmail.com"; return;
+  }
   $('emailStatus').textContent = 'Testing\u2026'; emailSave();
   const pw = $('emailPass').value || null;
   const r = await window.settings.emailTest(pw);
-  $('emailStatus').textContent = r && r.ok ? ('Connected \u2014 ' + r.unread + ' unread.') : ('Failed: ' + ((r && r.error) || 'unknown error'));
+  // if the test corrected the host (e.g. www.gmail.com -> imap.gmail.com), apply it visibly + save
+  const corrected = r && r.host && r.host !== typedHost;
+  if (corrected) { $('emailHost').value = r.host; emailSave(); }
+  const note = corrected ? (' (using ' + r.host + ')') : '';
+  $('emailStatus').textContent = r && r.ok
+    ? ('Connected' + note + ' - ' + r.unread + ' unread.')
+    : ('Failed: ' + ((r && r.error) || 'unknown error') + note);
   if (pw) { await window.settings.emailSetPassword(pw); $('emailPass').value = ''; refreshEmailPassState(); }
 });
 
