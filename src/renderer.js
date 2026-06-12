@@ -868,10 +868,15 @@ const CLIMB_SCENE_H = 2.4;      // full painted scene (cat+rope+ball) height as 
 const CLIMB_ANCHOR_X = 0.5;     // horizontal anchor fraction of the frame (rope/cat centre over pos.x)
 const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on the floor line
 const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-');
+// Coats whose painted climb art doesn't match the coat: skip them so they fall back
+// to the procedural climb in their OWN colours. 'gray' is painted as a green-eyed
+// gray+white bicolor, but the gray coat is solid gray with gold eyes — repaint to re-enable.
+const CLIMB_FRAME_SKIP = new Set(['gray']);
 let climbImgs = {};   // { coat: { idle, up1, up2, down1, down2: Image } }
 (function loadClimbFrames() {
   if (typeof CLIMB_FRAMES === 'undefined') return;
   for (const coat of Object.keys(CLIMB_FRAMES)) {
+    if (CLIMB_FRAME_SKIP.has(coat)) continue;   // mismatched art -> use procedural climb
     climbImgs[coat] = climbImgs[coat] || {};
     for (const frame of Object.keys(CLIMB_FRAMES[coat])) {
       const im = new Image();
