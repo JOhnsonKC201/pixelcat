@@ -13,6 +13,9 @@ const sharedOverlay = {
   BODY: 'readonly', G: 'readonly', GC: 'readonly', GR: 'readonly', HALO: 'readonly',
   rgbStr: 'readonly', toRgb: 'readonly', shadeStr: 'readonly', lerpHex: 'readonly',
   fillPlaceholders: 'readonly', CLIMB_FRAMES: 'readonly',
+  // audio.js (loaded before renderer.js) provides these:
+  audio: 'readonly', volNow: 'readonly', master: 'readonly', playMeow: 'readonly',
+  startPurr: 'readonly', stopPurr: 'readonly', playChirp: 'readonly', playMrrp: 'readonly',
 };
 
 const CONSUMER_OVERLAY = ['src/renderer.js', 'src/settings-renderer.js', 'src/cat-preview.js'];
@@ -25,8 +28,17 @@ module.exports = [
   {
     // Node / CommonJS: main process, workers, scripts, tests, configs, template.js
     files: ['**/*.js'],
-    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/patterns.js'],
+    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/patterns.js', 'src/audio.js'],
     languageOptions: { sourceType: 'commonjs', ecmaVersion: 2023, globals: { ...globals.node } },
+  },
+  {
+    // audio.js: classic overlay <script> that DEFINES the audio fns and reads
+    // config / patternIndex / PATTERN_BUILD from the shared scope.
+    files: ['src/audio.js'],
+    languageOptions: {
+      sourceType: 'script', ecmaVersion: 2023,
+      globals: { ...globals.browser, config: 'readonly', patternIndex: 'readonly', PATTERN_BUILD: 'readonly' },
+    },
   },
   {
     // cat-sprite.js / patterns.js are dual-loaded: classic <script> in the overlay AND
