@@ -2,7 +2,7 @@
 
 <img src="assets/icon-512.png" alt="pixelcat logo" width="180" />
 
-# 🐈 pixelcat
+# PixelCat
 
 **A cute pixel cat that lives on your desktop.**
 
