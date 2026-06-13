@@ -931,6 +931,7 @@ function draw(t) {
   const inHead = cursor.x >= headBox.x && cursor.x <= headBox.x + headBox.w && cursor.y >= headBox.y && cursor.y <= headBox.y + headBox.h;
   const petting = FORCED_STATE === 'pet' || t < petBurstUntil || (!grabbing && !hunting && !startleActive && inHead && velEMA < 0.25);
   if (petting) addEnergy(0.6 * step);   // affection nudges mood up toward calm/playful
+  if (petting && inHead && !grabbing) { leanTarget = clamp((cursor.x - pos.x) / 90, -0.10, 0.10); leanUntil = t + 200; }   // tilt the head into your hand
 
   // body touch (not the head): the cat leans/arches into your hand, tail up, looks
   // at you, and trills now and then - a different reaction than the head-pet purr.
@@ -1174,7 +1175,12 @@ function draw(t) {
         else { const r = (se - 0.16) / 0.84; k = Math.sin(r * Math.PI); }
         sy = 1 + k * 0.42; sx = 1 - k * 0.14;
       }
-      const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop);
+      // head-pet "nuzzle": the cat rises to meet your hand each stroke - a soft push-up
+      // with a tiny squash at the peak, as if pressing its head up into the palm.
+      const petPress = petting ? Math.max(0, Math.sin(t / 320)) : 0;
+      const petPush = petPress * 4;
+      if (petPress) { sy *= 1 - petPress * 0.05; sx *= 1 + petPress * 0.04; }
+      const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop) - Math.round(petPush);
       const shadowA = (petting || bodyPet) ? 0.14 + Math.sin(t / 800) * 0.05 : 0.18;
       drawShadow(pos.x + wig, pos.y, shadowA);
       if (!stretching && !thinking && !working && !loafing && !climbRaster) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);   // loaf has a baked, wrapped tail; the climb frame has its own tail
@@ -1201,7 +1207,8 @@ function draw(t) {
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
       }
       ctx.save();
-      ctx.translate(pos.x + wig + climbSway, pos.y - hop - climbBob);   // climb heave rides on top of the rest pose
+      const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
+      ctx.translate(pos.x + wig + climbSway + purrJit, pos.y - hop - climbBob - petPush);   // nuzzle push + purr buzz ride on the rest pose
       if (lean || cursorLean) ctx.rotate(lean + cursorLean);   // idle lean + watch-the-cursor tilt
       if (spinUntil > t) ctx.rotate((1 - (spinUntil - t) / 650) * Math.PI * 2);   // tail-chase spin
       const faceLeft = roamUntil > t && roamFrom && roamTo && roamTo.x < roamFrom.x;   // face where it walks
