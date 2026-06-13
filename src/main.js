@@ -117,6 +117,7 @@ function createWindow() {
   if (stateArg) params.push(`state=${stateArg}`);
   if (patternArg) params.push(`pattern=${patternArg}`);
   if (dirArg) params.push(`dir=${dirArg}`);
+  if (process.argv.includes('--bfly')) params.push('bfly=1');   // force the butterfly visitor (QA shots)
   if (SHOT) params.push('shot=1');
   if (SHEET) params.push('sheet=1');
   win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });
