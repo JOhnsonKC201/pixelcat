@@ -217,7 +217,7 @@
   }
 
   function drawKneadPaws(g, palRGB, lcx, rcx, keyTop, lp, rp, shY) {
-    const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
+    const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W), H = rgbStr(palRGB.H);
     const rect = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
     const paw = (kx, side, press) => {
       const lift = Math.round((1 - press) * 2) * 2.5;
@@ -229,8 +229,10 @@
       const pX = cx - pwW / 2;
       const ax = cx - side * 2 - 6, aw = 11;
       const top = Math.round(shY), aH = pY - top + 3;
+      rect(ax - 1, top - 1, aw + 2, aH + 1, H);   // pale halo: legs read on dark coats too
       rect(ax, top, aw, aH, O);
       rect(ax + 2.5, top, aw - 5, aH, C);
+      rect(pX - 3, pY - 3, pwW + 6, pwH + 6, H);   // paw halo
       rect(pX - 2, pY - 2, pwW + 4, pwH + 4, O);
       rect(pX, pY, pwW, pwH, W);
       if (lift >= 2) {
@@ -262,15 +264,17 @@
   }
 
   function drawGripPaw(g, palRGB, sx, sy, px, py, splay) {
-    const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
+    const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W), H = rgbStr(palRGB.H);
     const rect = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
     const pwW = 12, pwH = 7, pY = Math.round(py - pwH / 2);
     const adx = px - sx, ady = py - sy, aLen = Math.hypot(adx, ady) || 1, aAng = Math.atan2(ady, adx);
     g.save(); g.translate(sx, sy); g.rotate(aAng);
+    g.fillStyle = H; g.fillRect(-1, -6, aLen + 5, 12);   // pale halo: the arm reads on dark coats too
     g.fillStyle = O; g.fillRect(0, -5, aLen + 3, 10);
     g.fillStyle = C; g.fillRect(0, -3, aLen + 3, 6);
     g.restore();
     const pX = px - pwW / 2;
+    rect(pX - 3, pY - 3, pwW + 6, pwH + 6, H);   // paw halo
     rect(pX - 2, pY - 2, pwW + 4, pwH + 4, O);
     rect(pX, pY, pwW, pwH, W);
     if (splay) {
