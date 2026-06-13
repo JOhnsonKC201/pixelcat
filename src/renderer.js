@@ -54,8 +54,9 @@ function composeTypeFront(B) {
   const CX = 12, fluff = !!B.fluff;
   // tail: emerges behind the right haunch and curls up beside the body - kept
   // clear of the torso silhouette so it reads as a tail, with a pale tip.
-  [[20.6, 20.0], [22.0, 17.2], [22.4, 14.0], [21.6, 11.2]].forEach(([c, r]) => ellipse(c, r, 1.6, 1.6, 'C'));
-  ellipse(21.6, 10.8, 1.0, 1.0, 'W', ['C']);               // tail tip (hooked over)
+  // tail sweeps low to the right (a resting tail) - not curled up by the chest where its pale tip read as a 3rd paw
+  [[20.5, 20.4], [22.2, 20.9], [23.2, 21.8], [22.6, 22.8]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+  ellipse(21.8, 23.2, 1.0, 1.0, 'W', ['C']);               // tail tip (hooked over)
   // body: leaning forward - chest/shoulder mass under the head, haunches planted
   // wider at the bottom (the rear stays down while the cat reaches for the keys).
   ellipse(CX, 16, 6.0, 5.4, 'C');                          // shoulders / chest
@@ -1294,6 +1295,8 @@ function draw(t) {
         // baked planted front legs+paws on the offscreen sprite (so it scales/flips
         // with the cat) - otherwise they read as extra limbs behind the climbing arms.
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
+      } else if (grooming) {
+        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised + one planted
       }
       ctx.save();
       const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
