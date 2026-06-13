@@ -131,9 +131,25 @@ h1.title small{display:block; font-size:34px}
   padding:14px 14px 30px; box-shadow:var(--shadow);
   border-radius:14px;
 }
-.crt .screen{position:relative; overflow:hidden; background:#1c1f27; border:2px solid #05060a; border-radius:6px}
+.crt .screen{position:relative; overflow:hidden; background:#1c1f27; border:2px solid #05060a; border-radius:6px; aspect-ratio:1218 / 398}
 .crt .screen img{width:100%; height:auto; image-rendering:pixelated; display:block;
   filter:saturate(1.05) contrast(1.02)}
+.crt .screen .livecat{position:absolute; inset:0; width:100%; height:100%; display:block; image-rendering:pixelated; z-index:1; cursor:pointer}
+/* interactive demo dock under the CRT */
+.demodock{display:flex; align-items:center; gap:10px; margin-top:14px;
+  background:#0c0d12; border:3px solid #0e1016; box-shadow:var(--shadow-sm); padding:10px 12px}
+.demodock .dd-cap{font-family:"Press Start 2P",monospace; font-size:9px; color:var(--green);
+  min-width:96px; letter-spacing:.5px; text-shadow:0 0 8px rgba(139,191,90,.5)}
+.demodock .dd-input{flex:1; min-width:0; background:#15161d; color:var(--ink); border:2px solid var(--line);
+  font-family:"VT323",monospace; font-size:19px; padding:7px 10px; outline:none; caret-color:var(--orange)}
+.demodock .dd-input:focus{border-color:var(--orange)}
+.demodock .dd-input::placeholder{color:var(--faint)}
+.demodock .dd-climb{display:flex; flex-direction:column; gap:3px}
+.demodock .dd-btn{font-family:"Press Start 2P",monospace; font-size:9px; line-height:1; color:#15161d;
+  background:var(--orange); border:2px solid #0e1016; padding:4px 8px; cursor:pointer; user-select:none}
+.demodock .dd-btn:hover{background:#f3a24a}
+.demodock .dd-btn:active{transform:translateY(1px)}
+@media(max-width:560px){ .demodock .dd-input::placeholder{color:transparent} .demodock .dd-cap{min-width:74px} }
 .crt .screen::after{content:""; position:absolute; inset:0; pointer-events:none;
   background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 2px,transparent 2px 4px);
   mix-blend-mode:multiply}
@@ -356,12 +372,23 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
       <img class="perch" id="perchCat" src="assets/icon.png" alt="pet me - meow" title="click me!" />
       <div class="crt">
         <div class="screen">
-          <span class="scrlabel">EVERY POSE × EVERY COAT</span>
-          <img src="assets/showcase.png" alt="pixelcat - every pose (sit, typing, hunt, loaf) across all 12 coats" />
+          <span class="scrlabel">● LIVE · CLICK TO PET</span>
+          <canvas id="liveCat" class="livecat" role="img" aria-label="A live pixel-art cat that breathes, blinks, watches your cursor, and meows when you click it"></canvas>
+          <noscript><img src="assets/showcase.png" alt="pixelcat - every pose (sit, typing, hunt, loaf) across all 12 coats" /></noscript>
         </div>
         <span class="glass"></span>
         <span class="brandtag">PIXELCAT-CRT</span>
         <span class="led"></span>
+      </div>
+      <!-- interactive demo dock: drive the cat's typing / climb / pet behaviours -->
+      <div class="demodock" aria-label="Try the cat">
+        <span class="dd-cap" id="ddCap" aria-live="polite">watching you…</span>
+        <input id="ddType" class="dd-input" type="text" maxlength="40" autocomplete="off" spellcheck="false"
+               placeholder="type here — the cat kneads (go fast = overheat)" aria-label="Type to make the cat knead the keyboard" />
+        <span class="dd-climb">
+          <button type="button" id="ddUp" class="dd-btn" aria-label="Make the cat climb up">▲</button>
+          <button type="button" id="ddDown" class="dd-btn" aria-label="Make the cat climb down">▼</button>
+        </span>
       </div>
     </div>
   </div>
@@ -532,22 +559,11 @@ npm run dist   <span class="c">// windows installer</span></pre>
   </div>
 </footer>
 
+<script src="cat-sprite.js"></script>
+<script src="cat-live.js"></script>
 <script>
-/* real coat palettes - copied verbatim from src/cat-sprite.js (single source of truth) */
-const COATS = [
-  {n:'Orange Tabby',coat:'#e8943c',mark:'#b5641d',patch:'#e8943c',eye:'#8bbf5a',nose:'#e0888f',outline:'#5a3514',tabby:true},
-  {n:'Mackerel Tabby',coat:'#9aa3b0',mark:'#5c6470',patch:'#9aa3b0',eye:'#9ccf6a',nose:'#e3a0a6',outline:'#2f343d',tabby:true},
-  {n:'Brown Tabby',coat:'#a07d52',mark:'#5f4528',patch:'#a07d52',eye:'#c9a23c',nose:'#c98b85',outline:'#352718',tabby:true},
-  {n:'Siamese',coat:'#e8dcc4',mark:'#5a4636',patch:'#e8dcc4',eye:'#6db4d6',nose:'#d6a3a8',outline:'#3a2f26',tabby:false},
-  {n:'Tuxedo',coat:'#2b2d33',mark:'#2b2d33',patch:'#f4f5f7',eye:'#8bbf5a',nose:'#e6a6ac',outline:'#141519',tabby:false},
-  {n:'Black',coat:'#2b2d33',mark:'#212329',patch:'#2b2d33',eye:'#d8b13a',nose:'#b06b72',outline:'#141519',tabby:false},
-  {n:'Gray',coat:'#8b94a3',mark:'#8b94a3',patch:'#8b94a3',eye:'#c9a23c',nose:'#d99fa5',outline:'#2f343d',tabby:false},
-  {n:'White',coat:'#f2f1ec',mark:'#f2f1ec',patch:'#f2f1ec',eye:'#6db4d6',nose:'#f0b4ba',outline:'#9b948a',tabby:false},
-  {n:'Cream',coat:'#ecd6ab',mark:'#ecd6ab',patch:'#ecd6ab',eye:'#c9a23c',nose:'#e2a7ab',outline:'#b59a6a',tabby:false},
-  {n:'Tortoiseshell',coat:'#2b2d33',mark:'#1f2024',patch:'#c9762a',eye:'#c9a23c',nose:'#b06b72',outline:'#141519',tabby:false},
-  {n:'Calico',coat:'#f3f1ec',mark:'#2b2d33',patch:'#d6802f',eye:'#c9a23c',nose:'#d98f95',outline:'#6f6a62',tabby:false},
-  {n:'Slate',coat:'#8d97ac',mark:'#6f7892',patch:'#8d97ac',eye:'#ffffff',nose:'#ff9aa2',outline:'#2e323d',tabby:false},
-];
+/* coat palettes — sourced from cat-sprite.js (PATTERNS), the single source of truth */
+const COATS = PATTERNS.map((p, i) => ({ n: p.name, coat: p.coat, mark: p.mark, patch: p.patch || p.coat, eye: p.eye, nose: p.nose, outline: p.outline, tabby: !!TABBY[i] }));
 const grid = document.getElementById('coatGrid');
 COATS.forEach((c,i)=>{
   const el=document.createElement('div'); el.className='coat rv';
@@ -599,6 +615,20 @@ function heartBurst(x,y){
 }
 const perch=document.getElementById('perchCat');
 perch?.addEventListener('click',(e)=>{ meow(); const r=perch.getBoundingClientRect(); heartBurst(r.left+r.width/2,r.top); });
+
+/* live interactive cat inside the CRT screen + demo dock (type / climb / pet) */
+const liveCanvas=document.getElementById('liveCat');
+if(liveCanvas && window.PixelCatLive){
+  const ddCap=document.getElementById('ddCap'), ddType=document.getElementById('ddType');
+  const ddUp=document.getElementById('ddUp'), ddDown=document.getElementById('ddDown');
+  window.__cat=PixelCatLive.init(liveCanvas,{
+    onMeow:meow, onHearts:(x,y)=>heartBurst(x,y), cycleCoatOnClick:true,
+    onBehavior:(name)=>{ if(ddCap) ddCap.textContent = name || 'watching you…'; },
+  });
+  ddType?.addEventListener('input',()=>{ window.__cat.type(); });
+  ddUp?.addEventListener('click',()=>{ window.__cat.climb(-1); });
+  ddDown?.addEventListener('click',()=>{ window.__cat.climb(1); });
+}
 
 /* konami → zoomies (everything wiggles once) */
 let kbuf=[]; const KON=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
