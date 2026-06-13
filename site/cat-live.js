@@ -43,8 +43,10 @@
   function composeTypeFront(B) {
     B = B || {};
     const CX = 12, fluff = !!B.fluff;
-    [[20.6, 20.0], [22.0, 17.2], [22.4, 14.0], [21.6, 11.2]].forEach(([c, r]) => ellipse(c, r, 1.6, 1.6, 'C'));
-    ellipse(21.6, 10.8, 1.0, 1.0, 'W', ['C']);
+    // tail sweeps low to the right (a resting tail) — NOT curled up beside the chest,
+    // where its pale tip used to read as a third, raised paw.
+    [[20.5, 20.4], [22.2, 20.9], [23.2, 21.8], [22.6, 22.8]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+    ellipse(21.8, 23.2, 1.0, 1.0, 'W', ['C']);
     ellipse(CX, 16, 6.0, 5.4, 'C');
     ellipse(6.6, 20.2, 3.4, 3.2, 'C');
     ellipse(17.4, 20.2, 3.4, 3.2, 'C');
@@ -563,7 +565,12 @@
       ctx.translate(fx, footY - petPush * scale); ctx.rotate(lean); ctx.scale(scale * sqX * (faceLeft ? -1 : 1), scale * sqY);
       ctx.translate(-SW / 2, -SH);
       drawCat(ctx, sp, palRGB, { bob, blinking, look: faceLeft ? { x: -smoothLook.x, y: smoothLook.y } : smoothLook, eyeMode, blush: state === 'NUZZLE' });
-      if (state === 'GROOM') drawGroom(ctx, palRGB, sp.muzzle.x, SH * 0.30, t);
+      if (state === 'GROOM') {
+        // lift the LEFT front paw to the mouth: paint over its planted white mitt so the
+        // cat shows one planted + one raised paw (instead of three).
+        ctx.fillStyle = rgbStr(palRGB.C); ctx.fillRect(34, 104, 16, 16);
+        drawGroom(ctx, palRGB, sp.muzzle.x - 6, SH * 0.30, t);
+      }
       ctx.restore();
 
       if (bflyVisible) drawBfly(t);
