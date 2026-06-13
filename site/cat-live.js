@@ -339,13 +339,47 @@
     }
   }
 
+  // ---- the butterfly that annoys the cat -------------------------------------
+
+  // Three wing styles the butterfly cycles through over time.
+  var BFLY_STYLES = [
+    { name: 'iridescent', halo: '#dfe9ff', main: '#5a3fa0', core: '#56cfe1', glint: '#bdecff', body: '#241f30', shimmer: true },
+    { name: 'monarch',    halo: null,      main: '#e8943c', core: '#b5641d', veins: '#3a2412', dots: '#fff6e8', body: '#1c140c' },
+    { name: 'pastel',     halo: '#ffe9f6', main: '#d98fc9', core: '#efb3df', core2: '#cdbcf2', glint: '#ffffff', body: '#2a2433' },
+  ];
+
+  // Draw a pixel-art butterfly centred at (bx,by), world space. `s` scales it,
+  // `flap` is the wing-beat phase (wings open ↔ edge-on), `st` is a style palette.
+  function drawButterfly(g, bx, by, s, st, flap, t) {
+    const open = 0.30 + 0.70 * Math.abs(Math.cos(flap));            // 1 = wings flat to viewer, ~0.3 = edge-on
+    let core = st.core;
+    if (st.shimmer) core = lerpHex(st.core, '#9a6cff', 0.5 + 0.5 * Math.sin(t / 430));   // iridescent shimmer
+    g.save(); g.translate(bx, by); g.scale(s, s);
+    const E = (x, y, rx, ry, col) => { if (rx <= 0.2) return; g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
+    for (const side of [-1, 1]) {
+      const ux = side * 7 * open, lx = side * 5.5 * open;
+      if (st.halo) { g.globalAlpha = 0.85; E(ux, -3, 6.2 * open + 1, 6.6, st.halo); E(lx, 5, 4.6 * open + 1, 4.8, st.halo); g.globalAlpha = 1; }
+      E(ux, -3, 6.0 * open, 6.2, st.main); E(ux, -3.6, 4.0 * open, 4.4, core);            // upper wing
+      E(lx, 5, 4.4 * open, 4.6, st.main); E(lx, 5, 2.8 * open, 3.0, st.core2 || core);    // lower wing
+      if (st.veins) { g.strokeStyle = st.veins; g.lineWidth = 0.7; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(0, -2); g.lineTo(side * (8 * open + k), -7 + k); g.stroke(); } }
+      if (st.dots) { E(side * 9 * open, -6, 0.8, 0.8, st.dots); E(side * 6 * open, 2, 0.8, 0.8, st.dots); }
+      if (st.glint) { g.fillStyle = st.glint; g.fillRect(Math.round(side * 8 * open - 0.5), -6, 1, 1); }
+    }
+    // body + head + antennae
+    E(0, 0, 1.4, 8, st.body); E(0, -7, 1.6, 1.9, st.body);
+    g.strokeStyle = st.body; g.lineWidth = 0.8; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(0, -8); g.lineTo(-2.6, -12.5); g.moveTo(0, -8); g.lineTo(2.6, -12.5); g.stroke();
+    g.fillStyle = st.glint || core; g.fillRect(-3, -13, 1, 1); g.fillRect(2, -13, 1, 1);   // antenna tips
+    g.restore();
+  }
+
   // ---- the live controller ---------------------------------------------------
 
   function init(canvas, options) {
     options = options || {};
     if (typeof buildSprite !== 'function' || typeof composeSit !== 'function' || typeof PATTERNS === 'undefined') {
       console.error('[cat-live] cat-sprite.js globals missing — load cat-sprite.js before cat-live.js');
-      return { start() {}, stop() {}, setCoat() {}, nextCoat() {}, destroy() {}, type() {}, climb() {} };
+      return { start() {}, stop() {}, setCoat() {}, nextCoat() {}, destroy() {}, type() {}, climb() {}, setButterfly() {} };
     }
 
     const ctx = canvas.getContext('2d');
@@ -354,6 +388,7 @@
     const onBehavior = typeof options.onBehavior === 'function' ? options.onBehavior : function () {};
     const cycleCoatOnClick = options.cycleCoatOnClick !== false;
     const autoShow = options.autoShow !== false;
+    let butterflyOn = options.butterfly !== false;
     const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false, addEventListener() {} };
     let reducedMotion = options.reducedMotion != null ? options.reducedMotion : mq.matches;
 
@@ -401,11 +436,14 @@
     let curX = 0, curY = 0, lastMove = -1e9;
     const smoothLook = { x: 0, y: 0 };
     let idleTarget = { x: 0, y: 0 }, nextIdleLook = 0;
+    let lookOverride = null;   // when set (butterfly nearby), the cat watches it instead of the cursor
     function onMove(e) { curX = e.clientX; curY = e.clientY; lastMove = now(); }
     function onScroll() { rect = canvas.getBoundingClientRect(); }
     function updateLook(t) {
       let tx, ty;
-      if (t - lastMove < 3500 && rect) {
+      if (lookOverride) {
+        tx = lookOverride.x; ty = lookOverride.y;
+      } else if (t - lastMove < 3500 && rect) {
         const fx = rect.left + footX, fy = rect.top + (footY - SH * 0.72 * scale);
         tx = clamp((curX - fx) / 220, -1, 1);
         ty = clamp((curY - fy) / 180, -0.7, 1);
@@ -413,8 +451,8 @@
         if (t > nextIdleLook) { idleTarget = { x: (Math.random() * 2 - 1) * 0.6, y: (Math.random() * 2 - 1) * 0.3 }; nextIdleLook = t + 2200 + Math.random() * 2400; }
         tx = idleTarget.x; ty = idleTarget.y;
       }
-      smoothLook.x += (tx - smoothLook.x) * 0.12;
-      smoothLook.y += (ty - smoothLook.y) * 0.12;
+      smoothLook.x += (tx - smoothLook.x) * 0.16;
+      smoothLook.y += (ty - smoothLook.y) * 0.16;
     }
 
     // behaviour timers
@@ -429,12 +467,17 @@
     const REEL_MS = { HUNT: 2600, STRETCH: 1500, ZOOMIES: 3000, GROOM: 2600, LOAF: 4000 };
     let reelIdx = 0, autoState = null, autoUntil = 0, nextAuto = 9000;
     let lastBehavior = '';
+    // butterfly entity (stage CSS-px space) + swat reaction
+    let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextPalAt: 0, inited: false };
+    let swatUntil = 0, swatTX = 0, swatTY = 0, swatCool = 0, prevT = 0;
+    function bflyActive() { return butterflyOn && !reducedMotion; }
 
     function userBusy(t) { return t < nuzzleUntil || t < climbUntil || t < typeUntil; }
     function resolveState(t) {
       if (t < nuzzleUntil) return 'NUZZLE';
       if (t < climbUntil) return 'CLIMB';
       if (t < typeUntil) return 'TYPE';
+      if (t < swatUntil) return 'SWAT';
       if (autoState && t < autoUntil) return autoState;
       return 'IDLE';
     }
@@ -452,16 +495,20 @@
       }
     }
 
-    const CAPTION = { IDLE: '', NUZZLE: 'purr ♥', CLIMB: 'climbing!', TYPE: 'typing…', HUNT: 'hunting!', STRETCH: 'big stretch~', ZOOMIES: 'zoomies!', GROOM: 'washing up', LOAF: 'loafing' };
+    const CAPTION = { IDLE: '', NUZZLE: 'purr ♥', CLIMB: 'climbing!', TYPE: 'typing…', SWAT: 'annoyed!', HUNT: 'hunting!', STRETCH: 'big stretch~', ZOOMIES: 'zoomies!', GROOM: 'washing up', LOAF: 'loafing' };
 
     // body transform helper: foot anchored at (footX, footY+dy), scaled, optional squash/rotate
     function bodyXform(dyPush, rot, sx, sy) {
       ctx.translate(footX, footY - dyPush); ctx.rotate(rot || 0); ctx.scale(scale * (sx || 1), scale * (sy || 1));
     }
 
+    function drawBfly(t) { drawButterfly(ctx, bf.x, bf.y, scale * 0.95, BFLY_STYLES[bf.palIdx], bf.flap, t); }
+
     function paint(t) {
       const state = resolveState(t);
       schedule(t, state);
+      const dt = prevT ? t - prevT : 16; prevT = t;
+      updateButterfly(t, dt, state);   // sets lookOverride / may trigger swat — run before updateLook
       updateLook(t);
       // heat decays unless actively typing
       if (t - lastKeyAt > 180) heat = Math.max(0, heat - 0.012);
@@ -471,6 +518,8 @@
       if (cap !== lastBehavior) { lastBehavior = cap; onBehavior(cap); }
 
       const blinking = t < blinkUntil;
+      // butterfly hides during the user-driven / cuddle poses
+      const bflyVisible = bflyActive() && bf.inited && state !== 'TYPE' && state !== 'CLIMB' && state !== 'NUZZLE';
       ctx.clearRect(0, 0, cssW, cssH);
 
       // shadow (skip while climbing — feet leave the floor)
@@ -482,7 +531,8 @@
 
       if (state === 'TYPE') { paintType(t, blinking); return; }
       if (state === 'CLIMB') { paintClimb(t, blinking); return; }
-      if (state === 'HUNT') { paintHunt(t, blinking); return; }
+      if (state === 'SWAT') { paintSwat(t, blinking); if (bflyVisible) drawBfly(t); return; }
+      if (state === 'HUNT') { paintHunt(t, blinking); if (bflyVisible) drawBfly(t); return; }
 
       // sit/loaf family: IDLE, NUZZLE, GROOM, LOAF, STRETCH, ZOOMIES
       let petPush = 0, sqX = 1, sqY = 1, eyeMode = 'open', petting = false, lean = smoothLook.x * 0.05;
@@ -515,6 +565,8 @@
       drawCat(ctx, sp, palRGB, { bob, blinking, look: faceLeft ? { x: -smoothLook.x, y: smoothLook.y } : smoothLook, eyeMode, blush: state === 'NUZZLE' });
       if (state === 'GROOM') drawGroom(ctx, palRGB, sp.muzzle.x, SH * 0.30, t);
       ctx.restore();
+
+      if (bflyVisible) drawBfly(t);
     }
 
     function paintType(t, blinking) {
@@ -566,6 +618,87 @@
       ctx.restore();
     }
 
+    // a single paw swipes up at the butterfly; the seated body leans toward it
+    function paintSwat(t, blinking) {
+      const prog = clamp((t - (swatUntil - 420)) / 420, 0, 1);
+      const swing = Math.sin(prog * Math.PI);               // 0 -> 1 -> 0 swipe
+      const dirX = clamp((swatTX - footX) / 90, -1, 1);
+      ctx.save();
+      ctx.translate(footX, footY); ctx.rotate(dirX * 0.10 * swing); ctx.scale(scale, scale);
+      ctx.save(); ctx.translate(-SW / 2, -SH);
+      drawCat(ctx, sitSprite, palRGB, { bob: 0, blinking, look: lookOverride || smoothLook, eyeMode: 'open', dilate: 1.1 });
+      ctx.restore();
+      // reaching paw: shoulder at upper chest, paw toward the butterfly (in cat-local space)
+      const bxL = clamp((swatTX - footX) / scale, -SW * 0.8, SW * 0.8);
+      const byL = clamp((swatTY - footY) / scale, -SH * 1.25, -SH * 0.4);
+      drawGripPaw(ctx, palRGB, dirX * 5, -SH * 0.52, bxL * 0.7, byL - swing * 6, swing > 0.35);
+      ctx.restore();
+    }
+
+    // butterfly flight + cat-reaction logic (stage CSS-px space)
+    function updateButterfly(t, dt, state) {
+      const busy = state === 'TYPE' || state === 'CLIMB' || state === 'NUZZLE';
+      if (!bflyActive() || busy) { lookOverride = null; return; }
+      if (!bf.inited) {
+        bf.x = cssW * 0.25; bf.y = cssH * 0.30; bf.wpX = bf.x; bf.wpY = bf.y;
+        bf.nextWp = t + 1200; bf.nextDive = t + 3000; bf.nextPalAt = t + 9000; bf.inited = true;
+      }
+      const dtf = Math.min(dt, 50) / 16.67;
+      if (t > bf.nextPalAt) { bf.palIdx = (bf.palIdx + 1) % BFLY_STYLES.length; bf.nextPalAt = t + 8000 + Math.random() * 4000; }
+
+      const headX = footX, headY = footY - SH * 0.72 * scale;
+      // mode transitions
+      if (bf.mode === 'dodge' && t > bf.dodgeUntil) bf.mode = 'wander';
+      if (bf.mode === 'wander' && t > bf.nextDive) {
+        bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 4000 + Math.random() * 4000;
+        if (Math.random() < 0.34 && autoState !== 'HUNT') { autoState = 'HUNT'; autoUntil = t + REEL_MS.HUNT; nextAuto = autoUntil + 1600; flickT0 = t; }   // stand-up bat
+      }
+      if (bf.mode === 'dive' && t > bf.diveUntil) bf.mode = 'wander';
+
+      // steering target
+      let tx, ty;
+      if (bf.mode === 'dive') { tx = headX + Math.sin(t / 200) * 22; ty = headY - 6 + Math.cos(t / 170) * 10; }
+      else if (bf.mode === 'dodge') { tx = bf.wpX; ty = bf.wpY; }
+      else {
+        if (t > bf.nextWp) { bf.wpX = cssW * (0.15 + Math.random() * 0.7); bf.wpY = cssH * (0.16 + Math.random() * 0.5); bf.nextWp = t + 1400 + Math.random() * 1800; }
+        tx = bf.wpX; ty = bf.wpY;
+      }
+      const accel = bf.mode === 'dodge' ? 0.02 : (bf.mode === 'dive' ? 0.045 : 0.03);
+      bf.vx += (tx - bf.x) * accel * dtf; bf.vy += (ty - bf.y) * accel * dtf;
+      bf.vx += Math.sin(t / 130 + 1.3) * 0.5 * dtf; bf.vy += Math.sin(t / 90) * 0.6 * dtf;   // organic flutter
+
+      // flee the visitor's cursor
+      if (rect && t - lastMove < 4000) {
+        const dx = bf.x - (curX - rect.left), dy = bf.y - (curY - rect.top), d = Math.hypot(dx, dy);
+        if (d < 72 && d > 0.1) { const f = (72 - d) / 72 * 3.4; bf.vx += dx / d * f * dtf; bf.vy += dy / d * f * dtf; }
+      }
+
+      bf.vx *= 0.92; bf.vy *= 0.92;
+      const sp = Math.hypot(bf.vx, bf.vy), maxv = bf.mode === 'dodge' ? 9.5 : 5.5;
+      if (sp > maxv) { bf.vx *= maxv / sp; bf.vy *= maxv / sp; }
+      bf.x += bf.vx * dtf; bf.y += bf.vy * dtf;
+
+      const m = 14, lo = m, hiX = cssW - m, hiY = cssH * 0.82;
+      if (bf.x < lo) { bf.x = lo; bf.vx = Math.abs(bf.vx); } if (bf.x > hiX) { bf.x = hiX; bf.vx = -Math.abs(bf.vx); }
+      if (bf.y < m) { bf.y = m; bf.vy = Math.abs(bf.vy); } if (bf.y > hiY) { bf.y = hiY; bf.vy = -Math.abs(bf.vy); }
+      bf.flap += (0.18 + sp * 0.03) * dtf;
+
+      // cat watches the butterfly when it's in range
+      const dxh = bf.x - headX, dyh = bf.y - headY, dh = Math.hypot(dxh, dyh);
+      if (dh < cssW * 0.55) lookOverride = { x: clamp(dxh / 120, -1, 1), y: clamp(dyh / 90, -1, 1) };
+      else lookOverride = null;
+
+      // swat when it dive-bombs close to the head (cooldown-gated)
+      if (dh < 46 && t > swatCool && t > swatUntil) {
+        swatUntil = t + 420; swatTX = bf.x; swatTY = bf.y; swatCool = t + 1400;
+        onBehavior('annoyed!');
+        bf.mode = 'dodge'; bf.dodgeUntil = t + 520;
+        const aw = Math.atan2(dyh, dxh) + (Math.random() - 0.5);
+        bf.vx = Math.cos(aw) * 9.5; bf.vy = Math.sin(aw) * 9.5 - 2;
+        bf.wpX = clamp(bf.x + Math.cos(aw) * 70, 20, cssW - 20); bf.wpY = clamp(bf.y + Math.sin(aw) * 45, 14, cssH * 0.7);
+      }
+    }
+
     // loop
     let running = false, rafId = 0, onScreen = true, lastDraw = 0, drewStatic = false;
     function now() { return performance.now(); }
@@ -576,7 +709,7 @@
       const t = now();
       if (reducedMotion) { if (!drewStatic) { paintStatic(); drewStatic = true; } return; }
       const st = resolveState(t);
-      const minFrame = (st === 'IDLE' || st === 'LOAF') ? 33 : 16;
+      const minFrame = ((st === 'IDLE' || st === 'LOAF') && !(bflyActive() && bf.inited)) ? 33 : 16;
       if (t - lastDraw >= minFrame) { paint(t); lastDraw = t; }
       rafId = requestAnimationFrame(frame);
     }
@@ -600,6 +733,7 @@
       if (reducedMotion) paintStatic();
     }
     function nextCoat() { setCoat(coatIndex + 1); }
+    function setButterfly(on) { butterflyOn = !!on; if (!butterflyOn) lookOverride = null; kick(); }
 
     // interaction API
     function onClick(e) {
@@ -648,7 +782,7 @@
     function destroy() { stop(); if (bound) { unbind(); bound = false; } }
 
     start();
-    return { start, stop, setCoat, nextCoat, destroy, type, climb };
+    return { start, stop, setCoat, nextCoat, destroy, type, climb, setButterfly };
   }
 
   window.PixelCatLive = { init };
