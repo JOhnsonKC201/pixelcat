@@ -286,19 +286,19 @@
     }
   }
 
-  function ropeGeom(pos, t, energy, SH) {
+  function ropeGeom(pos, t, energy, SH, ballShift) {
     const ropeX = Math.round(pos.x - 26);
     const topY = Math.round(pos.y - SH - 55);
-    const ballY = Math.round(pos.y - 6);
+    const ballY = Math.round(pos.y - 6 + (ballShift || 0));   // climbing scrolls the ground away
     const sway = Math.sin(t / 220) * (1 + energy / 40);
     const ropeAt = (y) => ropeX + Math.sin((y - topY) / 16 + t / 240) * sway;
     return { ropeX, topY, ballY, sway, ropeAt };
   }
 
-  function drawRope(g, pos, t, climbing, dir, energy, SH) {
+  function drawRope(g, pos, t, climbing, dir, energy, SH, ballShift) {
     const YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3';
-    const geo = ropeGeom(pos, t, energy, SH), dirN = clamp(dir, -1, 1);
-    const texOff = climbing ? t * 0.05 * dirN : 0;
+    const geo = ropeGeom(pos, t, energy, SH, ballShift), dirN = clamp(dir, -1, 1);
+    const texOff = climbing ? t * 0.09 * dirN : 0;   // stronger scroll so direction reads clearly
     for (let y = geo.topY; y < geo.ballY; y++) {
       const x = Math.round(geo.ropeAt(y)), k = y - geo.topY;
       g.fillStyle = YARN_MID; g.fillRect(x, y, 3, 1);
@@ -309,11 +309,11 @@
     drawYarnBall(g, geo.ropeAt(geo.ballY), geo.ballY + ballBob);
   }
 
-  function drawRopeClimb(g, palRGB, pos, t, climbing, dir, energy, bob, sway, SH) {
+  function drawRopeClimb(g, palRGB, pos, t, climbing, dir, energy, bob, sway, SH, ballShift) {
     const YARN_OUT = '#c8455a', YARN_LT = '#ff8fa3';
-    const geo = ropeGeom(pos, t, energy, SH), dirN = clamp(dir, -1, 1);
+    const geo = ropeGeom(pos, t, energy, SH, ballShift), dirN = clamp(dir, -1, 1);
     bob = bob || 0; sway = sway || 0;
-    drawRope(g, pos, t, climbing, dir, energy, SH);
+    drawRope(g, pos, t, climbing, dir, energy, SH, ballShift);
     const shX = pos.x - 6 + sway, shY = Math.round(pos.y - SH * 0.42 - bob);
     const gripBaseY = Math.round(pos.y - SH * 0.42), SPAN = 22;
     const ph = (t / (climbing ? 460 : 1100)) % 1;
@@ -462,7 +462,7 @@
     let flickT0 = -1, nextFlick = 4000;
     let nuzzleUntil = 0;
     let typeUntil = 0, lastKeyAt = -1e9, heat = 0;
-    let climbUntil = 0, climbDir = -1, paperLen = 0;
+    let climbUntil = 0, climbDir = -1, paperLen = 0, climbY = 0;   // climbY = how far up the cat has travelled
     let stretchT0 = -1;
     // auto-showcase reel
     const REEL = ['HUNT', 'STRETCH', 'ZOOMIES', 'GROOM', 'LOAF'];
@@ -470,8 +470,10 @@
     let reelIdx = 0, autoState = null, autoUntil = 0, nextAuto = 9000;
     let lastBehavior = '';
     // butterfly entity (stage CSS-px space) + swat reaction
-    let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextPalAt: 0, inited: false };
+    let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextPalAt: 0, inited: false, caught: false };
     let swatUntil = 0, swatTX = 0, swatTY = 0, swatCool = 0, prevT = 0;
+    let catchUntil = 0, catchT0 = 0, catchTX = 0, catchTY = 0, catchCool = -1e9;   // "catch the butterfly" sequence
+    const CATCH_MS = 1750;
     function bflyActive() { return butterflyOn && !reducedMotion; }
 
     function userBusy(t) { return t < nuzzleUntil || t < climbUntil || t < typeUntil; }
@@ -479,6 +481,7 @@
       if (t < nuzzleUntil) return 'NUZZLE';
       if (t < climbUntil) return 'CLIMB';
       if (t < typeUntil) return 'TYPE';
+      if (t < catchUntil) return 'CATCH';
       if (t < swatUntil) return 'SWAT';
       if (autoState && t < autoUntil) return autoState;
       return 'IDLE';
@@ -497,7 +500,7 @@
       }
     }
 
-    const CAPTION = { IDLE: '', NUZZLE: 'purr ♥', CLIMB: 'climbing!', TYPE: 'typing…', SWAT: 'annoyed!', HUNT: 'hunting!', STRETCH: 'big stretch~', ZOOMIES: 'zoomies!', GROOM: 'washing up', LOAF: 'loafing' };
+    const CAPTION = { IDLE: '', NUZZLE: 'purr ♥', CLIMB: 'climbing!', TYPE: 'typing…', CATCH: 'got it! ♥', SWAT: 'annoyed!', HUNT: 'hunting!', STRETCH: 'big stretch~', ZOOMIES: 'zoomies!', GROOM: 'washing up', LOAF: 'loafing' };
 
     // body transform helper: foot anchored at (footX, footY+dy), scaled, optional squash/rotate
     function bodyXform(dyPush, rot, sx, sy) {
@@ -521,7 +524,7 @@
 
       const blinking = t < blinkUntil;
       // butterfly hides during the user-driven / cuddle poses
-      const bflyVisible = bflyActive() && bf.inited && state !== 'TYPE' && state !== 'CLIMB' && state !== 'NUZZLE';
+      const bflyVisible = bflyActive() && bf.inited && !bf.caught && state !== 'TYPE' && state !== 'CLIMB' && state !== 'NUZZLE' && state !== 'CATCH';
       ctx.clearRect(0, 0, cssW, cssH);
 
       // shadow (skip while climbing — feet leave the floor)
@@ -533,6 +536,7 @@
 
       if (state === 'TYPE') { paintType(t, blinking); return; }
       if (state === 'CLIMB') { paintClimb(t, blinking); return; }
+      if (state === 'CATCH') { paintCatch(t, blinking); return; }
       if (state === 'SWAT') { paintSwat(t, blinking); if (bflyVisible) drawBfly(t); return; }
       if (state === 'HUNT') { paintHunt(t, blinking); if (bflyVisible) drawBfly(t); return; }
 
@@ -602,14 +606,16 @@
       const stroke = (t / (climbing ? 460 : 1100)) % 1;
       const cbob = Math.sin(stroke * Math.PI * 2) * (climbing ? 2.2 : 1.1);
       const csway = Math.cos(stroke * Math.PI * 2) * (climbing ? 1.0 : 0.6);
+      if (!climbing) climbY *= 0.90;   // ground drifts back when you stop climbing
       ctx.save();
       ctx.translate(footX, footY); ctx.scale(scale, scale);     // foot-anchored sprite space (pos = 0,0)
       const pos = { x: 0, y: 0 };
-      // seated body rides the heave; rope + grips drawn over it
+      // seated body rides the heave; rope + grips drawn over it. climbY scrolls the
+      // ground (yarn ball) away as the cat climbs, so the cat reads as travelling up.
       ctx.save(); ctx.translate(csway, -cbob); ctx.translate(-SW / 2, -SH);
       drawCat(ctx, sitSprite, palRGB, { bob: 0, blinking, look: { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 } });
       ctx.restore();
-      drawRopeClimb(ctx, palRGB, pos, t, climbing, climbDir, energy, cbob, csway, SH);
+      drawRopeClimb(ctx, palRGB, pos, t, climbing, climbDir, energy, cbob, csway, SH, climbY);
       ctx.restore();
     }
 
@@ -642,6 +648,55 @@
       ctx.restore();
     }
 
+    // multi-phase "catch the butterfly": coil -> pounce -> impact -> success (held)
+    function catchSparkle(cx, cy, t, e) {
+      const n = 7;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + t / 300, r = 6 + e * 22, s = 2 + (i % 2);
+        ctx.globalAlpha = (1 - e) * 0.9; ctx.fillStyle = i % 2 ? '#fff6d6' : '#ffe2a6';
+        ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.8), s, s);
+      }
+      ctx.globalAlpha = 1;
+    }
+    function paintCatch(t, blinking) {
+      const prog = clamp((t - catchT0) / CATCH_MS, 0, 1);
+      const dirX = clamp((catchTX - footX) / 90, -1, 1);
+      const tgtDX = clamp(catchTX - footX, -cssW * 0.42, cssW * 0.42);
+      const tgtUp = clamp((footY - SH * scale * 0.5) - catchTY, 0, cssH * 0.7);
+      const HW = huntSprite.SW, HH = huntSprite.SH, faceL = dirX < 0 ? -1 : 1;
+      if (prog < 0.40) {
+        // COIL (crouch) -> POUNCE (leap toward the bug), hunt sprite
+        let dx = 0, up = 0, sx = 1, sy = 1, lunge = 0;
+        if (prog < 0.15) { const c = Math.sin(prog / 0.15 * Math.PI * 0.5); sy = 1 - c * 0.14; sx = 1 + c * 0.08; }
+        else { const e = (prog - 0.15) / 0.25; lunge = Math.sin(e * Math.PI); dx = tgtDX * 0.62 * e; up = tgtUp * 0.72 * lunge; sy = 1 + lunge * 0.10; sx = 1 - lunge * 0.05; }
+        ctx.save();
+        ctx.translate(footX + dx, footY - up); ctx.scale(scale * sx * faceL, scale * sy); ctx.translate(-HW / 2, -HH);
+        drawCat(ctx, huntSprite, palRGB, { bob: 0, blinking, look: { x: Math.abs(dirX), y: 0.2 }, dilate: 1.45 });
+        ctx.restore();
+      } else if (prog < 0.56) {
+        // IMPACT — at the bug: squash, eyes shut, sparkle poof
+        const e = (prog - 0.40) / 0.16;
+        const dx = tgtDX * 0.62, up = tgtUp * 0.72 * (1 - e * 0.7);
+        ctx.save();
+        ctx.translate(footX + dx, footY - up); ctx.scale(scale * (1.14 - e * 0.14) * faceL, scale * (0.88 + e * 0.12)); ctx.translate(-HW / 2, -HH);
+        drawCat(ctx, huntSprite, palRGB, { bob: 0, blinking: true, look: { x: 0, y: 0.4 }, eyeMode: 'happy' });
+        ctx.restore();
+        catchSparkle(footX + dx, footY - up - HH * scale * 0.45, t, e);
+      } else {
+        // SUCCESS — settle into a sit, happy, butterfly held between the front paws
+        const e = (prog - 0.56) / 0.44;
+        const land = Math.sin(Math.min(1, e * 2.2) * Math.PI) * 0.06;
+        ctx.save();
+        ctx.translate(footX, footY); ctx.rotate(dirX * 0.03 * (1 - e)); ctx.scale(scale, scale * (1 - land));
+        drawTail(ctx, 0, 0, t, pal, catchT0, true, SW, SH);
+        ctx.translate(-SW / 2, -SH);
+        drawCat(ctx, sitSprite, palRGB, { bob: 0, blinking, look: { x: 0, y: 0.75 }, eyeMode: 'happy', blush: true });
+        ctx.restore();
+        const by = footY - SH * scale * 0.12 + Math.sin(t / 120) * 1.5;
+        drawButterfly(ctx, footX, by, scale * 0.78, BFLY_STYLES[bf.palIdx], t / 70, t);
+      }
+    }
+
     // butterfly flight + cat-reaction logic (stage CSS-px space)
     function updateButterfly(t, dt, state) {
       const busy = state === 'TYPE' || state === 'CLIMB' || state === 'NUZZLE';
@@ -649,6 +704,18 @@
       if (!bf.inited) {
         bf.x = cssW * 0.25; bf.y = cssH * 0.30; bf.wpX = bf.x; bf.wpY = bf.y;
         bf.nextWp = t + 1200; bf.nextDive = t + 3000; bf.nextPalAt = t + 9000; bf.inited = true;
+      }
+      // caught: parked at the cat's paws during the catch sequence, then it escapes upward
+      if (bf.caught) {
+        if (t > catchUntil) {
+          bf.caught = false; bf.mode = 'dodge'; bf.dodgeUntil = t + 750;
+          bf.x = footX + (Math.random() * 2 - 1) * 20; bf.y = footY - SH * scale * 0.95;
+          bf.vx = (Math.random() * 2 - 1) * 4; bf.vy = -7.5;
+          bf.wpX = clamp(footX + (Math.random() * 2 - 1) * 130, 20, cssW - 20); bf.wpY = cssH * 0.22;
+        } else {
+          bf.x = footX; bf.y = footY - SH * scale * 0.12; lookOverride = { x: 0, y: 1 };
+          return;
+        }
       }
       const dtf = Math.min(dt, 50) / 16.67;
       if (t > bf.nextPalAt) { bf.palIdx = (bf.palIdx + 1) % BFLY_STYLES.length; bf.nextPalAt = t + 8000 + Math.random() * 4000; }
@@ -695,14 +762,19 @@
       if (dh < cssW * 0.55) lookOverride = { x: clamp(dxh / 120, -1, 1), y: clamp(dyh / 90, -1, 1) };
       else lookOverride = null;
 
-      // swat when it dive-bombs close to the head (cooldown-gated)
-      if (dh < 46 && t > swatCool && t > swatUntil) {
-        swatUntil = t + 420; swatTX = bf.x; swatTY = bf.y; swatCool = t + 1400;
-        onBehavior('annoyed!');
-        bf.mode = 'dodge'; bf.dodgeUntil = t + 520;
-        const aw = Math.atan2(dyh, dxh) + (Math.random() - 0.5);
-        bf.vx = Math.cos(aw) * 9.5; bf.vy = Math.sin(aw) * 9.5 - 2;
-        bf.wpX = clamp(bf.x + Math.cos(aw) * 70, 20, cssW - 20); bf.wpY = clamp(bf.y + Math.sin(aw) * 45, 14, cssH * 0.7);
+      // close contact: occasionally CATCH it (full pounce sequence), else just swat
+      if (dh < 46 && t > swatCool && t > swatUntil && t > catchUntil) {
+        if (t > catchCool && Math.random() < 0.45) {
+          catchUntil = t + CATCH_MS; catchT0 = t; catchTX = bf.x; catchTY = bf.y; catchCool = t + 13000;
+          bf.caught = true; onBehavior('got it! ♥');
+        } else {
+          swatUntil = t + 420; swatTX = bf.x; swatTY = bf.y; swatCool = t + 1400;
+          onBehavior('annoyed!');
+          bf.mode = 'dodge'; bf.dodgeUntil = t + 520;
+          const aw = Math.atan2(dyh, dxh) + (Math.random() - 0.5);
+          bf.vx = Math.cos(aw) * 9.5; bf.vy = Math.sin(aw) * 9.5 - 2;
+          bf.wpX = clamp(bf.x + Math.cos(aw) * 70, 20, cssW - 20); bf.wpY = clamp(bf.y + Math.sin(aw) * 45, 14, cssH * 0.7);
+        }
       }
     }
 
@@ -755,6 +827,7 @@
     }
     function climb(dir) {
       climbDir = dir < 0 ? -1 : 1; climbUntil = now() + 1000; paperLen = Math.min(60, paperLen + 26);
+      climbY = clamp(climbY + (climbDir < 0 ? 20 : -20), -cssH * 0.16, cssH * 0.32);   // travel up/down the rope
       autoState = null; nextAuto = now() + 6000; kick();
     }
 
