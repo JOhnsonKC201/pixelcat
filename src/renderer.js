@@ -805,6 +805,9 @@ function drawGroom(palRGB, cx, faceY, t) {
 
 // hunt/pet tuning
 const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300;
+// butterfly play: the cat only engages the butterfly once the cursor has been still this
+// long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge.
+const BF_PLAY_IDLE = 1800, BF_TOP = 46;
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
@@ -866,13 +869,16 @@ function updateButterflyDesk(t, dt, step, f) {
   const dtf = Math.min(dt, 50) / 16.67;
   if (t > bfNextPal) { bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000; }
   const headX = pos.x, headY = pos.y - SH * 0.72;
+  // the cat only plays with the butterfly while the cursor sits still; any cursor move
+  // refreshes lastCursorMove (the cursor is always the priority).
+  const cursorIdle = (t - lastCursorMove) > BF_PLAY_IDLE;
   if (t > bfUntil && bfMode !== 'out') bfMode = 'out';
   if (bfMode === 'dodge' && t > bfDodgeUntil) bfMode = 'wander';
   if (bfMode !== 'out') {
     if (bfMode === 'in' && Math.hypot(bfX - headX, bfY - headY) < 160) bfMode = 'wander';
     if (bfMode === 'wander' && t > bfNextDive) {
       bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 3500 + Math.random() * 3500;
-      if (Math.random() < 0.4 && !f.hunting && !(config && config.huntOn === false) && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
+      if (cursorIdle && Math.random() < 0.4 && !f.hunting && !(config && config.huntOn === false) && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
     }
     // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
@@ -881,7 +887,7 @@ function updateButterflyDesk(t, dt, step, f) {
   if (bfMode === 'out') { tx = bfX < headX ? -40 : canvas.width + 40; ty = bfY - 60; }
   else if (bfMode === 'dive') { tx = headX + Math.sin(t / 200) * 26; ty = headY - 6 + Math.cos(t / 170) * 12; }
   else if (bfMode === 'dodge') { tx = bfWpX; ty = bfWpY; }
-  else { if (t > bfNextWp) { bfWpX = headX + (Math.random() * 2 - 1) * 150; bfWpY = headY + (Math.random() * 2 - 1) * 90 - 20; bfNextWp = t + 1400 + Math.random() * 1600; } tx = bfWpX; ty = bfWpY; }
+  else { if (t > bfNextWp) { bfWpX = headX + (Math.random() * 2 - 1) * 150; bfWpY = clamp(headY + (Math.random() * 2 - 1) * 90 - 20, BF_TOP, canvas.height - 40); bfNextWp = t + 1400 + Math.random() * 1600; } tx = bfWpX; ty = bfWpY; }
   const accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : 0.03));
   bfVx += (tx - bfX) * accel * dtf; bfVy += (ty - bfY) * accel * dtf;
   bfVx += Math.sin(t / 130 + 1.3) * 0.5 * dtf; bfVy += Math.sin(t / 90) * 0.6 * dtf;
@@ -897,15 +903,15 @@ function updateButterflyDesk(t, dt, step, f) {
   if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > canvas.height - m) { bfY = canvas.height - m; bfVy = -Math.abs(bfVy); }
   // while a hunt is winding up (not yet airborne), keep the aim on the live butterfly so
   // the pounce lands on where it actually is, not a stale snapshot
-  if (t < huntUntil && !pouncing) huntTarget = { x: bfX, y: bfY };
-  if (!f.grabbing && !f.startleActive) { lookTarget = { x: clamp((bfX - headX) / 200, -1, 1), y: clamp((bfY - headY) / 150, -1, 1) }; lookTargetUntil = t + 250; }
+  if (cursorIdle && t < huntUntil && !pouncing) huntTarget = { x: bfX, y: bfY };
+  if (cursorIdle && !f.grabbing && !f.startleActive) { lookTarget = { x: clamp((bfX - headX) / 200, -1, 1), y: clamp((bfY - headY) / 150, -1, 1) }; lookTargetUntil = t + 250; }
   const dh = Math.hypot(bfX - headX, bfY - headY);
   if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting) {
-    if (t > bfSwatCool) { bfSwatCool = t + 900; tailFlickT0 = t; leanTarget = clamp((bfX - pos.x) / 120, -0.12, 0.12); leanUntil = t + 260; }
+    if (cursorIdle && t > bfSwatCool) { bfSwatCool = t + 900; tailFlickT0 = t; leanTarget = clamp((bfX - pos.x) / 120, -0.12, 0.12); leanUntil = t + 260; }
     bfMode = 'dodge'; bfDodgeUntil = t + 460;
     const aw = Math.atan2(bfY - headY, bfX - headX) + (Math.random() - 0.5);
-    bfVx = Math.cos(aw) * 10; bfVy = Math.sin(aw) * 10 - 2;
-    bfWpX = clamp(bfX + Math.cos(aw) * 90, 20, canvas.width - 20); bfWpY = clamp(bfY + Math.sin(aw) * 60, 20, Math.max(30, pos.y - 20));
+    bfVx = Math.cos(aw) * 10; bfVy = Math.sin(aw) * 10;
+    bfWpX = clamp(bfX + Math.cos(aw) * 90, 20, canvas.width - 20); bfWpY = clamp(bfY + Math.sin(aw) * 60, BF_TOP, canvas.height - 40);
   }
 }
 
@@ -1016,7 +1022,7 @@ function draw(t) {
   const follow = !(config && config.followCursor === false);
   const huntOn = follow && !!(config && config.huntOn);
   const dCur = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5));
-  if (huntOn && !grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) { huntUntil = t + 1400; addEnergy(0.6 * step); }
+  if (huntOn && !grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) { huntUntil = t + 1400; huntTarget = null; addEnergy(0.6 * step); }
   const hunting = !startleActive && (FORCED_STATE === 'hunt' || (huntOn && t < huntUntil));
 
   // pet detection (cursor resting on the head, slow, not hunting/grabbing)
