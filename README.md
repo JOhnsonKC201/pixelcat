@@ -12,10 +12,15 @@ desktop pet built with Electron - nearly every sprite, animation, and sound is
 original and procedural (the optional scroll rope-climb can use painterly sprite
 frames; everything else is pure code).
 
+[![live demo](https://img.shields.io/badge/▶_live_demo-22C55E?style=flat&labelColor=15161d)](https://pixelcat-jet.vercel.app)
 [![CI](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml/badge.svg)](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml)
 ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20(beta)-blue)
 ![built with](https://img.shields.io/badge/built%20with-Electron-47848F)
 ![license](https://img.shields.io/badge/license-MIT-green)
+
+### ▶ [Play with the cat in your browser →](https://pixelcat-jet.vercel.app)
+
+*Pet it, type at it to make it knead, scroll-climb, and watch for the butterfly - no install.*
 
 ![pixelcat - every pose across every coat](assets/showcase.png)
 
@@ -66,13 +71,14 @@ to your cursor, to your typing, and to its own internal mood.
 | 👀 **Move your cursor** | The cat watches it and blinks now and then. Flick it fast and the cat crouches, stalks, and **pounces**. A sudden jolt **startles** it (puffs up, freezes, then bolts or creeps back). |
 | ⌨️ **Type in any app** | It leans onto two big keys and **kneads them with its paws**; type fast and it **overheats** (turns red with steam), then cools down. |
 | 🧶 **Scroll anywhere** | Grabs a yarn rope and **climbs** it hand-over-hand - up when you scroll up, down when you scroll down - with a ball of yarn anchored on the floor. |
+| 🦋 **Wait for a visitor** | Once in a while a butterfly flutters in. The cat tracks it, swats at it, and now and then **pounces and catches it** between its paws - then it flutters off again. |
 
 <details>
 <summary><b>🎨 Coats &amp; pixel art</b> - 12 built-in patterns, custom coats, polished sticker look</summary>
 
 - **12 coat patterns** - Orange / Mackerel / Brown tabby, Siamese, Tuxedo, Black,
-  Gray, White, Cream, Tortoiseshell, Calico, Slate. **Right-click** the cat to
-  cycle; your choice is remembered.
+  Gray, White, Cream, Tortoiseshell, Calico, Slate. Ships as **Tuxedo** out of the
+  box; **right-click** the cat to cycle and your choice is remembered.
 - **Custom coats** - design your own (see [Custom coats](#custom-coats)).
 - **Polished pixel art** - white sticker outline (pops on any wallpaper), soft
   top-lit shading, whiskers, ground shadow, sparkly eyes.
