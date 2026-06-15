@@ -624,10 +624,18 @@
       const pounce = (t % 1500) / 1500;
       const lunge = pounce < 0.22 ? Math.sin(pounce / 0.22 * Math.PI) : 0;   // quick forward stalk-pounce
       const crouch = 1 + lunge * 0.10;
+      // aim the pounce at the live butterfly when it's around; otherwise stalk in place
+      const chasing = bflyActive() && bf.inited && !bf.caught;
+      const dirX = chasing ? clamp((bf.x - footX) / 90, -1, 1) : smoothLook.x;
+      const tgtDX = chasing ? clamp(bf.x - footX, -cssW * 0.42, cssW * 0.42) : 0;
+      const tgtUp = chasing ? clamp((footY - SH * scale * 0.5) - bf.y, 0, cssH * 0.7) : 0;
+      const faceL = dirX < 0 ? -1 : 1;
+      const dx = tgtDX * 0.6 * lunge, up = tgtUp * 0.6 * lunge;
       ctx.save();
-      ctx.translate(footX, footY + lunge * 4 * scale); ctx.scale(scale * crouch, scale * (1 - lunge * 0.06));
+      ctx.translate(footX + dx, footY - up + lunge * 4 * scale);
+      ctx.scale(scale * crouch * faceL, scale * (1 - lunge * 0.06));
       ctx.translate(-HW / 2, -HH);
-      drawCat(ctx, huntSprite, palRGB, { bob: 0, blinking, look: smoothLook, dilate: 1.12 });
+      drawCat(ctx, huntSprite, palRGB, { bob: 0, blinking, look: { x: Math.abs(dirX), y: chasing ? clamp((bf.y - (footY - SH * 0.72 * scale)) / 90, -0.6, 0.6) : 0.2 }, dilate: 1.12 });
       ctx.restore();
     }
 
@@ -724,7 +732,7 @@
       // mode transitions
       if (bf.mode === 'dodge' && t > bf.dodgeUntil) bf.mode = 'wander';
       if (bf.mode === 'wander' && t > bf.nextDive) {
-        bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 4000 + Math.random() * 4000;
+        bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 3000 + Math.random() * 3000;
         if (Math.random() < 0.34 && autoState !== 'HUNT') { autoState = 'HUNT'; autoUntil = t + REEL_MS.HUNT; nextAuto = autoUntil + 1600; flickT0 = t; }   // stand-up bat
       }
       if (bf.mode === 'dive' && t > bf.diveUntil) bf.mode = 'wander';
@@ -734,7 +742,13 @@
       if (bf.mode === 'dive') { tx = headX + Math.sin(t / 200) * 22; ty = headY - 6 + Math.cos(t / 170) * 10; }
       else if (bf.mode === 'dodge') { tx = bf.wpX; ty = bf.wpY; }
       else {
-        if (t > bf.nextWp) { bf.wpX = cssW * (0.15 + Math.random() * 0.7); bf.wpY = cssH * (0.16 + Math.random() * 0.5); bf.nextWp = t + 1400 + Math.random() * 1800; }
+        // orbit the cat's head (head-relative box) so the pair stays visually together
+        if (t > bf.nextWp) {
+          const spreadX = Math.min(cssW * 0.34, 150), spreadY = Math.min(cssH * 0.34, 95);
+          bf.wpX = clamp(headX + (Math.random() * 2 - 1) * spreadX, 20, cssW - 20);
+          bf.wpY = clamp(headY + (Math.random() * 2 - 1) * spreadY - 16, 16, cssH * 0.7);
+          bf.nextWp = t + 1300 + Math.random() * 1500;
+        }
         tx = bf.wpX; ty = bf.wpY;
       }
       const accel = bf.mode === 'dodge' ? 0.02 : (bf.mode === 'dive' ? 0.045 : 0.03);
@@ -768,7 +782,7 @@
           catchUntil = t + CATCH_MS; catchT0 = t; catchTX = bf.x; catchTY = bf.y; catchCool = t + 13000;
           bf.caught = true; onBehavior('got it! ♥');
         } else {
-          swatUntil = t + 420; swatTX = bf.x; swatTY = bf.y; swatCool = t + 1400;
+          swatUntil = t + 420; swatTX = bf.x; swatTY = bf.y; swatCool = t + 1100;
           onBehavior('annoyed!');
           bf.mode = 'dodge'; bf.dodgeUntil = t + 520;
           const aw = Math.atan2(dyh, dxh) + (Math.random() - 0.5);

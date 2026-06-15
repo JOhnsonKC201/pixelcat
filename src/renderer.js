@@ -871,10 +871,11 @@ function updateButterflyDesk(t, dt, step, f) {
   if (bfMode !== 'out') {
     if (bfMode === 'in' && Math.hypot(bfX - headX, bfY - headY) < 160) bfMode = 'wander';
     if (bfMode === 'wander' && t > bfNextDive) {
-      bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 5000 + Math.random() * 5000;
+      bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 3500 + Math.random() * 3500;
       if (Math.random() < 0.4 && !f.hunting && !(config && config.huntOn === false) && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
     }
-    if (bfMode === 'dive' && t > bfDiveUntil) bfMode = 'wander';
+    // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
+    if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
   }
   let tx, ty;
   if (bfMode === 'out') { tx = bfX < headX ? -40 : canvas.width + 40; ty = bfY - 60; }
@@ -894,6 +895,9 @@ function updateButterflyDesk(t, dt, step, f) {
   const m = 10;
   if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > canvas.width - m) { bfX = canvas.width - m; bfVx = -Math.abs(bfVx); }
   if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > canvas.height - m) { bfY = canvas.height - m; bfVy = -Math.abs(bfVy); }
+  // while a hunt is winding up (not yet airborne), keep the aim on the live butterfly so
+  // the pounce lands on where it actually is, not a stale snapshot
+  if (t < huntUntil && !pouncing) huntTarget = { x: bfX, y: bfY };
   if (!f.grabbing && !f.startleActive) { lookTarget = { x: clamp((bfX - headX) / 200, -1, 1), y: clamp((bfY - headY) / 150, -1, 1) }; lookTargetUntil = t + 250; }
   const dh = Math.hypot(bfX - headX, bfY - headY);
   if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting) {
