@@ -397,7 +397,9 @@
     let coatIndex = Number(options.coatIndex);
     if (!(coatIndex >= 0 && coatIndex < PATTERNS.length)) {
       const stored = Number(localStorage.getItem('pixelcat.coat'));
-      coatIndex = (stored >= 0 && stored < PATTERNS.length) ? stored : 0;
+      // out-of-box default matches the desktop app: Tuxedo (falls back to 0 if missing)
+      const defaultCoat = Math.max(0, PATTERNS.findIndex(p => p.name === 'Tuxedo'));
+      coatIndex = (stored >= 0 && stored < PATTERNS.length) ? stored : defaultCoat;
     }
     let sitSprite, loafSprite, huntSprite, typeSprite, palRGB, pal, SW, SH;
     function buildCoat(i) {
