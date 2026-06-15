@@ -10,6 +10,11 @@
 <meta property="og:description" content="A from-scratch desktop pet. Follows your cursor, purrs, stretches like mochi, gets the zoomies. 12 coats. Free & open source." />
 <meta property="og:image" content="assets/showcase.png" />
 <meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="pixelcat - a cat that lives on your desktop" />
+<meta name="twitter:description" content="A from-scratch desktop pet. Follows your cursor, purrs, stretches like mochi, gets the zoomies. 12 coats. Free & open source." />
+<meta name="twitter:image" content="assets/showcase.png" />
+<meta name="theme-color" content="#191b22" />
 <link rel="icon" href="assets/icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -206,7 +211,11 @@ h2.sec{font-size:24px; line-height:1.45}
 .coat{background:var(--panel); border:3px solid #11131a; box-shadow:var(--shadow-sm); padding:16px 12px 12px;
   text-align:center; transition:transform .1s steps(2)}
 .coat{transition:transform .1s steps(2), box-shadow .15s, border-color .15s}
+.coat[role="button"]{cursor:pointer}
 .coat:hover{transform:translateY(-4px); border-color:var(--orange); box-shadow:3px 3px 0 0 rgba(0,0,0,.5), 0 0 14px rgba(232,148,60,.25)}
+.coat:focus-visible{outline:3px solid var(--green); outline-offset:3px}
+.coat[aria-pressed="true"]{border-color:var(--orange); box-shadow:3px 3px 0 0 rgba(0,0,0,.5), 0 0 16px rgba(232,148,60,.4)}
+.coat[aria-pressed="true"] .ix{color:var(--orange)}
 /* coat thumbnail = the real project sprite, drawn to a canvas (see cat-preview.js) */
 .swatch{display:block; width:96px; height:118px; margin:0 auto 8px; image-rendering:pixelated}
 .coat .nm{font-size:18px; color:var(--ink); line-height:1.15}
@@ -563,14 +572,26 @@ npm run dist   <span class="c">// windows installer</span></pre>
    geometry + palettes (PixelcatPreview), so the gallery matches the live cat. */
 const grid = document.getElementById('coatGrid');
 const SW_DPR = Math.min(window.devicePixelRatio || 1, 3), SW_W = 96, SW_H = 118;
+const TUX = Math.max(0, PATTERNS.findIndex(p=>p.name==='Tuxedo'));
+const coatCards = [];
+/* clicking (or Enter/Space on) a coat dresses the live hero cat in it */
+function selectCoat(i){
+  coatCards.forEach((c,j)=>c.setAttribute('aria-pressed', j===i ? 'true':'false'));
+  if(window.__cat) window.__cat.setCoat(i);
+}
 PATTERNS.forEach((p,i)=>{
   const el=document.createElement('div'); el.className='coat rv';
+  el.setAttribute('role','button'); el.tabIndex=0; el.setAttribute('aria-pressed','false');
+  el.setAttribute('aria-label','Show the '+p.name+' coat on the live cat');
   const cv=document.createElement('canvas'); cv.className='swatch';
   cv.width=Math.round(SW_W*SW_DPR); cv.height=Math.round(SW_H*SW_DPR);
   cv.style.width=SW_W+'px'; cv.style.height=SW_H+'px';
   const nm=document.createElement('div'); nm.className='nm'; nm.textContent=p.name;
   const ix=document.createElement('div'); ix.className='ix'; ix.textContent='#'+String(i+1).padStart(2,'0');
   el.appendChild(cv); el.appendChild(nm); el.appendChild(ix); grid.appendChild(el);
+  el.addEventListener('click',()=>selectCoat(i));
+  el.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectCoat(i); } });
+  coatCards.push(el);
   if(window.PixelcatPreview) PixelcatPreview.draw(cv, p, PATTERN_BUILD[i], TABBY[i]);
 });
 const custom=document.createElement('div'); custom.className='coat custom rv';
@@ -624,12 +645,12 @@ perch?.addEventListener('click',(e)=>{ meow(); const r=perch.getBoundingClientRe
 const liveCanvas=document.getElementById('liveCat');
 if(liveCanvas && window.PixelCatLive){
   const ddCap=document.getElementById('ddCap');
-  const TUX = Math.max(0, PATTERNS.findIndex(p=>p.name==='Tuxedo'));
   window.__cat=PixelCatLive.init(liveCanvas,{
     coatIndex: TUX,
     onMeow:meow, onHearts:(x,y)=>heartBurst(x,y), cycleCoatOnClick:true,
     onBehavior:(name)=>{ if(ddCap) ddCap.textContent = name || 'watching you…'; },
   });
+  selectCoat(TUX);   // mark the matching gallery card as active
 }
 
 /* konami → zoomies (everything wiggles once) */
