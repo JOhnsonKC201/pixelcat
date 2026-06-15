@@ -46,6 +46,10 @@ body{
 }
 img{display:block}
 a{color:inherit}
+/* keyboard focus: a chunky arcade outline (only for keyboard nav, not mouse clicks) */
+:focus-visible{outline:3px solid var(--green); outline-offset:3px}
+a:focus-visible,.btn:focus-visible,button:focus-visible{outline-offset:4px}
+.dd-input:focus-visible{outline:2px solid var(--orange); outline-offset:2px}
 h1,h2,h3{font-family:"Press Start 2P",monospace; font-weight:400; line-height:1.4; margin:0}
 .px{font-family:"Press Start 2P",monospace}
 
@@ -101,7 +105,7 @@ nav.links a:hover{color:var(--orange)}
   padding:13px 16px; text-decoration:none; color:#15161d; background:var(--orange);
   border:3px solid #0e1016; box-shadow:var(--shadow-sm); transition:transform .06s steps(2), box-shadow .06s steps(2), background .15s;
 }
-.btn:hover{background:#f3a24a}
+.btn:hover{background:#f3a24a; transform:translate(-2px,-2px); box-shadow:5px 5px 0 0 rgba(0,0,0,.5)}
 .btn:active{transform:translate(3px,3px); box-shadow:0 0 0 0 rgba(0,0,0,.5)}
 .btn.ghost{background:var(--panel); color:var(--ink)}
 .btn.ghost:hover{background:var(--panel2)}
@@ -170,7 +174,9 @@ h1.title small{display:block; font-size:34px}
 .perch:active{transform:translateY(2px)}
 
 /* ============================================================ marquee */
-.marquee{border-block:3px solid #0e1016; background:#13141a; overflow:hidden; margin-top:34px}
+.marquee{border-block:3px solid #0e1016; background:#13141a; overflow:hidden; margin-top:34px;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
 .marquee .track{display:flex; gap:0; white-space:nowrap; width:max-content; animation:scroll 26s linear infinite}
 .marquee span{font-family:"Press Start 2P",monospace; font-size:12px; color:var(--ink); padding:16px 26px;
   display:inline-flex; align-items:center; gap:14px}
@@ -178,7 +184,7 @@ h1.title small{display:block; font-size:34px}
 .marquee .s{color:var(--violet)}
 
 /* ============================================================ sections */
-section{padding:72px 0}
+section{padding:72px 0; scroll-margin-top:84px}   /* keep headings clear of the sticky HUD on anchor jumps */
 .sec-head{margin-bottom:36px; max-width:60ch}
 .kicker{font-family:"Press Start 2P",monospace; font-size:10px; color:var(--orange); letter-spacing:1px; margin-bottom:16px}
 h2.sec{font-size:24px; line-height:1.45}
@@ -205,7 +211,8 @@ h2.sec{font-size:24px; line-height:1.45}
 .coatgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:16px}
 .coat{background:var(--panel); border:3px solid #11131a; box-shadow:var(--shadow-sm); padding:16px 12px 12px;
   text-align:center; transition:transform .1s steps(2)}
-.coat:hover{transform:translateY(-4px)}
+.coat{transition:transform .1s steps(2), box-shadow .15s, border-color .15s}
+.coat:hover{transform:translateY(-4px); border-color:var(--orange); box-shadow:3px 3px 0 0 rgba(0,0,0,.5), 0 0 14px rgba(232,148,60,.25)}
 .swatch{width:76px; height:76px; margin:0 auto 12px; position:relative; border:3px solid var(--sw-out);
   border-radius:18px 18px 16px 16px; background:var(--sw-coat); image-rendering:pixelated;
   box-shadow:inset 0 -10px 0 rgba(0,0,0,.12)}
