@@ -214,6 +214,9 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const HOT_BODY = '#d9534f', HOT_OUTLINE = '#7a1f1a';
 
 // ---- draw the cat body into context g (local origin 0,0) -------------------
+// the 'H' halo renders at reduced opacity so the outline reads as a soft glow rim
+// rather than a hard bright sticker ring, while the dark 'O' outline stays crisp.
+const HALO_ALPHA = 0.55;
 function drawCat(g, sp, t, palRGB, o) {
   const { bob = 0, blinking = false, look = { x: 0, y: 0 }, typing = false, eyeMode = 'open', blush = false, dilate = 1 } = o;
   const closed = blinking || eyeMode === 'happy';
@@ -224,9 +227,11 @@ function drawCat(g, sp, t, palRGB, o) {
     const base = ch === 'E' ? (closed ? palRGB.C : palRGB.E) : palRGB[ch];
     if (!base) continue;
     const f = BODY.has(ch) || (ch === 'E' && closed) ? 1.12 - (r / ROWS) * 0.34 : 1;
+    g.globalAlpha = ch === 'H' ? HALO_ALPHA : 1;
     g.fillStyle = f === 1 ? rgbStr(base) : shadeStr(base, f);
     g.fillRect(c * CELL, r * CELL + bob, CELL, CELL);
   }
+  g.globalAlpha = 1;
   if (!typing) {
     g.strokeStyle = 'rgba(245,245,245,0.6)'; g.lineWidth = 1; g.lineCap = 'round';
     const my = sp.muzzle.y + bob, cl = sp.muzzle.x - 4.5 * CELL, cr = sp.muzzle.x + 4.5 * CELL;
@@ -432,7 +437,10 @@ let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
-let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 90000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextWp = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfTopSince = 0;
+let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 90000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextWp = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0;
+// orbit-flight state: angle/radius/spin direction around the cat's head, a hover-pause
+// timer, and a short fading sparkle trail.
+let bfOrbA = 0, bfOrbR = 95, bfOrbDir = 1, bfHoverUntil = 0, bfNextTrail = 0, bfTrail = [];
 let hearts = [], lastHeart = 0, lastBodyTrill = -9999;
 let idleSparkles = [], nextIdleSparkle = 0;
 let loafZZZ = [], nextLoafZ = 0;
@@ -806,8 +814,9 @@ function drawGroom(palRGB, cx, faceY, t) {
 // hunt/pet tuning
 const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300;
 // butterfly play: the cat only engages the butterfly once the cursor has been still this
-// long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge.
-const BF_PLAY_IDLE = 1800, BF_TOP = 46;
+// long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge;
+// BF_EDGE is the screen-edge keep-out for the whole sprite (covers the wingspan).
+const BF_PLAY_IDLE = 1800, BF_TOP = 46, BF_EDGE = 18, BF_SCALE = 1.25;
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
@@ -825,15 +834,17 @@ function persistPos() { localStorage.setItem('pos', JSON.stringify({ x: pos.x, y
 // ---- butterfly visitor (periodic): flits in, pesters the cat, leaves ---------
 var BFLY_STYLES = [
   { name: 'iridescent', halo: '#dfe9ff', main: '#5a3fa0', core: '#56cfe1', glint: '#bdecff', body: '#241f30', shimmer: true },
-  { name: 'monarch',    halo: null,      main: '#e8943c', core: '#b5641d', veins: '#3a2412', dots: '#fff6e8', body: '#1c140c' },
+  { name: 'monarch',    halo: '#ffe6cc',  main: '#e8943c', core: '#b5641d', veins: '#3a2412', dots: '#fff6e8', body: '#1c140c' },
   { name: 'pastel',     halo: '#ffe9f6', main: '#d98fc9', core: '#efb3df', core2: '#cdbcf2', glint: '#ffffff', body: '#2a2433' },
 ];
-function drawButterfly(g, bx, by, sc, st, flap, t) {
+function drawButterfly(g, bx, by, sc, st, flap, t, rot) {
   const open = 0.30 + 0.70 * Math.abs(Math.cos(flap));
   let core = st.core;
   if (st.shimmer) core = lerpHex(st.core, '#9a6cff', 0.5 + 0.5 * Math.sin(t / 430));
-  g.save(); g.translate(bx, by); g.scale(sc, sc);
+  g.save(); g.translate(Math.round(bx), Math.round(by)); g.scale(sc, sc); if (rot) g.rotate(rot);
   const E = (x, y, rx, ry, col) => { if (rx <= 0.2) return; g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
+  // soft glow so it reads on dark backgrounds (every style, including monarch)
+  { const glow = st.halo || st.main; g.globalAlpha = 0.14; E(0, -1, 12 * open + 4, 11, glow); g.globalAlpha = 0.10; E(0, 1, 8, 9, glow); g.globalAlpha = 1; }
   for (const side of [-1, 1]) {
     const ux = side * 7 * open, lx = side * 5.5 * open;
     if (st.halo) { g.globalAlpha = 0.85; E(ux, -3, 6.2 * open + 1, 6.6, st.halo); E(lx, 5, 4.6 * open + 1, 4.8, st.halo); g.globalAlpha = 1; }
@@ -850,11 +861,15 @@ function drawButterfly(g, bx, by, sc, st, flap, t) {
   g.restore();
 }
 function startBflyVisit(t) {
+  if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) pos = { x: canvas.width / 2, y: canvas.height - 80 };
   bfOn = true; bfMode = 'in'; bfUntil = t + 16000 + Math.random() * 6000;
   bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000;
-  const side = Math.random() < 0.5 ? -1 : 1;
-  bfX = clamp(pos.x + side * 220, 20, canvas.width - 20); bfY = clamp(pos.y - SH - 40, 20, canvas.height - 20);
+  // enter from whichever side has more room (toward screen interior) so it never spawns
+  // pinned into a corner.
+  const side = pos.x < canvas.width / 2 ? 1 : -1;
+  bfX = clamp(pos.x + side * 220, BF_EDGE, canvas.width - BF_EDGE); bfY = clamp(pos.y - SH - 40, BF_TOP, canvas.height - BF_EDGE);
   bfVx = -side * 4; bfVy = 0; bfWpX = pos.x; bfWpY = pos.y - SH * 0.8; bfNextWp = t + 1200; bfNextDive = t + 3000; bfDiveUntil = 0; bfDodgeUntil = 0;
+  bfOrbA = side > 0 ? 0 : Math.PI; bfOrbDir = Math.random() < 0.5 ? 1 : -1; bfHoverUntil = 0; bfTrail = [];
 }
 // Flight + cat reaction. f = { follow, grabbing, hunting, typing, petting, startleActive, calm }.
 function updateButterflyDesk(t, dt, step, f) {
@@ -865,6 +880,8 @@ function updateButterflyDesk(t, dt, step, f) {
     else if (allow && t > bfNextVisit && f.calm) startBflyVisit(t);
     if (!bfOn) return;
   }
+  // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully
+  if (config && config.reducedMotion && bfMode !== 'out') bfMode = 'out';
   wantHighFps = true;
   const dtf = Math.min(dt, 50) / 16.67;
   if (t > bfNextPal) { bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000; }
@@ -875,7 +892,7 @@ function updateButterflyDesk(t, dt, step, f) {
   if (t > bfUntil && bfMode !== 'out') bfMode = 'out';
   if (bfMode === 'dodge' && t > bfDodgeUntil) bfMode = 'wander';
   if (bfMode !== 'out') {
-    if (bfMode === 'in' && Math.hypot(bfX - headX, bfY - headY) < 160) bfMode = 'wander';
+    if (bfMode === 'in' && (Math.hypot(bfX - headX, bfY - headY) < 160 || t > bfNextDive)) bfMode = 'wander';
     if (bfMode === 'wander' && t > bfNextDive) {
       bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 3500 + Math.random() * 3500;
       if (cursorIdle && Math.random() < 0.4 && !f.hunting && !(config && config.huntOn === false) && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
@@ -887,8 +904,18 @@ function updateButterflyDesk(t, dt, step, f) {
   if (bfMode === 'out') { tx = bfX < headX ? -40 : canvas.width + 40; ty = bfY; }
   else if (bfMode === 'dive') { tx = headX + Math.sin(t / 200) * 26; ty = headY - 6 + Math.cos(t / 170) * 12; }
   else if (bfMode === 'dodge') { tx = bfWpX; ty = bfWpY; }
-  else { if (t > bfNextWp) { bfWpX = headX + (Math.random() * 2 - 1) * 150; bfWpY = clamp(headY + (Math.random() * 2 - 1) * 90 - 20, BF_TOP, canvas.height - 40); bfNextWp = t + 1400 + Math.random() * 1600; } tx = bfWpX; ty = bfWpY; }
-  const accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : 0.03));
+  else {
+    // gentle elliptical orbit around the cat's head: always near the cat, always on-screen.
+    if (t > bfHoverUntil) bfOrbA += bfOrbDir * 0.020 * dtf;          // hover-pause freezes the spin
+    if (t > bfNextWp) { bfHoverUntil = Math.random() < 0.4 ? t + 600 + Math.random() * 600 : 0; bfNextWp = t + 1400 + Math.random() * 1600; }
+    bfOrbR = 78 + 34 * Math.sin(t / 1700);                            // radius breathes
+    bfWpX = clamp(headX + Math.cos(bfOrbA) * bfOrbR, BF_EDGE, canvas.width - BF_EDGE);
+    bfWpY = clamp(headY + Math.sin(bfOrbA) * bfOrbR * 0.7 - 16, BF_TOP, canvas.height - BF_EDGE);
+    tx = bfWpX; ty = bfWpY;
+  }
+  let accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : 0.03));
+  // ease-out: ease off the throttle as it nears the target so arrivals glide, not snap
+  if (bfMode !== 'dodge' && bfMode !== 'out') accel *= clamp(Math.hypot(tx - bfX, ty - bfY) / 100, 0.4, 1);
   bfVx += (tx - bfX) * accel * dtf; bfVy += (ty - bfY) * accel * dtf;
   bfVx += Math.sin(t / 130 + 1.3) * 0.5 * dtf; bfVy += Math.sin(t / 90) * 0.6 * dtf;
   { const dx = bfX - cursor.x, dy = bfY - cursor.y, d = Math.hypot(dx, dy); if (d < 90 && d > 0.1) { const ff = (90 - d) / 90 * 3.6; bfVx += dx / d * ff * dtf; bfVy += dy / d * ff * dtf; } }
@@ -901,14 +928,25 @@ function updateButterflyDesk(t, dt, step, f) {
   const m = 10;
   if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > canvas.width - m) { bfX = canvas.width - m; bfVx = -Math.abs(bfVx); }
   if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > canvas.height - m) { bfY = canvas.height - m; bfVy = -Math.abs(bfVy); }
-  // anti-stick safety net: if the butterfly lingers against the top edge it has gotten
-  // trapped (regardless of mode/cat position). Boot it back toward the cat's head.
-  if (bfY <= BF_TOP) { if (!bfTopSince) bfTopSince = t; } else bfTopSince = 0;
-  if (bfTopSince && t - bfTopSince > 600 && bfMode !== 'out') { bfMode = 'wander'; bfVy = Math.max(bfVy, 2); bfNextWp = 0; bfTopSince = 0; }
+  // anti-stick safety net: if the butterfly lingers against ANY edge it has gotten trapped
+  // (regardless of mode/cat position). Boot it back toward the cat's head.
+  const atEdge = bfX <= BF_EDGE || bfX >= canvas.width - BF_EDGE || bfY <= BF_TOP || bfY >= canvas.height - BF_EDGE;
+  if (atEdge) { if (!bfEdgeSince) bfEdgeSince = t; } else bfEdgeSince = 0;
+  if (bfEdgeSince && t - bfEdgeSince > 600 && bfMode !== 'out') {
+    bfMode = 'wander'; bfNextWp = 0; bfHoverUntil = 0; bfEdgeSince = 0;
+    bfVx += (headX - bfX) * 0.04; bfVy += (headY - bfY) * 0.04;   // re-aim inward, toward the cat
+  }
+  // short fading sparkle trail (kept tiny; skipped in low power)
+  if (!lowPower && t > bfNextTrail) { bfTrail.push({ x: bfX, y: bfY, t0: t }); bfNextTrail = t + 90; }
+  if (bfTrail.length) bfTrail = bfTrail.filter((s) => t - s.t0 < 480);
   // while a hunt is winding up (not yet airborne), keep the aim on the live butterfly so
   // the pounce lands on where it actually is, not a stale snapshot
   if (cursorIdle && t < huntUntil && !pouncing) huntTarget = { x: bfX, y: bfY };
-  if (cursorIdle && !f.grabbing && !f.startleActive) { lookTarget = { x: clamp((bfX - headX) / 200, -1, 1), y: clamp((bfY - headY) / 150, -1, 1) }; lookTargetUntil = t + 250; }
+  if (cursorIdle && !f.grabbing && !f.startleActive) {
+    lookTarget = { x: clamp((bfX - headX) / 200, -1, 1), y: clamp((bfY - headY) / 150, -1, 1) }; lookTargetUntil = t + 250;
+    // subtle head/body lean tracking the butterfly so the cat reads as watching it play
+    if (!f.hunting && t > bfSwatCool) { leanTarget = clamp((bfX - pos.x) / 280, -0.06, 0.06); leanUntil = t + 220; }
+  }
   const dh = Math.hypot(bfX - headX, bfY - headY);
   if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting) {
     if (cursorIdle && t > bfSwatCool) { bfSwatCool = t + 900; tailFlickT0 = t; leanTarget = clamp((bfX - pos.x) / 120, -0.12, 0.12); leanUntil = t + 260; }
@@ -1364,7 +1402,11 @@ function draw(t) {
     }
   }
 
-  if (bfOn && !lowPower) drawButterfly(ctx, bfX, bfY, 1, BFLY_STYLES[bfPal], bfFlap, t);
+  if (bfOn && !lowPower) {
+    for (const s of bfTrail) { const a = 1 - (t - s.t0) / 480; if (a > 0) { ctx.globalAlpha = a * 0.45; ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(s.x), Math.round(s.y), 2, 2); } }
+    ctx.globalAlpha = 1;
+    drawButterfly(ctx, bfX, bfY, BF_SCALE, BFLY_STYLES[bfPal], bfFlap, t, clamp(bfVx / 44, -0.22, 0.22));
+  }
   // floating hearts (update + draw; persist after petting ends)
   hearts = hearts.filter((h) => t - h.t0 < 1100);
   for (const h of hearts) { const a = (t - h.t0) / 1100; drawHeart(Math.round(h.x + Math.sin(a * 6) * 4), Math.round(h.y - a * 30), a < 0.5 ? '#ff5a6e' : '#ff8a98', (1 - a) * 0.95, h.s || 1); }
