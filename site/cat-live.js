@@ -711,8 +711,8 @@
       const side = Math.random() < 0.5 ? -1 : 1;
       bf.present = true; bf.caught = false; bf.mode = 'wander';
       bf.until = t + 14000 + Math.random() * 7000;
-      bf.x = clamp(hX + side * cssW * 0.42, 14, cssW - 14);
-      bf.y = clamp(hY - 30, 16, cssH * 0.6);
+      bf.x = clamp(hX + side * Math.min(cssW * 0.34, 180), 14, cssW - 14);
+      bf.y = clamp(hY - 20, 20, cssH * 0.55);
       bf.vx = -side * 4; bf.vy = 0;
       bf.wpX = hX; bf.wpY = hY - 16;
       bf.nextWp = t + 1200; bf.nextDive = t + 3000;
@@ -764,11 +764,11 @@
       else if (bf.mode === 'dive') { tx = headX + Math.sin(t / 200) * 22; ty = headY - 6 + Math.cos(t / 170) * 10; }
       else if (bf.mode === 'dodge') { tx = bf.wpX; ty = bf.wpY; }
       else {
-        // orbit the cat's head (head-relative box) so the pair stays visually together
+        // orbit close around the cat's head so it plays with the cat, not the corners
         if (t > bf.nextWp) {
-          const spreadX = Math.min(cssW * 0.34, 150), spreadY = Math.min(cssH * 0.34, 95);
-          bf.wpX = clamp(headX + (Math.random() * 2 - 1) * spreadX, 20, cssW - 20);
-          bf.wpY = clamp(headY + (Math.random() * 2 - 1) * spreadY - 16, 16, cssH * 0.7);
+          const spreadX = Math.min(cssW * 0.26, 120), spreadY = Math.min(cssH * 0.20, 75);
+          bf.wpX = clamp(headX + (Math.random() * 2 - 1) * spreadX, headX - cssW * 0.34, headX + cssW * 0.34);
+          bf.wpY = clamp(headY + (Math.random() * 2 - 1) * spreadY, headY - spreadY, footY - SH * scale * 0.2);
           bf.nextWp = t + 1300 + Math.random() * 1500;
         }
         tx = bf.wpX; ty = bf.wpY;
