@@ -432,7 +432,7 @@ let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
-let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 90000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextWp = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0;
+let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 90000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextWp = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfTopSince = 0;
 let hearts = [], lastHeart = 0, lastBodyTrill = -9999;
 let idleSparkles = [], nextIdleSparkle = 0;
 let loafZZZ = [], nextLoafZ = 0;
@@ -884,7 +884,7 @@ function updateButterflyDesk(t, dt, step, f) {
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
   }
   let tx, ty;
-  if (bfMode === 'out') { tx = bfX < headX ? -40 : canvas.width + 40; ty = bfY - 60; }
+  if (bfMode === 'out') { tx = bfX < headX ? -40 : canvas.width + 40; ty = bfY; }
   else if (bfMode === 'dive') { tx = headX + Math.sin(t / 200) * 26; ty = headY - 6 + Math.cos(t / 170) * 12; }
   else if (bfMode === 'dodge') { tx = bfWpX; ty = bfWpY; }
   else { if (t > bfNextWp) { bfWpX = headX + (Math.random() * 2 - 1) * 150; bfWpY = clamp(headY + (Math.random() * 2 - 1) * 90 - 20, BF_TOP, canvas.height - 40); bfNextWp = t + 1400 + Math.random() * 1600; } tx = bfWpX; ty = bfWpY; }
@@ -901,6 +901,10 @@ function updateButterflyDesk(t, dt, step, f) {
   const m = 10;
   if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > canvas.width - m) { bfX = canvas.width - m; bfVx = -Math.abs(bfVx); }
   if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > canvas.height - m) { bfY = canvas.height - m; bfVy = -Math.abs(bfVy); }
+  // anti-stick safety net: if the butterfly lingers against the top edge it has gotten
+  // trapped (regardless of mode/cat position). Boot it back toward the cat's head.
+  if (bfY <= BF_TOP) { if (!bfTopSince) bfTopSince = t; } else bfTopSince = 0;
+  if (bfTopSince && t - bfTopSince > 600 && bfMode !== 'out') { bfMode = 'wander'; bfVy = Math.max(bfVy, 2); bfNextWp = 0; bfTopSince = 0; }
   // while a hunt is winding up (not yet airborne), keep the aim on the live butterfly so
   // the pounce lands on where it actually is, not a stale snapshot
   if (cursorIdle && t < huntUntil && !pouncing) huntTarget = { x: bfX, y: bfY };
