@@ -470,7 +470,7 @@
     let reelIdx = 0, autoState = null, autoUntil = 0, nextAuto = 9000;
     let lastBehavior = '';
     // butterfly entity (stage CSS-px space) + swat reaction
-    let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextPalAt: 0, inited: false, caught: false };
+    let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextPalAt: 0, present: false, until: 0, nextVisit: -1, caught: false };
     let swatUntil = 0, swatTX = 0, swatTY = 0, swatCool = 0, prevT = 0;
     let catchUntil = 0, catchT0 = 0, catchTX = 0, catchTY = 0, catchCool = -1e9;   // "catch the butterfly" sequence
     const CATCH_MS = 1750;
@@ -524,7 +524,7 @@
 
       const blinking = t < blinkUntil;
       // butterfly hides during the user-driven / cuddle poses
-      const bflyVisible = bflyActive() && bf.inited && !bf.caught && state !== 'TYPE' && state !== 'CLIMB' && state !== 'NUZZLE' && state !== 'CATCH';
+      const bflyVisible = bflyActive() && bf.present && !bf.caught && state !== 'TYPE' && state !== 'CLIMB' && state !== 'NUZZLE' && state !== 'CATCH';
       ctx.clearRect(0, 0, cssW, cssH);
 
       // shadow (skip while climbing — feet leave the floor)
@@ -625,7 +625,7 @@
       const lunge = pounce < 0.22 ? Math.sin(pounce / 0.22 * Math.PI) : 0;   // quick forward stalk-pounce
       const crouch = 1 + lunge * 0.10;
       // aim the pounce at the live butterfly when it's around; otherwise stalk in place
-      const chasing = bflyActive() && bf.inited && !bf.caught;
+      const chasing = bflyActive() && bf.present && !bf.caught;
       const dirX = chasing ? clamp((bf.x - footX) / 90, -1, 1) : smoothLook.x;
       const tgtDX = chasing ? clamp(bf.x - footX, -cssW * 0.42, cssW * 0.42) : 0;
       const tgtUp = chasing ? clamp((footY - SH * scale * 0.5) - bf.y, 0, cssH * 0.7) : 0;
@@ -705,13 +705,29 @@
       }
     }
 
+    // begin an occasional visit: the butterfly flutters in from a side near head height
+    function startBflyVisit(t) {
+      const hX = footX, hY = footY - SH * 0.72 * scale;
+      const side = Math.random() < 0.5 ? -1 : 1;
+      bf.present = true; bf.caught = false; bf.mode = 'wander';
+      bf.until = t + 14000 + Math.random() * 7000;
+      bf.x = clamp(hX + side * cssW * 0.42, 14, cssW - 14);
+      bf.y = clamp(hY - 30, 16, cssH * 0.6);
+      bf.vx = -side * 4; bf.vy = 0;
+      bf.wpX = hX; bf.wpY = hY - 16;
+      bf.nextWp = t + 1200; bf.nextDive = t + 3000;
+      bf.palIdx = (bf.palIdx + 1) % BFLY_STYLES.length; bf.nextPalAt = t + 9000;
+    }
+
     // butterfly flight + cat-reaction logic (stage CSS-px space)
     function updateButterfly(t, dt, state) {
       const busy = state === 'TYPE' || state === 'CLIMB' || state === 'NUZZLE';
       if (!bflyActive() || busy) { lookOverride = null; return; }
-      if (!bf.inited) {
-        bf.x = cssW * 0.25; bf.y = cssH * 0.30; bf.wpX = bf.x; bf.wpY = bf.y;
-        bf.nextWp = t + 1200; bf.nextDive = t + 3000; bf.nextPalAt = t + 9000; bf.inited = true;
+      // occasional-visitor lifecycle: appear, play a while, then leave for a long gap
+      if (!bf.present) {
+        if (bf.nextVisit < 0) bf.nextVisit = t + 9000 + Math.random() * 8000;   // first appearance
+        if (t > bf.nextVisit) startBflyVisit(t);
+        else { lookOverride = null; return; }
       }
       // caught: parked at the cat's paws during the catch sequence, then it escapes upward
       if (bf.caught) {
@@ -720,6 +736,7 @@
           bf.x = footX + (Math.random() * 2 - 1) * 20; bf.y = footY - SH * scale * 0.95;
           bf.vx = (Math.random() * 2 - 1) * 4; bf.vy = -7.5;
           bf.wpX = clamp(footX + (Math.random() * 2 - 1) * 130, 20, cssW - 20); bf.wpY = cssH * 0.22;
+          bf.until = Math.min(bf.until, t + 1800);   // wriggles free, then flutters off shortly after
         } else {
           bf.x = footX; bf.y = footY - SH * scale * 0.12; lookOverride = { x: 0, y: 1 };
           return;
@@ -729,17 +746,22 @@
       if (t > bf.nextPalAt) { bf.palIdx = (bf.palIdx + 1) % BFLY_STYLES.length; bf.nextPalAt = t + 8000 + Math.random() * 4000; }
 
       const headX = footX, headY = footY - SH * 0.72 * scale;
-      // mode transitions
-      if (bf.mode === 'dodge' && t > bf.dodgeUntil) bf.mode = 'wander';
-      if (bf.mode === 'wander' && t > bf.nextDive) {
-        bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 3000 + Math.random() * 3000;
-        if (Math.random() < 0.34 && autoState !== 'HUNT') { autoState = 'HUNT'; autoUntil = t + REEL_MS.HUNT; nextAuto = autoUntil + 1600; flickT0 = t; }   // stand-up bat
+      // visit is over -> head for the nearest edge and leave
+      if (bf.mode !== 'out' && t > bf.until) bf.mode = 'out';
+      // mode transitions (never interrupt a departure)
+      if (bf.mode !== 'out') {
+        if (bf.mode === 'dodge' && t > bf.dodgeUntil) bf.mode = 'wander';
+        if (bf.mode === 'wander' && t > bf.nextDive) {
+          bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 3000 + Math.random() * 3000;
+          if (Math.random() < 0.34 && autoState !== 'HUNT') { autoState = 'HUNT'; autoUntil = t + REEL_MS.HUNT; nextAuto = autoUntil + 1600; flickT0 = t; }   // stand-up bat
+        }
+        if (bf.mode === 'dive' && t > bf.diveUntil) bf.mode = 'wander';
       }
-      if (bf.mode === 'dive' && t > bf.diveUntil) bf.mode = 'wander';
 
       // steering target
       let tx, ty;
-      if (bf.mode === 'dive') { tx = headX + Math.sin(t / 200) * 22; ty = headY - 6 + Math.cos(t / 170) * 10; }
+      if (bf.mode === 'out') { tx = bf.x < headX ? -40 : cssW + 40; ty = bf.y - 50; }
+      else if (bf.mode === 'dive') { tx = headX + Math.sin(t / 200) * 22; ty = headY - 6 + Math.cos(t / 170) * 10; }
       else if (bf.mode === 'dodge') { tx = bf.wpX; ty = bf.wpY; }
       else {
         // orbit the cat's head (head-relative box) so the pair stays visually together
@@ -751,7 +773,7 @@
         }
         tx = bf.wpX; ty = bf.wpY;
       }
-      const accel = bf.mode === 'dodge' ? 0.02 : (bf.mode === 'dive' ? 0.045 : 0.03);
+      const accel = bf.mode === 'dodge' ? 0.02 : (bf.mode === 'dive' ? 0.045 : (bf.mode === 'out' ? 0.05 : 0.03));
       bf.vx += (tx - bf.x) * accel * dtf; bf.vy += (ty - bf.y) * accel * dtf;
       bf.vx += Math.sin(t / 130 + 1.3) * 0.5 * dtf; bf.vy += Math.sin(t / 90) * 0.6 * dtf;   // organic flutter
 
@@ -762,9 +784,21 @@
       }
 
       bf.vx *= 0.92; bf.vy *= 0.92;
-      const sp = Math.hypot(bf.vx, bf.vy), maxv = bf.mode === 'dodge' ? 9.5 : 5.5;
+      const sp = Math.hypot(bf.vx, bf.vy), maxv = bf.mode === 'dodge' ? 9.5 : (bf.mode === 'out' ? 8 : 5.5);
       if (sp > maxv) { bf.vx *= maxv / sp; bf.vy *= maxv / sp; }
       bf.x += bf.vx * dtf; bf.y += bf.vy * dtf;
+
+      // leaving: let it fly off the edge, then despawn until the next (rare) visit
+      if (bf.mode === 'out') {
+        bf.flap += (0.18 + sp * 0.03) * dtf;
+        if (bf.x < -30 || bf.x > cssW + 30) {
+          bf.present = false; bf.nextVisit = t + 70000 + Math.random() * 60000; lookOverride = null;
+        } else {
+          const dxo = bf.x - headX, dyo = bf.y - headY;   // cat's gaze follows it out
+          lookOverride = { x: clamp(dxo / 120, -1, 1), y: clamp(dyo / 90, -1, 1) };
+        }
+        return;
+      }
 
       const m = 14, lo = m, hiX = cssW - m, hiY = cssH * 0.82;
       if (bf.x < lo) { bf.x = lo; bf.vx = Math.abs(bf.vx); } if (bf.x > hiX) { bf.x = hiX; bf.vx = -Math.abs(bf.vx); }
@@ -802,7 +836,7 @@
       const t = now();
       if (reducedMotion) { if (!drewStatic) { paintStatic(); drewStatic = true; } return; }
       const st = resolveState(t);
-      const minFrame = ((st === 'IDLE' || st === 'LOAF') && !(bflyActive() && bf.inited)) ? 33 : 16;
+      const minFrame = ((st === 'IDLE' || st === 'LOAF') && !(bflyActive() && bf.present)) ? 33 : 16;
       if (t - lastDraw >= minFrame) { paint(t); lastDraw = t; }
       rafId = requestAnimationFrame(frame);
     }
@@ -826,7 +860,12 @@
       if (reducedMotion) paintStatic();
     }
     function nextCoat() { setCoat(coatIndex + 1); }
-    function setButterfly(on) { butterflyOn = !!on; if (!butterflyOn) lookOverride = null; kick(); }
+    function setButterfly(on) {
+      butterflyOn = !!on;
+      if (!butterflyOn) { bf.present = false; lookOverride = null; }
+      else { bf.present = false; bf.nextVisit = now() + 9000 + Math.random() * 8000; }   // don't pop in instantly
+      kick();
+    }
 
     // interaction API
     function onClick(e) {

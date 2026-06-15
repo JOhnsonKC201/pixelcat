@@ -309,6 +309,8 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
 /* responsive */
 @media(max-width:900px){
   body{font-size:20px}
+  section{padding:56px 0}
+  .hero{padding:48px 0 24px}
   .hero-grid{grid-template-columns:1fr; gap:34px}
   h1.title,h1.title small{font-size:26px}
   nav.links{display:none}
@@ -316,12 +318,31 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
   .col-3,.col-2,.col-6{grid-column:span 2}
   .agentgrid,.dl,.moods{grid-template-columns:1fr}
   .moods{grid-template-columns:repeat(2,1fr)}
+  /* the cat is the star on phones: trade the wide desktop letterbox for a taller screen */
+  .crt .screen{aspect-ratio:3 / 2}
   .perch{right:18px}
 }
 @media(max-width:560px){
+  .wrap{padding:0 16px}
+  section{padding:44px 0}
   .moods{grid-template-columns:1fr}
   h2.sec{font-size:18px}
+  .lede{font-size:21px}
+  .meta-row{font-size:17px; gap:12px}
+  .hud .wrap{gap:10px; height:58px}
   .hud .cta .btn span{display:none}
+  /* even taller, chunkier TV; shrink the perched sticker so it clears the LIVE label */
+  .crt{padding:12px 12px 26px}
+  .crt .screen{aspect-ratio:5 / 4}
+  .crt .scrlabel{font-size:7px; white-space:nowrap}
+  .perch{width:44px; height:44px; top:-22px; right:12px}
+}
+@media(max-width:420px){
+  /* stack the demo dock so the input isn't crushed between caption and buttons */
+  .demodock{flex-wrap:wrap}
+  .demodock .dd-cap{flex-basis:100%; min-width:0; margin-bottom:2px}
+  .demodock .dd-input{flex:1 1 auto}
+  h1.title,h1.title small{font-size:23px}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important}
