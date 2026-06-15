@@ -467,9 +467,10 @@
     let climbUntil = 0, climbDir = -1, paperLen = 0, climbY = 0;   // climbY = how far up the cat has travelled
     let stretchT0 = -1;
     // auto-showcase reel
-    const REEL = ['HUNT', 'STRETCH', 'ZOOMIES', 'GROOM', 'LOAF'];
-    const REEL_MS = { HUNT: 2600, STRETCH: 1500, ZOOMIES: 3000, GROOM: 2600, LOAF: 4000 };
-    let reelIdx = 0, autoState = null, autoUntil = 0, nextAuto = 9000;
+    // TYPE + CLIMB are showcased automatically too (no manual input on the site)
+    const REEL = ['TYPE', 'HUNT', 'CLIMB', 'STRETCH', 'ZOOMIES', 'GROOM', 'LOAF'];
+    const REEL_MS = { HUNT: 2600, STRETCH: 1500, ZOOMIES: 3000, GROOM: 2600, LOAF: 4000, TYPE: 2200, CLIMB: 2600 };
+    let reelIdx = 0, autoState = null, autoUntil = 0, nextAuto = 9000, lastAutoClimbDir = 1;
     let lastBehavior = '';
     // butterfly entity (stage CSS-px space) + swat reaction
     let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextPalAt: 0, present: false, until: 0, nextVisit: -1, caught: false };
@@ -493,11 +494,22 @@
       if (state === 'IDLE') {
         if (t > nextFlick) { flickT0 = t; nextFlick = t + 4000 + Math.random() * 5000; }
         if (autoShow && t > nextAuto) {
-          autoState = REEL[reelIdx % REEL.length]; reelIdx++;
-          autoUntil = t + (REEL_MS[autoState] || 2600);
-          nextAuto = autoUntil + 1600 + Math.random() * 1400;
-          if (autoState === 'STRETCH') stretchT0 = t;
-          if (autoState === 'HUNT' || autoState === 'ZOOMIES') flickT0 = t;
+          const pick = REEL[reelIdx % REEL.length]; reelIdx++;
+          const dur = REEL_MS[pick] || 2600;
+          nextAuto = t + dur + 1600 + Math.random() * 1400;
+          if (pick === 'TYPE') {
+            // drive the typing knead automatically, kept below the overheat threshold
+            typeUntil = t + dur; lastKeyAt = t; heat = Math.min(0.5, heat + 0.3); autoState = null;
+          } else if (pick === 'CLIMB') {
+            // auto-climb: alternate up/down each time so it scrolls both ways
+            lastAutoClimbDir = -lastAutoClimbDir; climbDir = lastAutoClimbDir;
+            climbUntil = t + dur; paperLen = Math.min(60, paperLen + 40);
+            climbY = clamp(climbY + (climbDir < 0 ? 22 : -22), -cssH * 0.16, cssH * 0.32); autoState = null;
+          } else {
+            autoState = pick; autoUntil = t + dur;
+            if (pick === 'STRETCH') stretchT0 = t;
+            if (pick === 'HUNT' || pick === 'ZOOMIES') flickT0 = t;
+          }
         }
       }
     }

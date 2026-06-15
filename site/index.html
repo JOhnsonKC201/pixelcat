@@ -49,7 +49,6 @@ a{color:inherit}
 /* keyboard focus: a chunky arcade outline (only for keyboard nav, not mouse clicks) */
 :focus-visible{outline:3px solid var(--green); outline-offset:3px}
 a:focus-visible,.btn:focus-visible,button:focus-visible{outline-offset:4px}
-.dd-input:focus-visible{outline:2px solid var(--orange); outline-offset:2px}
 h1,h2,h3{font-family:"Press Start 2P",monospace; font-weight:400; line-height:1.4; margin:0}
 .px{font-family:"Press Start 2P",monospace}
 
@@ -144,16 +143,7 @@ h1.title small{display:block; font-size:34px}
   background:#0c0d12; border:3px solid #0e1016; box-shadow:var(--shadow-sm); padding:10px 12px}
 .demodock .dd-cap{font-family:"Press Start 2P",monospace; font-size:9px; color:var(--green);
   min-width:96px; letter-spacing:.5px; text-shadow:0 0 8px rgba(139,191,90,.5)}
-.demodock .dd-input{flex:1; min-width:0; background:#15161d; color:var(--ink); border:2px solid var(--line);
-  font-family:"VT323",monospace; font-size:19px; padding:7px 10px; outline:none; caret-color:var(--orange)}
-.demodock .dd-input:focus{border-color:var(--orange)}
-.demodock .dd-input::placeholder{color:var(--faint)}
-.demodock .dd-climb{display:flex; flex-direction:column; gap:3px}
-.demodock .dd-btn{font-family:"Press Start 2P",monospace; font-size:9px; line-height:1; color:#15161d;
-  background:var(--orange); border:2px solid #0e1016; padding:4px 8px; cursor:pointer; user-select:none}
-.demodock .dd-btn:hover{background:#f3a24a}
-.demodock .dd-btn:active{transform:translateY(1px)}
-@media(max-width:560px){ .demodock .dd-input::placeholder{color:transparent} .demodock .dd-cap{min-width:74px} }
+@media(max-width:560px){ .demodock .dd-cap{min-width:74px} }
 .crt .screen::after{content:""; position:absolute; inset:0; pointer-events:none;
   background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 2px,transparent 2px 4px);
   mix-blend-mode:multiply}
@@ -216,24 +206,8 @@ h2.sec{font-size:24px; line-height:1.45}
   text-align:center; transition:transform .1s steps(2)}
 .coat{transition:transform .1s steps(2), box-shadow .15s, border-color .15s}
 .coat:hover{transform:translateY(-4px); border-color:var(--orange); box-shadow:3px 3px 0 0 rgba(0,0,0,.5), 0 0 14px rgba(232,148,60,.25)}
-.swatch{width:76px; height:76px; margin:0 auto 12px; position:relative; border:3px solid var(--sw-out);
-  border-radius:18px 18px 16px 16px; background:var(--sw-coat); image-rendering:pixelated;
-  box-shadow:inset 0 -10px 0 rgba(0,0,0,.12)}
-/* ears */
-.swatch::before,.swatch::after{content:""; position:absolute; top:-13px; width:0; height:0;
-  border-left:11px solid transparent; border-right:11px solid transparent; border-bottom:16px solid var(--sw-coat);
-  filter:drop-shadow(0 -2px 0 var(--sw-out))}
-.swatch::before{left:6px; transform:rotate(-12deg)}
-.swatch::after{right:6px; transform:rotate(12deg)}
-.swatch .face{position:absolute; inset:0}
-.swatch .eye{position:absolute; top:30px; width:11px; height:11px; border-radius:50%; background:var(--sw-eye);
-  box-shadow:0 0 0 2px rgba(0,0,0,.35)}
-.swatch .eye.l{left:16px} .swatch .eye.r{right:16px}
-.swatch .nose{position:absolute; top:44px; left:50%; transform:translateX(-50%); width:9px; height:7px;
-  border-radius:0 0 50% 50%; background:var(--sw-nose)}
-.swatch .patch{position:absolute; bottom:8px; right:10px; width:18px; height:14px; border-radius:6px; background:var(--sw-patch); opacity:var(--sw-pa,0)}
-.swatch .stripe{position:absolute; top:8px; left:50%; transform:translateX(-50%); width:18px; height:4px;
-  background:var(--sw-mark); box-shadow:0 6px 0 var(--sw-mark); opacity:var(--sw-tb,0); border-radius:2px}
+/* coat thumbnail = the real project sprite, drawn to a canvas (see cat-preview.js) */
+.swatch{display:block; width:96px; height:118px; margin:0 auto 8px; image-rendering:pixelated}
 .coat .nm{font-size:18px; color:var(--ink); line-height:1.15}
 .coat .ix{font-size:13px; color:var(--faint)}
 .coat.custom{display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -348,10 +322,6 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
   .perch{width:44px; height:44px; top:-22px; right:12px}
 }
 @media(max-width:420px){
-  /* stack the demo dock so the input isn't crushed between caption and buttons */
-  .demodock{flex-wrap:wrap}
-  .demodock .dd-cap{flex-basis:100%; min-width:0; margin-bottom:2px}
-  .demodock .dd-input{flex:1 1 auto}
   h1.title,h1.title small{font-size:23px}
 }
 @media(prefers-reduced-motion:reduce){
@@ -411,15 +381,9 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
         <span class="brandtag">PIXELCAT-CRT</span>
         <span class="led"></span>
       </div>
-      <!-- interactive demo dock: drive the cat's typing / climb / pet behaviours -->
-      <div class="demodock" aria-label="Try the cat">
+      <!-- auto-demo caption: the cat showcases itself (typing, climbing, hunting…) -->
+      <div class="demodock" aria-label="What the cat is doing">
         <span class="dd-cap" id="ddCap" aria-live="polite">watching you…</span>
-        <input id="ddType" class="dd-input" type="text" maxlength="40" autocomplete="off" spellcheck="false"
-               placeholder="type here — the cat kneads (go fast = overheat)" aria-label="Type to make the cat knead the keyboard" />
-        <span class="dd-climb">
-          <button type="button" id="ddUp" class="dd-btn" aria-label="Make the cat climb up">▲</button>
-          <button type="button" id="ddDown" class="dd-btn" aria-label="Make the cat climb down">▼</button>
-        </span>
       </div>
     </div>
   </div>
@@ -591,16 +555,22 @@ npm run dist   <span class="c">// windows installer</span></pre>
 </footer>
 
 <script src="cat-sprite.js"></script>
+<script src="cat-preview.js"></script>
 <script src="cat-live.js"></script>
 <script>
-/* coat palettes — sourced from cat-sprite.js (PATTERNS), the single source of truth */
-const COATS = PATTERNS.map((p, i) => ({ n: p.name, coat: p.coat, mark: p.mark, patch: p.patch || p.coat, eye: p.eye, nose: p.nose, outline: p.outline, tabby: !!TABBY[i] }));
+/* coat thumbnails — the REAL project sprite, drawn per coat from the shared
+   geometry + palettes (PixelcatPreview), so the gallery matches the live cat. */
 const grid = document.getElementById('coatGrid');
-COATS.forEach((c,i)=>{
+const SW_DPR = Math.min(window.devicePixelRatio || 1, 3), SW_W = 96, SW_H = 118;
+PATTERNS.forEach((p,i)=>{
   const el=document.createElement('div'); el.className='coat rv';
-  el.style.cssText=`--sw-coat:${c.coat};--sw-out:${c.outline};--sw-eye:${c.eye};--sw-nose:${c.nose};--sw-mark:${c.mark};--sw-patch:${c.patch};--sw-pa:${c.patch.toLowerCase()!==c.coat.toLowerCase()?1:0};--sw-tb:${c.tabby?1:0}`;
-  el.innerHTML=`<div class="swatch"><div class="face"><span class="stripe"></span><span class="eye l"></span><span class="eye r"></span><span class="nose"></span><span class="patch"></span></div></div><div class="nm">${c.n}</div><div class="ix">#${String(i+1).padStart(2,'0')}</div>`;
-  grid.appendChild(el);
+  const cv=document.createElement('canvas'); cv.className='swatch';
+  cv.width=Math.round(SW_W*SW_DPR); cv.height=Math.round(SW_H*SW_DPR);
+  cv.style.width=SW_W+'px'; cv.style.height=SW_H+'px';
+  const nm=document.createElement('div'); nm.className='nm'; nm.textContent=p.name;
+  const ix=document.createElement('div'); ix.className='ix'; ix.textContent='#'+String(i+1).padStart(2,'0');
+  el.appendChild(cv); el.appendChild(nm); el.appendChild(ix); grid.appendChild(el);
+  if(window.PixelcatPreview) PixelcatPreview.draw(cv, p, PATTERN_BUILD[i], TABBY[i]);
 });
 const custom=document.createElement('div'); custom.className='coat custom rv';
 custom.innerHTML=`<div class="big">+</div><div class="nm">design your own<br/>custom coat</div>`;
@@ -647,18 +617,18 @@ function heartBurst(x,y){
 const perch=document.getElementById('perchCat');
 perch?.addEventListener('click',(e)=>{ meow(); const r=perch.getBoundingClientRect(); heartBurst(r.left+r.width/2,r.top); });
 
-/* live interactive cat inside the CRT screen + demo dock (type / climb / pet) */
+/* live cat inside the CRT screen — defaults to Tuxedo (the out-of-box coat) and
+   auto-demos its behaviours (typing, climbing, hunting…) with no manual controls.
+   Click still pets; right-click still cycles coats. */
 const liveCanvas=document.getElementById('liveCat');
 if(liveCanvas && window.PixelCatLive){
-  const ddCap=document.getElementById('ddCap'), ddType=document.getElementById('ddType');
-  const ddUp=document.getElementById('ddUp'), ddDown=document.getElementById('ddDown');
+  const ddCap=document.getElementById('ddCap');
+  const TUX = Math.max(0, PATTERNS.findIndex(p=>p.name==='Tuxedo'));
   window.__cat=PixelCatLive.init(liveCanvas,{
+    coatIndex: TUX,
     onMeow:meow, onHearts:(x,y)=>heartBurst(x,y), cycleCoatOnClick:true,
     onBehavior:(name)=>{ if(ddCap) ddCap.textContent = name || 'watching you…'; },
   });
-  ddType?.addEventListener('input',()=>{ window.__cat.type(); });
-  ddUp?.addEventListener('click',()=>{ window.__cat.climb(-1); });
-  ddDown?.addEventListener('click',()=>{ window.__cat.climb(1); });
 }
 
 /* konami → zoomies (everything wiggles once) */
