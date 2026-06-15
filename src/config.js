@@ -83,12 +83,16 @@ function normalize(cfg) {
     })(),
     email: (() => {
       const e = (c.email && typeof c.email === 'object') ? c.email : {};
+      const port = clampInt(e.port, 1, 65535, 993);
+      // Enforce implicit TLS except on the STARTTLS port (143). This blocks a
+      // plaintext downgrade (secure:false on 993) from a malformed/forged config.
+      const secure = port === 143 ? !!e.secure : true;
       return {
         on: !!e.on,
         host: String(e.host == null ? '' : e.host).trim().slice(0, 120),
-        port: clampInt(e.port, 1, 65535, 993),
+        port,
         user: String(e.user == null ? '' : e.user).trim().slice(0, 160),
-        secure: e.secure === undefined ? true : !!e.secure,
+        secure,
         intervalMin: clampInt(e.intervalMin, 1, 60, 5),
       };
     })(),

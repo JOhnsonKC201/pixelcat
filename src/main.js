@@ -86,6 +86,14 @@ function startCursorTimer(tick) {
   cursorTimer = setInterval(tick, effectiveLowPower() ? 50 : 33);
 }
 
+// Defence-in-depth: these windows only ever load local files, so deny any
+// navigation or window-open attempt outright (would only fire if renderer content
+// were ever compromised).
+function hardenNav(w) {
+  w.webContents.on('will-navigate', (e) => e.preventDefault());
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+}
+
 function createWindow() {
   const b = screen.getPrimaryDisplay().bounds; // laptop / primary display only (no extended screen)
   origin = { x: b.x, y: b.y };
@@ -93,7 +101,7 @@ function createWindow() {
   const opts = {
     transparent: true, frame: false, resizable: false, alwaysOnTop: true,
     skipTaskbar: true, hasShadow: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   };
   if (SHOT || SHEET) {
     // Small focusable window for previews (no overlay/click-through). The sheet
@@ -104,6 +112,7 @@ function createWindow() {
     Object.assign(opts, { x: b.x, y: b.y, width: b.width, height: b.height, focusable: false, enableLargerThanScreen: true });
   }
   win = new BrowserWindow(opts);
+  hardenNav(win);
   win.setAlwaysOnTop(true, 'screen-saver');
   // macOS: follow the user across Spaces and fullscreen apps (no-op elsewhere).
   if (process.platform === 'darwin' && !SHOT && !SHEET) {
@@ -393,8 +402,9 @@ function openSettings() {
     width: 400, height: 560, resizable: false, fullscreenable: false, maximizable: false,
     title: 'pixelcat settings', skipTaskbar: false, alwaysOnTop: true,
     show: false, backgroundColor: '#191b22',   // dark from the first paint - no white flash
-    webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
+  hardenNav(settingsWin);
   settingsWin.setMenuBarVisibility(false);
   settingsWin.once('ready-to-show', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.show(); });
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
@@ -604,7 +614,14 @@ ipcMain.handle('email:setPassword', (_e, pw) => mail.setPassword(pw));
 ipcMain.handle('email:test', (_e, pw) => mail.test(cfg, pw && String(pw).length ? String(pw) : null));
 ipcMain.handle('calendar:test', () => cal.test(cfg));
 ipcMain.handle('settings:get', () => cfg);
-ipcMain.handle('settings:save', (_e, partial) => { persistAndBroadcast({ ...cfg, ...(partial || {}) }); return cfg; });
+ipcMain.handle('settings:save', (_e, partial) => {
+  // reject anything that isn't a small plain object before merging (normalize is the
+  // real sanitizer, but this caps the in-flight allocation and drops junk payloads)
+  if (!partial || typeof partial !== 'object' || Array.isArray(partial)) return cfg;
+  try { if (JSON.stringify(partial).length > 65536) return cfg; } catch (e) { return cfg; }
+  persistAndBroadcast({ ...cfg, ...partial });
+  return cfg;
+});
 ipcMain.handle('themes:get', () => themesCache);
 ipcMain.handle('themes:add', (_e, t) => { themesCache = themes.save([...themesCache, t]); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
 ipcMain.handle('themes:delete', (_e, name) => { themesCache = themes.save(themesCache.filter((x) => x.name !== name)); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
