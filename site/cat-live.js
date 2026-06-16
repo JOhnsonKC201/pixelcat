@@ -343,35 +343,51 @@
 
   // ---- the butterfly that annoys the cat -------------------------------------
 
-  // Three wing styles the butterfly cycles through over time.
+  // Wing styles the butterfly wears; it swaps color by ducking off-screen (a "costume lap").
   var BFLY_STYLES = [
     { name: 'iridescent', halo: '#dfe9ff', main: '#5a3fa0', core: '#56cfe1', glint: '#bdecff', body: '#241f30', shimmer: true },
     { name: 'monarch',    halo: null,      main: '#e8943c', core: '#b5641d', veins: '#3a2412', dots: '#fff6e8', body: '#1c140c' },
     { name: 'pastel',     halo: '#ffe9f6', main: '#d98fc9', core: '#efb3df', core2: '#cdbcf2', glint: '#ffffff', body: '#2a2433' },
+    { name: 'emerald',    halo: '#dffbe9', main: '#2f9e6b', core: '#7fe3a8', glint: '#eafff3', body: '#15241c' },
+    { name: 'crimson',    halo: '#ffe0e0', main: '#c0392b', core: '#ff8a7a', dots: '#fff0ec', body: '#2a1414' },
+    { name: 'azure',      halo: '#e0f0ff', main: '#2f6fd0', core: '#79b8ff', glint: '#f0f8ff', body: '#141d2a' },
   ];
+  // Pick a random style index different from `exclude`, so a costume lap always looks new.
+  function pickStyle(exclude) {
+    if (BFLY_STYLES.length < 2) return 0;
+    let i; do { i = Math.floor(Math.random() * BFLY_STYLES.length); } while (i === exclude);
+    return i;
+  }
 
   // Draw a pixel-art butterfly centred at (bx,by), world space. `s` scales it,
   // `flap` is the wing-beat phase (wings open ↔ edge-on), `st` is a style palette.
-  function drawButterfly(g, bx, by, s, st, flap, t) {
+  function drawButterfly(g, bx, by, s, st, flap, t, shiny) {
     const open = 0.30 + 0.70 * Math.abs(Math.cos(flap));            // 1 = wings flat to viewer, ~0.3 = edge-on
-    let core = st.core;
-    if (st.shimmer) core = lerpHex(st.core, '#9a6cff', 0.5 + 0.5 * Math.sin(t / 430));   // iridescent shimmer
+    let main = st.main, core = st.core, halo = st.halo, glint = st.glint;
+    if (shiny) {                                                    // rare variant: a slow rainbow shimmer
+      const hue = (t / 12) % 360;
+      main = `hsl(${hue}, 85%, 60%)`; core = `hsl(${(hue + 45) % 360}, 95%, 78%)`;
+      halo = `hsl(${hue}, 90%, 88%)`; glint = '#ffffff';
+    } else if (st.shimmer) {
+      core = lerpHex(st.core, '#9a6cff', 0.5 + 0.5 * Math.sin(t / 430));   // iridescent shimmer
+    }
     g.save(); g.translate(bx, by); g.scale(s, s);
     const E = (x, y, rx, ry, col) => { if (rx <= 0.2) return; g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); };
     for (const side of [-1, 1]) {
       const ux = side * 7 * open, lx = side * 5.5 * open;
-      if (st.halo) { g.globalAlpha = 0.85; E(ux, -3, 6.2 * open + 1, 6.6, st.halo); E(lx, 5, 4.6 * open + 1, 4.8, st.halo); g.globalAlpha = 1; }
-      E(ux, -3, 6.0 * open, 6.2, st.main); E(ux, -3.6, 4.0 * open, 4.4, core);            // upper wing
-      E(lx, 5, 4.4 * open, 4.6, st.main); E(lx, 5, 2.8 * open, 3.0, st.core2 || core);    // lower wing
+      if (halo) { g.globalAlpha = shiny ? 0.95 : 0.85; E(ux, -3, 6.2 * open + 1, 6.6, halo); E(lx, 5, 4.6 * open + 1, 4.8, halo); g.globalAlpha = 1; }
+      E(ux, -3, 6.0 * open, 6.2, main); E(ux, -3.6, 4.0 * open, 4.4, core);                // upper wing
+      E(lx, 5, 4.4 * open, 4.6, main); E(lx, 5, 2.8 * open, 3.0, st.core2 || core);        // lower wing
       if (st.veins) { g.strokeStyle = st.veins; g.lineWidth = 0.7; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(0, -2); g.lineTo(side * (8 * open + k), -7 + k); g.stroke(); } }
       if (st.dots) { E(side * 9 * open, -6, 0.8, 0.8, st.dots); E(side * 6 * open, 2, 0.8, 0.8, st.dots); }
-      if (st.glint) { g.fillStyle = st.glint; g.fillRect(Math.round(side * 8 * open - 0.5), -6, 1, 1); }
+      if (glint) { g.fillStyle = glint; g.fillRect(Math.round(side * 8 * open - 0.5), -6, 1, 1); }
+      if (shiny) { g.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(t / 90 + side)); g.fillStyle = '#ffffff'; g.fillRect(Math.round(side * 6 * open), -4, 1, 1); g.globalAlpha = 1; }
     }
     // body + head + antennae
     E(0, 0, 1.4, 8, st.body); E(0, -7, 1.6, 1.9, st.body);
     g.strokeStyle = st.body; g.lineWidth = 0.8; g.lineCap = 'round';
     g.beginPath(); g.moveTo(0, -8); g.lineTo(-2.6, -12.5); g.moveTo(0, -8); g.lineTo(2.6, -12.5); g.stroke();
-    g.fillStyle = st.glint || core; g.fillRect(-3, -13, 1, 1); g.fillRect(2, -13, 1, 1);   // antenna tips
+    g.fillStyle = glint || core; g.fillRect(-3, -13, 1, 1); g.fillRect(2, -13, 1, 1);       // antenna tips
     g.restore();
   }
 
@@ -485,10 +501,16 @@
     let reelIdx = 0, autoState = null, autoUntil = 0, nextAuto = 9000, lastAutoClimbDir = 1;
     let lastBehavior = '';
     // butterfly entity (stage CSS-px space) + swat reaction
-    let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextPalAt: 0, present: false, until: 0, nextVisit: -1, caught: false };
+    let bf = { x: 0, y: 0, vx: 10, vy: 4, flap: 0, mode: 'wander', wpX: 0, wpY: 0, nextWp: 0, nextDive: 0, diveUntil: 0, dodgeUntil: 0, palIdx: 0, nextLap: 0, lapEdge: -1, landUntil: 0, shiny: false, present: false, until: 0, nextVisit: -1, caught: false };
     let swatUntil = 0, swatTX = 0, swatTY = 0, swatCool = 0, prevT = 0;
     let catchUntil = 0, catchT0 = 0, catchTX = 0, catchTY = 0, catchCool = -1e9;   // "catch the butterfly" sequence
     const CATCH_MS = 1750;
+    // butterfly play extras: cross-eyed perch + sneeze, whiff confusion, cursor lure, lap poof, transient caption
+    let landReactUntil = 0, landCool = -1e9, sneezeT0 = 0, sneezeUntil = 0, confusedUntil = 0;
+    let curSpeed = 0, lastCurX = 0, lastCurY = 0, lastCurT = 0;
+    let lapPoofT0 = -1, lapPoofX = 0, lapPoofY = 0;
+    let tempCap = '', tempCapUntil = 0;
+    function say(s, ms) { tempCap = s; tempCapUntil = now() + (ms || 900); }
     function bflyActive() { return butterflyOn && !reducedMotion; }
 
     function userBusy(t) { return t < nuzzleUntil || t < climbUntil || t < typeUntil; }
@@ -534,7 +556,7 @@
       ctx.translate(footX, footY - dyPush); ctx.rotate(rot || 0); ctx.scale(scale * (sx || 1), scale * (sy || 1));
     }
 
-    function drawBfly(t) { drawButterfly(ctx, bf.x, bf.y, scale * 0.95, BFLY_STYLES[bf.palIdx], bf.flap, t); }
+    function drawBfly(t) { drawButterfly(ctx, bf.x, bf.y, scale * 0.95, BFLY_STYLES[bf.palIdx], bf.flap, t, bf.shiny); }
 
     function paint(t) {
       const state = resolveState(t);
@@ -547,13 +569,16 @@
       if (t - lastKeyAt > 180) heat = Math.max(0, heat - 0.012);
       if (t > climbUntil) paperLen = Math.max(0, paperLen - 0.5);
 
-      const cap = CAPTION[state] || '';
+      const cap = t < tempCapUntil ? tempCap : (CAPTION[state] || '');
       if (cap !== lastBehavior) { lastBehavior = cap; onBehavior(cap); }
 
       const blinking = t < blinkUntil;
       // butterfly hides during the user-driven / cuddle poses
       const bflyVisible = bflyActive() && bf.present && !bf.caught && state !== 'TYPE' && state !== 'CLIMB' && state !== 'NUZZLE' && state !== 'CATCH';
       ctx.clearRect(0, 0, cssW, cssH);
+
+      // costume-lap sparkle poof at the screen edge where the butterfly ducked out
+      if (lapPoofT0 >= 0 && t - lapPoofT0 < 360) catchSparkle(lapPoofX, lapPoofY, t, (t - lapPoofT0) / 360);
 
       // shadow (skip while climbing — feet leave the floor)
       if (state !== 'CLIMB') {
@@ -587,7 +612,12 @@
         fx = footX + Math.sin(t / 165) * (cssW * 0.26);
         petting = true;
       }
-      const bob = Math.round(Math.sin(t / 1500) * (state === 'LOAF' ? 0.8 : 1.6));
+      // butterfly perched on the nose -> wide-eyed cross-eyed freeze; perch ends -> achoo recoil
+      let dilate = 1;
+      const landing = state === 'IDLE' && t < landReactUntil, sneezing = state === 'IDLE' && t < sneezeUntil;
+      if (sneezing) { petPush += Math.sin((t - sneezeT0) / 600 * Math.PI) * 5; eyeMode = 'happy'; }
+      else if (landing) { dilate = 1.5; }
+      const bob = (landing || sneezing) ? 0 : Math.round(Math.sin(t / 1500) * (state === 'LOAF' ? 0.8 : 1.6));
       const faceLeft = state === 'ZOOMIES' && Math.cos(t / 165) < 0;
 
       // tail behind (sit poses only; loaf has a baked wrapped tail)
@@ -598,7 +628,7 @@
       ctx.save();
       ctx.translate(fx, footY - petPush * scale); ctx.rotate(lean); ctx.scale(scale * sqX * (faceLeft ? -1 : 1), scale * sqY);
       ctx.translate(-SW / 2, -SH);
-      drawCat(ctx, sp, palRGB, { bob, blinking, look: faceLeft ? { x: -smoothLook.x, y: smoothLook.y } : smoothLook, eyeMode, blush: state === 'NUZZLE' });
+      drawCat(ctx, sp, palRGB, { bob, blinking, look: faceLeft ? { x: -smoothLook.x, y: smoothLook.y } : smoothLook, eyeMode, blush: state === 'NUZZLE', dilate });
       if (state === 'GROOM') {
         // lift the LEFT front paw to the mouth: paint over its planted white mitt so the
         // cat shows one planted + one raised paw (instead of three).
@@ -731,7 +761,7 @@
         drawCat(ctx, sitSprite, palRGB, { bob: 0, blinking, look: { x: 0, y: 0.75 }, eyeMode: 'happy', blush: true });
         ctx.restore();
         const by = footY - SH * scale * 0.12 + Math.sin(t / 120) * 1.5;
-        drawButterfly(ctx, footX, by, scale * 0.78, BFLY_STYLES[bf.palIdx], t / 70, t);
+        drawButterfly(ctx, footX, by, scale * 0.78, BFLY_STYLES[bf.palIdx], t / 70, t, bf.shiny);
       }
     }
 
@@ -745,8 +775,8 @@
       bf.y = clamp(hY - 20, 20, cssH * 0.55);
       bf.vx = -side * 4; bf.vy = 0;
       bf.wpX = hX; bf.wpY = hY - 16;
-      bf.nextWp = t + 1200; bf.nextDive = t + 3000;
-      bf.palIdx = (bf.palIdx + 1) % BFLY_STYLES.length; bf.nextPalAt = t + 9000;
+      bf.nextWp = t + 1200; bf.nextDive = t + 2400;
+      bf.palIdx = pickStyle(bf.palIdx); bf.shiny = Math.random() < 0.10; bf.nextLap = t + 8000 + Math.random() * 7000;
     }
 
     // butterfly flight + cat-reaction logic (stage CSS-px space)
@@ -772,8 +802,24 @@
           return;
         }
       }
+      // perched on the nose: hold a cross-eyed freeze, then sneeze it off
+      if (bf.mode === 'land') {
+        const nx = footX + (sitSprite.muzzle.x - SW / 2) * scale;
+        const ny = footY - SH * scale + sitSprite.muzzle.y * scale;
+        bf.x = nx; bf.y = ny - 2 + Math.sin(t / 160); bf.flap += 0.08;
+        landReactUntil = t + 120; lookOverride = { x: 0, y: 1 };
+        if (t > bf.landUntil) {
+          sneezeT0 = t; sneezeUntil = t + 600; say('achoo!', 800);
+          bf.mode = 'dodge'; bf.dodgeUntil = t + 700;
+          bf.vx = (Math.random() * 2 - 1) * 3; bf.vy = -8;
+          bf.wpX = clamp(footX + (Math.random() * 2 - 1) * 120, 20, cssW - 20); bf.wpY = cssH * 0.22;
+          if (rect) onHearts(rect.left + nx, rect.top + ny - 6);
+        }
+        return;
+      }
       const dtf = Math.min(dt, 50) / 16.67;
-      if (t > bf.nextPalAt) { bf.palIdx = (bf.palIdx + 1) % BFLY_STYLES.length; bf.nextPalAt = t + 8000 + Math.random() * 4000; }
+      // cursor speed (px/ms), smoothed — used to tell a still cursor (lure) from a fast flick (flee)
+      if (rect) { const ddt = Math.max(1, t - lastCurT); curSpeed += (Math.min(3, Math.hypot(curX - lastCurX, curY - lastCurY) / ddt) - curSpeed) * 0.3; lastCurX = curX; lastCurY = curY; lastCurT = t; }
 
       const headX = footX, headY = footY - SH * 0.72 * scale;
       // visit is over -> head for the nearest edge and leave
@@ -781,40 +827,49 @@
       // mode transitions (never interrupt a departure)
       if (bf.mode !== 'out') {
         if (bf.mode === 'dodge' && t > bf.dodgeUntil) bf.mode = 'wander';
-        if (bf.mode === 'wander' && t > bf.nextDive) {
-          bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 3000 + Math.random() * 3000;
-          if (Math.random() < 0.34 && autoState !== 'HUNT') { autoState = 'HUNT'; autoUntil = t + REEL_MS.HUNT; nextAuto = autoUntil + 1600; flickT0 = t; }   // stand-up bat
+        if (bf.mode === 'wander' && t > bf.nextLap) {
+          bf.mode = 'lap'; bf.lapEdge = bf.x < headX ? -1 : 1; bf.nextLap = t + 10000 + Math.random() * 6000;
+        } else if (bf.mode === 'wander' && t > bf.nextDive) {
+          bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 1800 + Math.random() * 2200;
+          if (Math.random() < 0.45 && autoState !== 'HUNT') { autoState = 'HUNT'; autoUntil = t + REEL_MS.HUNT; nextAuto = autoUntil + 1600; flickT0 = t; }   // stand-up bat
         }
         if (bf.mode === 'dive' && t > bf.diveUntil) bf.mode = 'wander';
       }
 
+      // a still cursor (not a fast flick) on the canvas lures the butterfly to circle it
+      const cxp = rect ? curX - rect.left : headX, cyp = rect ? curY - rect.top : headY;
+      const lure = !!rect && t - lastMove < 2500 && curSpeed < 0.35 &&
+        cxp > 0 && cxp < cssW && cyp > 0 && cyp < cssH * 0.85 && Math.hypot(cxp - headX, cyp - headY) > 40;
+
       // steering target
       let tx, ty;
       if (bf.mode === 'out') { tx = bf.x < headX ? -40 : cssW + 40; ty = bf.y - 50; }
-      else if (bf.mode === 'dive') { tx = headX + Math.sin(t / 200) * 22; ty = headY - 6 + Math.cos(t / 170) * 10; }
+      else if (bf.mode === 'lap') { tx = bf.lapEdge < 0 ? -60 : cssW + 60; ty = bf.y - 24; }
+      else if (bf.mode === 'dive') { const dvX = lure ? cxp : headX, dvY = lure ? cyp : headY; tx = dvX + Math.sin(t / 200) * 22; ty = dvY - 6 + Math.cos(t / 170) * 10; }
       else if (bf.mode === 'dodge') { tx = bf.wpX; ty = bf.wpY; }
       else {
-        // orbit close around the cat's head so it plays with the cat, not the corners
+        // orbit close around the cat's head — or the cursor, when a still cursor is luring it
         if (t > bf.nextWp) {
-          const spreadX = Math.min(cssW * 0.26, 120), spreadY = Math.min(cssH * 0.20, 75);
-          bf.wpX = clamp(headX + (Math.random() * 2 - 1) * spreadX, headX - cssW * 0.34, headX + cssW * 0.34);
-          bf.wpY = clamp(headY + (Math.random() * 2 - 1) * spreadY, headY - spreadY, footY - SH * scale * 0.2);
-          bf.nextWp = t + 1300 + Math.random() * 1500;
+          const cX = lure ? cxp : headX, cY = lure ? cyp : headY;
+          const spreadX = lure ? 44 : Math.min(cssW * 0.22, 100), spreadY = lure ? 38 : Math.min(cssH * 0.18, 64);
+          bf.wpX = clamp(cX + (Math.random() * 2 - 1) * spreadX, 18, cssW - 18);
+          bf.wpY = clamp(cY + (Math.random() * 2 - 1) * spreadY, 18, footY - SH * scale * 0.2);
+          bf.nextWp = t + (lure ? 700 : 1300) + Math.random() * (lure ? 700 : 1500);
         }
         tx = bf.wpX; ty = bf.wpY;
       }
-      const accel = bf.mode === 'dodge' ? 0.02 : (bf.mode === 'dive' ? 0.045 : (bf.mode === 'out' ? 0.05 : 0.03));
+      const accel = bf.mode === 'dodge' ? 0.02 : (bf.mode === 'dive' ? 0.045 : (bf.mode === 'out' || bf.mode === 'lap' ? 0.05 : 0.03));
       bf.vx += (tx - bf.x) * accel * dtf; bf.vy += (ty - bf.y) * accel * dtf;
       bf.vx += Math.sin(t / 130 + 1.3) * 0.5 * dtf; bf.vy += Math.sin(t / 90) * 0.6 * dtf;   // organic flutter
 
-      // flee the visitor's cursor
-      if (rect && t - lastMove < 4000) {
+      // a fast cursor flick scares it off (a still cursor lures it instead — handled in steering)
+      if (rect && t - lastMove < 1500 && curSpeed > 0.6) {
         const dx = bf.x - (curX - rect.left), dy = bf.y - (curY - rect.top), d = Math.hypot(dx, dy);
-        if (d < 72 && d > 0.1) { const f = (72 - d) / 72 * 3.4; bf.vx += dx / d * f * dtf; bf.vy += dy / d * f * dtf; }
+        if (d < 80 && d > 0.1) { const f = (80 - d) / 80 * 3.8; bf.vx += dx / d * f * dtf; bf.vy += dy / d * f * dtf; }
       }
 
       bf.vx *= 0.92; bf.vy *= 0.92;
-      const sp = Math.hypot(bf.vx, bf.vy), maxv = bf.mode === 'dodge' ? 9.5 : (bf.mode === 'out' ? 8 : 5.5);
+      const sp = Math.hypot(bf.vx, bf.vy), maxv = bf.mode === 'dodge' ? 9.5 : (bf.mode === 'out' || bf.mode === 'lap' ? 9 : 5.5);
       if (sp > maxv) { bf.vx *= maxv / sp; bf.vy *= maxv / sp; }
       bf.x += bf.vx * dtf; bf.y += bf.vy * dtf;
 
@@ -830,6 +885,23 @@
         return;
       }
 
+      // costume lap: duck off one edge, swap color (with a sparkle poof), swoop back from the other side
+      if (bf.mode === 'lap') {
+        bf.flap += (0.18 + sp * 0.03) * dtf;
+        if (bf.x < -40 || bf.x > cssW + 40) {
+          lapPoofX = clamp(bf.x, 4, cssW - 4); lapPoofY = clamp(bf.y, 4, cssH - 4); lapPoofT0 = t;
+          bf.palIdx = pickStyle(bf.palIdx);
+          const side = -bf.lapEdge;                                   // return from the opposite edge
+          bf.x = side < 0 ? -24 : cssW + 24; bf.y = clamp(headY + (Math.random() * 2 - 1) * 40, 24, cssH * 0.5);
+          bf.vx = side < 0 ? 6 : -6; bf.vy = 0;
+          bf.wpX = headX; bf.wpY = headY - 16; bf.nextWp = t + 900; bf.mode = 'wander';
+        } else {
+          const dxo = bf.x - headX, dyo = bf.y - headY;
+          lookOverride = { x: clamp(dxo / 120, -1, 1), y: clamp(dyo / 90, -1, 1) };
+        }
+        return;
+      }
+
       const m = 14, lo = m, hiX = cssW - m, hiY = cssH * 0.82;
       if (bf.x < lo) { bf.x = lo; bf.vx = Math.abs(bf.vx); } if (bf.x > hiX) { bf.x = hiX; bf.vx = -Math.abs(bf.vx); }
       if (bf.y < m) { bf.y = m; bf.vy = Math.abs(bf.vy); } if (bf.y > hiY) { bf.y = hiY; bf.vy = -Math.abs(bf.vy); }
@@ -839,19 +911,29 @@
       const dxh = bf.x - headX, dyh = bf.y - headY, dh = Math.hypot(dxh, dyh);
       if (dh < cssW * 0.55) lookOverride = { x: clamp(dxh / 120, -1, 1), y: clamp(dyh / 90, -1, 1) };
       else lookOverride = null;
+      if (dh < 70 && t - flickT0 > 1400) flickT0 = t;                                  // tail/ear flick when the bug is right there
+      if (t < confusedUntil) lookOverride = { x: Math.sin(t / 110) * 0.5, y: -0.1 };   // "where'd it go?" after a whiff
 
-      // close contact: occasionally CATCH it (full pounce sequence), else just swat
-      if (dh < 46 && t > swatCool && t > swatUntil && t > catchUntil) {
-        if (t > catchCool && Math.random() < 0.45) {
+      // gentle perch: while diving close, the bug sometimes lands on the nose instead (never a shiny)
+      if (bf.mode === 'dive' && dh < 34 && state === 'IDLE' && !bf.shiny && t > landCool && t > swatUntil && t > catchUntil) {
+        bf.mode = 'land'; bf.landUntil = t + 1100 + Math.random() * 500; landCool = t + 16000; say('!', 700);
+      } else if (dh < 46 && t > swatCool && t > swatUntil && t > catchUntil) {
+        // close contact: catch (rare for a shiny), a whiff (near miss), or a plain swat
+        const catchP = bf.shiny ? 0.18 : 0.45, missP = bf.shiny ? 0.55 : 0.30;
+        if (t > catchCool && Math.random() < catchP) {
           catchUntil = t + CATCH_MS; catchT0 = t; catchTX = bf.x; catchTY = bf.y; catchCool = t + 13000;
-          bf.caught = true; onBehavior('got it! ♥');
+          bf.caught = true;
+          if (bf.shiny) { say('✨ rare! ✨', CATCH_MS); if (rect) for (let h = 0; h < 3; h++) onHearts(rect.left + bf.x + (Math.random() * 40 - 20), rect.top + bf.y); }
+          else say('got it! ♥', CATCH_MS);
         } else {
-          swatUntil = t + 420; swatTX = bf.x; swatTY = bf.y; swatCool = t + 1100;
-          onBehavior('annoyed!');
-          bf.mode = 'dodge'; bf.dodgeUntil = t + 520;
-          const aw = Math.atan2(dyh, dxh) + (Math.random() - 0.5);
-          bf.vx = Math.cos(aw) * 9.5; bf.vy = Math.sin(aw) * 9.5 - 2;
-          bf.wpX = clamp(bf.x + Math.cos(aw) * 70, 20, cssW - 20); bf.wpY = clamp(bf.y + Math.sin(aw) * 45, 14, cssH * 0.7);
+          const miss = Math.random() < missP;
+          swatUntil = t + 420; swatTX = bf.x; swatTY = bf.y; swatCool = t + 800;
+          say(miss ? 'almost!' : 'annoyed!', 600);
+          if (miss) confusedUntil = t + 700;
+          bf.mode = 'dodge'; bf.dodgeUntil = t + (miss ? 600 : 520);
+          const aw = Math.atan2(dyh, dxh) + (Math.random() - 0.5), kick = miss ? 10.5 : 9.5;
+          bf.vx = Math.cos(aw) * kick; bf.vy = Math.sin(aw) * kick - 2;
+          bf.wpX = clamp(bf.x + Math.cos(aw) * (miss ? 90 : 70), 20, cssW - 20); bf.wpY = clamp(bf.y + Math.sin(aw) * (miss ? 55 : 45), 14, cssH * 0.7);
         }
       }
     }
