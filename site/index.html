@@ -6,16 +6,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>pixelcat - a cat that lives on your desktop</title>
 <meta name="description" content="pixelcat is a cute pixel cat for your Windows desktop. It follows your cursor, kneads the keyboard when you type, purrs when you pet it, and stretches like mochi. Free & open source." />
+<link rel="canonical" href="https://pixelcat-jet.vercel.app/" />
 <meta property="og:title" content="pixelcat - a cat that lives on your desktop" />
-<meta property="og:description" content="A from-scratch desktop pet. Follows your cursor, purrs, stretches like mochi, gets the zoomies. 12 coats. Free & open source." />
-<meta property="og:image" content="assets/showcase.png" />
+<meta property="og:description" content="A from-scratch desktop pet. Follows your cursor, purrs when you pet it, plays with a butterfly, stretches like mochi, gets the zoomies. 12 coats. Free & open source." />
+<meta property="og:image" content="https://pixelcat-jet.vercel.app/assets/showcase.png" />
+<meta property="og:image:width" content="1218" />
+<meta property="og:image:height" content="398" />
+<meta property="og:image:alt" content="The pixelcat cat in every pose across all 12 coats" />
+<meta property="og:url" content="https://pixelcat-jet.vercel.app/" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="pixelcat - a cat that lives on your desktop" />
-<meta name="twitter:description" content="A from-scratch desktop pet. Follows your cursor, purrs, stretches like mochi, gets the zoomies. 12 coats. Free & open source." />
-<meta name="twitter:image" content="assets/showcase.png" />
+<meta name="twitter:description" content="A from-scratch desktop pet. Follows your cursor, purrs when you pet it, plays with a butterfly, gets the zoomies. 12 coats. Free & open source." />
+<meta name="twitter:image" content="https://pixelcat-jet.vercel.app/assets/showcase.png" />
 <meta name="theme-color" content="#191b22" />
 <link rel="icon" href="assets/icon.png" />
+<link rel="apple-touch-icon" href="assets/icon.png" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"pixelcat","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows, macOS","description":"A cute, from-scratch pixel cat that lives on your desktop: follows your cursor, purrs when you pet it, plays with a butterfly, kneads the keyboard when you type, and gets the zoomies. 12 coats. Free & open source.","image":"https://pixelcat-jet.vercel.app/assets/showcase.png","url":"https://pixelcat-jet.vercel.app/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"JohnsonKC201"},"license":"https://github.com/JOhnsonKC201/pixelcat/blob/main/LICENSE"}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
@@ -29,7 +38,7 @@
   --line:#3a3f4c;      /* hairline */
   --ink:#eef0f5;       /* primary text */
   --muted:#9aa0ad;     /* secondary text */
-  --faint:#666c7a;     /* tertiary */
+  --faint:#8b92a0;     /* tertiary (AA-contrast on the dark surfaces) */
 
   --orange:#e8943c;    /* the cat - primary accent */
   --orange-deep:#b5641d;
@@ -263,7 +272,7 @@ h2.sec{font-size:24px; line-height:1.45}
 .dl{display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:stretch}
 .dl .big{padding:34px; display:flex; flex-direction:column; justify-content:center;
   background:linear-gradient(150deg,#2c2117,#1d1f27); border:3px solid #0e1016; box-shadow:var(--shadow)}
-.dl .big h2{font-size:20px; line-height:1.5}
+.dl .big h2,.dl .big h3{font-size:20px; line-height:1.5; font-family:"Press Start 2P",monospace; font-weight:400}
 .dl .big .o{color:var(--orange)}
 .dl .big p{color:var(--muted); margin:16px 0 26px; font-size:21px}
 .dl .big .row{display:flex; gap:14px; flex-wrap:wrap}
@@ -295,6 +304,18 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
 /* floating heart */
 .heart{position:fixed; z-index:9000; pointer-events:none; font-size:20px; animation:floatup 1s steps(8) forwards}
 
+/* a11y helpers */
+.visually-hidden{position:absolute!important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
+.skip{position:fixed; top:8px; left:8px; z-index:10000; transform:translateY(-150%); transition:transform .15s;
+  background:var(--orange); color:#15161d; font-family:"Press Start 2P",monospace; font-size:10px; padding:10px 14px; border:3px solid #0e1016; text-decoration:none}
+.skip:focus{transform:translateY(0)}
+/* static sprite-sheet shown behind the live canvas, so the hero is never blank if JS is slow/blocked */
+.crt .screen .screen-fallback{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; image-rendering:pixelated; z-index:0}
+/* second line of the demo dock: how to play with the live cat */
+.demodock{flex-wrap:wrap}
+.dd-hint{font-family:"VT323",monospace; font-size:16px; color:var(--muted); letter-spacing:.5px}
+@media(max-width:560px){ .dd-hint{font-size:14px} }
+
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.15}}
 @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
@@ -324,7 +345,7 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
   .lede{font-size:21px}
   .meta-row{font-size:17px; gap:12px}
   .hud .wrap{gap:10px; height:58px}
-  .hud .cta .btn span{display:none}
+  .hud .cta .btn{padding:12px 12px}   /* keep the label + a ~44px tap target on mobile */
   /* even taller, chunkier TV; shrink the perched sticker so it clears the LIVE label */
   .crt{padding:12px 12px 26px}
   .crt .screen{aspect-ratio:5 / 4}
@@ -338,10 +359,12 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
   *{animation:none!important}
   .rv{opacity:1; transform:none}
   html{scroll-behavior:auto}
+  .marquee .track span + span{display:none}   /* the scroll is off; don't show the duplicated copy */
 }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <div class="grain"></div>
 
 <!-- ===================================================== HUD -->
@@ -358,6 +381,8 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
     <div class="cta"><a class="btn sm" href="#get">▼ <span>download</span></a></div>
   </div>
 </header>
+
+<main id="main">
 
 <!-- ===================================================== HERO -->
 <a id="top"></a>
@@ -380,21 +405,24 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
     </div>
 
     <div class="crt-wrap rv">
-      <img class="perch" id="perchCat" src="assets/icon.png" alt="pet me - meow" title="click me!" width="56" height="56" decoding="async" />
+      <img class="perch" id="perchCat" src="assets/icon.png" alt="" aria-hidden="true" tabindex="-1" title="click me!" width="56" height="56" decoding="async" />
       <div class="crt">
         <div class="screen">
-          <span class="scrlabel">● LIVE · CLICK TO PET</span>
-          <canvas id="liveCat" class="livecat" role="img" aria-label="A live pixel-art cat that breathes, blinks, watches your cursor, and meows when you click it"></canvas>
-          <noscript><img src="assets/showcase.png" alt="pixelcat - every pose (sit, typing, hunt, loaf) across all 12 coats" /></noscript>
+          <span class="scrlabel">● LIVE — hover to pet · click to meow</span>
+          <!-- static sprite sheet behind the canvas: the hero never renders blank if JS is slow/blocked -->
+          <img class="screen-fallback" src="assets/showcase.png" alt="pixelcat - every pose (sit, typing, hunt, loaf) across all 12 coats" width="1218" height="398" decoding="async" />
+          <canvas id="liveCat" class="livecat" role="img" aria-label="A live pixel-art cat that breathes, blinks, watches your cursor, purrs when you pet its head, and plays with a butterfly"></canvas>
         </div>
         <span class="glass"></span>
         <span class="brandtag">PIXELCAT-CRT</span>
         <span class="led"></span>
       </div>
-      <!-- auto-demo caption: the cat showcases itself (typing, climbing, hunting…) -->
-      <div class="demodock" aria-label="What the cat is doing">
-        <span class="dd-cap" id="ddCap" aria-live="polite">watching you…</span>
+      <!-- demo dock: ambient behaviour caption (decorative) + how-to-play hint -->
+      <div class="demodock" aria-hidden="true">
+        <span class="dd-cap" id="ddCap">watching you…</span>
+        <span class="dd-hint">hover its head to pet · click to meow · right-click to change coat</span>
       </div>
+      <span id="liveStatus" class="visually-hidden" aria-live="polite"></span>
     </div>
   </div>
 </div>
@@ -402,8 +430,8 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
 <!-- ===================================================== MARQUEE -->
 <div class="marquee" aria-hidden="true">
   <div class="track" id="mqTrack">
-    <span><i>◆</i> eye-follow &amp; blink <i>◆</i> mochi-drag <i>◆</i> purring pets <i>◆</i> keyboard kneading <i>◆</i> mouse hunt <i>◆</i> pomodoro timer <i>◆</i> reminders <i>◆</i> pinned notes <span class="s">◆</span> moods &amp; energy <i>◆</i> startle <i>◆</i> AI agent reactions <i>◆</i> 12 coats <i>◆</i>&nbsp;</span>
-    <span><i>◆</i> eye-follow &amp; blink <i>◆</i> mochi-drag <i>◆</i> purring pets <i>◆</i> keyboard kneading <i>◆</i> mouse hunt <i>◆</i> pomodoro timer <i>◆</i> reminders <i>◆</i> pinned notes <span class="s">◆</span> moods &amp; energy <i>◆</i> startle <i>◆</i> AI agent reactions <i>◆</i> 12 coats <i>◆</i>&nbsp;</span>
+    <span><i>◆</i> eye-follow &amp; blink <i>◆</i> head-pet purrs <i>◆</i> butterfly play <i>◆</i> mochi-drag <i>◆</i> keyboard kneading <i>◆</i> mouse hunt <i>◆</i> scroll-climb <i>◆</i> pomodoro timer <i>◆</i> reminders <i>◆</i> pinned notes <span class="s">◆</span> moods &amp; energy <i>◆</i> mail &amp; calendar <i>◆</i> AI agent reactions <i>◆</i> 12 coats <i>◆</i>&nbsp;</span>
+    <span><i>◆</i> eye-follow &amp; blink <i>◆</i> head-pet purrs <i>◆</i> butterfly play <i>◆</i> mochi-drag <i>◆</i> keyboard kneading <i>◆</i> mouse hunt <i>◆</i> scroll-climb <i>◆</i> pomodoro timer <i>◆</i> reminders <i>◆</i> pinned notes <span class="s">◆</span> moods &amp; energy <i>◆</i> mail &amp; calendar <i>◆</i> AI agent reactions <i>◆</i> 12 coats <i>◆</i>&nbsp;</span>
   </div>
 </div>
 
@@ -420,7 +448,7 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
       <div class="card accent col-3 rv"><span class="tag">01</span><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></div>
         <h3>mochi-drag</h3><p>Grab and pull the cat and it stretches like taffy - head and feet stay solid, the body thins - then squashes and bounces back where you drop it.</p></div>
       <div class="card col-3 rv"><span class="tag">02</span><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><rect x="9.5" y="9.5" width="5" height="5"/></svg></div>
-        <h3>eye-follow &amp; blink</h3><p>It watches your cursor across the screen and blinks now and then. Rest the cursor on its head and it shuts its eyes, wiggles, and floats little hearts.</p></div>
+        <h3>eye-follow &amp; pet</h3><p>It watches your cursor and blinks. Rest the cursor on its head and it closes its eyes, <b>purrs out loud</b>, floats hearts, and nuzzles into your hand - the longer you pet, the happier it gets.</p></div>
 
       <div class="card col-2 rv"><span class="tag">03</span><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12"/><path d="M6 10h2M11 10h2M16 10h2M6 14h2M16 14h2M10 14h4"/></svg></div>
         <h3>typing reaction</h3><p>Type in <em>any</em> app and it taps its front paws. Go fast and it overheats - turns red, steams - then cools down.</p></div>
@@ -440,6 +468,11 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
         <h3>pomodoro timer</h3><p>Set focus/break loops and a pixel timer floats next to the cat. It stretches with you at every break and meows you back to focus.</p></div>
       <div class="card col-3 rv"><span class="tag">10</span><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v2l-1 5 3 3v1H7v-1l3-3-1-5V3z"/><path d="M12 17v4"/></svg></div>
         <h3>pinned note</h3><p>Pin an important message and it stays in a bubble above the cat's head - in sight until you clear it.</p></div>
+
+      <div class="card accent col-3 rv"><span class="tag">11</span><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15"/><path d="M12 8C9 3 3 4 3 8s6 7 9 3M12 8c3-5 9-4 9 0s-6 7-9 3"/></svg></div>
+        <h3>a butterfly visits</h3><p>Now and then a butterfly flutters in and the cat plays - it watches, swats, and pounces to catch it. Sometimes it lands on the cat's nose (achoo!), changes color on a lap off-screen, and once in a while a rare shiny one appears.</p></div>
+      <div class="card col-3 rv"><span class="tag">12</span><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/></svg></div>
+        <h3>scroll to climb</h3><p>Scroll the page and the cat grabs a yarn rope and climbs hand-over-hand, travelling up or down with you.</p></div>
     </div>
   </div>
 </section>
@@ -522,7 +555,7 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
     </div>
     <div class="dl">
       <div class="big rv">
-        <h2>free, <span class="o">open source</span>,<br/>and yours forever.</h2>
+        <h3>free, <span class="o">open source</span>,<br/>and yours forever.</h3>
         <p>All art, code, and sound are original - the meow and purr are synthesized in code, no audio files. Built with Electron for Windows.</p>
         <div class="row">
           <a class="btn" href="https://github.com/JOhnsonKC201/pixelcat/releases" target="_blank" rel="noopener">⬇ download</a>
@@ -545,6 +578,8 @@ npm run dist   <span class="c">// windows installer</span></pre>
   </div>
 </section>
 
+</main>
+
 <!-- ===================================================== FOOTER -->
 <footer>
   <div class="wrap foot-grid">
@@ -564,13 +599,17 @@ npm run dist   <span class="c">// windows installer</span></pre>
   </div>
 </footer>
 
-<script src="cat-sprite.js"></script>
-<script src="cat-preview.js"></script>
-<script src="cat-live.js"></script>
+<script defer src="cat-sprite.js"></script>
+<script defer src="cat-preview.js"></script>
+<script defer src="cat-live.js"></script>
 <script>
+/* run after the deferred cat-sprite/cat-preview/cat-live scripts have executed */
+document.addEventListener('DOMContentLoaded', function(){
 /* coat thumbnails — the REAL project sprite, drawn per coat from the shared
    geometry + palettes (PixelcatPreview), so the gallery matches the live cat. */
 const grid = document.getElementById('coatGrid');
+if(grid){ grid.setAttribute('role','group'); grid.setAttribute('aria-label','Choose a coat for the live cat'); }
+const liveStatus = document.getElementById('liveStatus');
 const SW_DPR = Math.min(window.devicePixelRatio || 1, 3), SW_W = 96, SW_H = 118;
 const TUX = Math.max(0, PATTERNS.findIndex(p=>p.name==='Tuxedo'));
 const coatCards = [];
@@ -578,6 +617,7 @@ const coatCards = [];
 function selectCoat(i){
   coatCards.forEach((c,j)=>c.setAttribute('aria-pressed', j===i ? 'true':'false'));
   if(window.__cat) window.__cat.setCoat(i);
+  if(liveStatus && PATTERNS[i]) liveStatus.textContent = PATTERNS[i].name + ' coat is now on the cat';
 }
 PATTERNS.forEach((p,i)=>{
   const el=document.createElement('div'); el.className='coat rv';
@@ -594,7 +634,7 @@ PATTERNS.forEach((p,i)=>{
   coatCards.push(el);
   if(window.PixelcatPreview) PixelcatPreview.draw(cv, p, PATTERN_BUILD[i], TABBY[i]);
 });
-const custom=document.createElement('div'); custom.className='coat custom rv';
+const custom=document.createElement('div'); custom.className='coat custom rv'; custom.setAttribute('aria-hidden','true');
 custom.innerHTML=`<div class="big">+</div><div class="nm">design your own<br/>custom coat</div>`;
 grid.appendChild(custom);
 
@@ -682,12 +722,14 @@ if(liveCanvas && window.PixelCatLive){
     onBehavior:(name)=>{ if(ddCap) ddCap.textContent = name || 'watching you…'; },
   });
   selectCoat(TUX);   // mark the matching gallery card as active
+  const fb=document.querySelector('.screen-fallback'); if(fb) fb.style.display='none';   // live canvas is up; drop the static fallback
 }
 
 /* konami → zoomies (everything wiggles once) */
 let kbuf=[]; const KON=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
 addEventListener('keydown',(e)=>{ kbuf.push(e.key); kbuf=kbuf.slice(-KON.length);
   if(kbuf.join()===KON.join()){ document.body.animate([{filter:'hue-rotate(0)'},{filter:'hue-rotate(360deg)'}],{duration:900,iterations:1}); meow(); }
+});
 });
 </script>
 </body>
