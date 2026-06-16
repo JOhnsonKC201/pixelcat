@@ -636,6 +636,36 @@ function heartBurst(x,y){
     setTimeout(()=>h.remove(),1200);
   }
 }
+/* soft purr while the cat is being petted - reuses the meow AudioContext, so it
+   only sounds after a first click has unlocked audio (browser autoplay policy) */
+let purr=null;
+function startPurr(){
+  try{
+    if(!actx || purr) return;
+    if(actx.state==='suspended') actx.resume();
+    const car=actx.createOscillator(); car.type='sawtooth'; car.frequency.value=50;
+    const lp=actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=200;
+    const amp=actx.createGain();
+    const lfo=actx.createOscillator(); lfo.type='sine'; lfo.frequency.value=22;
+    const lfoG=actx.createGain(); lfoG.gain.value=0.012;   // gentle tremolo (the "rumble")
+    lfo.connect(lfoG); lfoG.connect(amp.gain);
+    car.connect(lp); lp.connect(amp); amp.connect(actx.destination);
+    amp.gain.setValueAtTime(0.0001,actx.currentTime);
+    amp.gain.exponentialRampToValueAtTime(0.035,actx.currentTime+0.25);
+    car.start(); lfo.start();
+    purr={car,lfo,amp};
+  }catch(e){}
+}
+function stopPurr(){
+  if(!purr) return;
+  try{
+    const {car,lfo,amp}=purr, n=actx.currentTime;
+    amp.gain.cancelScheduledValues(n); amp.gain.setValueAtTime(Math.max(0.0001,amp.gain.value),n);
+    amp.gain.exponentialRampToValueAtTime(0.0001,n+0.18);
+    car.stop(n+0.2); lfo.stop(n+0.2);
+  }catch(e){}
+  purr=null;
+}
 const perch=document.getElementById('perchCat');
 perch?.addEventListener('click',(e)=>{ meow(); const r=perch.getBoundingClientRect(); heartBurst(r.left+r.width/2,r.top); });
 
@@ -648,6 +678,7 @@ if(liveCanvas && window.PixelCatLive){
   window.__cat=PixelCatLive.init(liveCanvas,{
     coatIndex: TUX,
     onMeow:meow, onHearts:(x,y)=>heartBurst(x,y), cycleCoatOnClick:true,
+    onPurrStart:startPurr, onPurrStop:stopPurr,
     onBehavior:(name)=>{ if(ddCap) ddCap.textContent = name || 'watching you…'; },
   });
   selectCoat(TUX);   // mark the matching gallery card as active

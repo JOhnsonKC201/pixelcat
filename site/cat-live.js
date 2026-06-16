@@ -404,6 +404,8 @@
     const onMeow = typeof options.onMeow === 'function' ? options.onMeow : function () {};
     const onHearts = typeof options.onHearts === 'function' ? options.onHearts : function () {};
     const onBehavior = typeof options.onBehavior === 'function' ? options.onBehavior : function () {};
+    const onPurrStart = typeof options.onPurrStart === 'function' ? options.onPurrStart : function () {};
+    const onPurrStop = typeof options.onPurrStop === 'function' ? options.onPurrStop : function () {};
     const cycleCoatOnClick = options.cycleCoatOnClick !== false;
     const autoShow = options.autoShow !== false;
     let butterflyOn = options.butterfly !== false;
@@ -491,6 +493,7 @@
     let stretchT0 = -1;
     // sustained head-hover petting (debounced enter + grace latch + eased intensity)
     let headEnterAt = -1, petHolding = false, petHoverUntil = 0, petAmt = 0;
+    let petStreakT0 = -1, lastPetHeart = 0, purring = false;   // affection streak + heart timer + purr state
     const PET_DWELL_MS = 140, PET_GRACE_MS = 300, PET_EASE_MS = 160;
     // butterfly cadence — a brief, occasional cameo (not a constant companion)
     const BFLY_VISIT_MS = [9000, 4000], BFLY_FIRST_GAP_MS = [25000, 20000], BFLY_GAP_MS = [70000, 60000];
@@ -601,9 +604,20 @@
       if (state === 'NUZZLE') {
         // click-pet plays at full intensity; sustained hover-pet eases in/out via petAmt
         const intensity = t < nuzzleUntil ? 1 : petAmt;
+        const aff = clamp(((petStreakT0 >= 0 ? t - petStreakT0 : 0) - 300) / 2500, 0, 1);   // affection over ~2.8s
         const press = Math.max(0, Math.sin(t / 320)) * intensity;
-        petPush = press * 4; sqY = 1 - press * 0.05; sqX = 1 + press * 0.04;
+        petPush = press * 4 * (1 + aff * 0.3); sqY = 1 - press * 0.05; sqX = 1 + press * 0.04;
         eyeMode = 'happy'; petting = true; lean += smoothLook.x * 0.04;
+        // nuzzle toward the hand: lean + shift toward wherever the cursor rests on the head
+        const curOnHead = rect ? clamp(((curX - rect.left) - footX) / (SW * 0.5 * scale), -1, 1) : 0;
+        lean += curOnHead * 0.08 * intensity; fx += curOnHead * 3 * scale * intensity;
+        if (aff > 0.5) lean += Math.sin(t / 120) * 0.03 * aff;               // blissful wiggle once warmed up
+        if (aff > 0.6) say('purrrr ♥♥', 400);                                // caption escalates with affection
+        // a steady stream of hearts while petting — faster the longer you pet
+        if (rect && t - lastPetHeart > 820 - aff * 380) {
+          lastPetHeart = t;
+          onHearts(rect.left + footX + (Math.random() * 2 - 1) * 14, rect.top + (footY - SH * 0.72 * scale) - 6);
+        }
       } else if (state === 'STRETCH') {
         const se = clamp((t - stretchT0) / (REEL_MS.STRETCH), 0, 1);
         let k; if (se < 0.16) k = -Math.sin(se / 0.16 * Math.PI) * 0.5; else { const r = (se - 0.16) / 0.84; k = Math.sin(r * Math.PI); }
@@ -954,6 +968,10 @@
         if (headEnterAt < 0) headEnterAt = t;
         if (t - headEnterAt >= PET_DWELL_MS) { petHolding = true; petHoverUntil = t + PET_GRACE_MS; }
       } else { headEnterAt = -1; petHolding = false; }
+      // continuous-pet streak (persists through the grace window) drives escalation + purr
+      const petActive = petHolding || t < petHoverUntil;
+      if (petActive) { if (petStreakT0 < 0) petStreakT0 = t; if (!purring) { purring = true; onPurrStart(); } }
+      else { petStreakT0 = -1; if (purring) { purring = false; onPurrStop(); } }
       canvas.style.cursor = t < petHoverUntil ? 'grab' : 'default';
       const st = resolveState(t);
       const minFrame = ((st === 'IDLE' || st === 'LOAF') && !(bflyActive() && bf.present)) ? 33 : 16;
@@ -970,6 +988,8 @@
       ctx.restore();
     }
     function kick() { if (running && !rafId && !document.hidden && onScreen && !reducedMotion) rafId = requestAnimationFrame(frame); }
+    function stopPurr() { if (purring) { purring = false; onPurrStop(); } }
+    function onVis() { if (document.hidden) stopPurr(); kick(); }
 
     // coat control
     function setCoat(i) {
@@ -1011,7 +1031,7 @@
       window.addEventListener('scroll', onScroll, { passive: true });
       window.addEventListener('resize', relayout);
       canvas.addEventListener('pointerdown', onClick);
-      document.addEventListener('visibilitychange', kick);
+      document.addEventListener('visibilitychange', onVis);
       if (window.ResizeObserver) { ro = new ResizeObserver(() => { relayout(); }); ro.observe(canvas); }
       if (window.IntersectionObserver) {
         io = new IntersectionObserver((es) => { es.forEach((x) => { onScreen = x.isIntersecting; if (onScreen) kick(); }); }, { threshold: 0.01 });
@@ -1024,14 +1044,14 @@
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', relayout);
       canvas.removeEventListener('pointerdown', onClick);
-      document.removeEventListener('visibilitychange', kick);
+      document.removeEventListener('visibilitychange', onVis);
       if (ro) ro.disconnect();
       if (io) io.disconnect();
     }
 
     let bound = false;
     function start() { if (!bound) { bind(); bound = true; } running = true; resize(); if (reducedMotion) { paintStatic(); drewStatic = true; } else kick(); }
-    function stop() { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = 0; }
+    function stop() { running = false; if (rafId) cancelAnimationFrame(rafId); rafId = 0; stopPurr(); }
     function destroy() { stop(); if (bound) { unbind(); bound = false; } }
 
     start();
