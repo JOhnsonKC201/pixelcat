@@ -458,6 +458,13 @@
       smoothLook.x += (tx - smoothLook.x) * 0.16;
       smoothLook.y += (ty - smoothLook.y) * 0.16;
     }
+    // is the cursor resting over the cat's head? (canvas-CSS-px; head = top 42% of sprite,
+    // mirroring the desktop pet box in src/renderer.js)
+    function overHead(cx, cy) {
+      if (!rect) return false;
+      const x = footX - (SW / 2) * scale, y = footY - SH * scale;
+      return cx >= x && cx <= x + SW * scale && cy >= y && cy <= y + SH * 0.42 * scale;
+    }
 
     // behaviour timers
     let blinkUntil = 0, nextBlink = 1500;
@@ -466,6 +473,11 @@
     let typeUntil = 0, lastKeyAt = -1e9, heat = 0;
     let climbUntil = 0, climbDir = -1, paperLen = 0, climbY = 0;   // climbY = how far up the cat has travelled
     let stretchT0 = -1;
+    // sustained head-hover petting (debounced enter + grace latch + eased intensity)
+    let headEnterAt = -1, petHolding = false, petHoverUntil = 0, petAmt = 0;
+    const PET_DWELL_MS = 140, PET_GRACE_MS = 300, PET_EASE_MS = 160;
+    // butterfly cadence — a brief, occasional cameo (not a constant companion)
+    const BFLY_VISIT_MS = [6000, 3000], BFLY_FIRST_GAP_MS = [25000, 20000], BFLY_GAP_MS = [70000, 60000];
     // auto-showcase reel
     // TYPE + CLIMB are showcased automatically too (no manual input on the site)
     const REEL = ['TYPE', 'HUNT', 'CLIMB', 'STRETCH', 'ZOOMIES', 'GROOM', 'LOAF'];
@@ -486,6 +498,7 @@
       if (t < typeUntil) return 'TYPE';
       if (t < catchUntil) return 'CATCH';
       if (t < swatUntil) return 'SWAT';
+      if (t < petHoverUntil) return 'NUZZLE';   // sustained, debounced head-hover petting
       if (autoState && t < autoUntil) return autoState;
       return 'IDLE';
     }
@@ -527,6 +540,7 @@
       const state = resolveState(t);
       schedule(t, state);
       const dt = prevT ? t - prevT : 16; prevT = t;
+      petAmt += ((petHolding ? 1 : 0) - petAmt) * Math.min(1, dt / PET_EASE_MS);   // ease pet intensity in/out
       updateButterfly(t, dt, state);   // sets lookOverride / may trigger swat — run before updateLook
       updateLook(t);
       // heat decays unless actively typing
@@ -560,7 +574,9 @@
       const sp = state === 'LOAF' ? loafSprite : sitSprite;
 
       if (state === 'NUZZLE') {
-        const press = Math.max(0, Math.sin(t / 320));
+        // click-pet plays at full intensity; sustained hover-pet eases in/out via petAmt
+        const intensity = t < nuzzleUntil ? 1 : petAmt;
+        const press = Math.max(0, Math.sin(t / 320)) * intensity;
         petPush = press * 4; sqY = 1 - press * 0.05; sqX = 1 + press * 0.04;
         eyeMode = 'happy'; petting = true; lean += smoothLook.x * 0.04;
       } else if (state === 'STRETCH') {
@@ -724,7 +740,7 @@
       const hX = footX, hY = footY - SH * 0.72 * scale;
       const side = Math.random() < 0.5 ? -1 : 1;
       bf.present = true; bf.caught = false; bf.mode = 'wander';
-      bf.until = t + 14000 + Math.random() * 7000;
+      bf.until = t + BFLY_VISIT_MS[0] + Math.random() * BFLY_VISIT_MS[1];
       bf.x = clamp(hX + side * Math.min(cssW * 0.34, 180), 14, cssW - 14);
       bf.y = clamp(hY - 20, 20, cssH * 0.55);
       bf.vx = -side * 4; bf.vy = 0;
@@ -739,7 +755,7 @@
       if (!bflyActive() || busy) { lookOverride = null; return; }
       // occasional-visitor lifecycle: appear, play a while, then leave for a long gap
       if (!bf.present) {
-        if (bf.nextVisit < 0) bf.nextVisit = t + 9000 + Math.random() * 8000;   // first appearance
+        if (bf.nextVisit < 0) bf.nextVisit = t + BFLY_FIRST_GAP_MS[0] + Math.random() * BFLY_FIRST_GAP_MS[1];   // first appearance
         if (t > bf.nextVisit) startBflyVisit(t);
         else { lookOverride = null; return; }
       }
@@ -806,7 +822,7 @@
       if (bf.mode === 'out') {
         bf.flap += (0.18 + sp * 0.03) * dtf;
         if (bf.x < -30 || bf.x > cssW + 30) {
-          bf.present = false; bf.nextVisit = t + 70000 + Math.random() * 60000; lookOverride = null;
+          bf.present = false; bf.nextVisit = t + BFLY_GAP_MS[0] + Math.random() * BFLY_GAP_MS[1]; lookOverride = null;
         } else {
           const dxo = bf.x - headX, dyo = bf.y - headY;   // cat's gaze follows it out
           lookOverride = { x: clamp(dxo / 120, -1, 1), y: clamp(dyo / 90, -1, 1) };
@@ -849,6 +865,14 @@
       if (document.hidden || !onScreen) return;
       const t = now();
       if (reducedMotion) { if (!drewStatic) { paintStatic(); drewStatic = true; } return; }
+      // update the head-hover pet latch BEFORE resolveState so the 30->60fps choice and
+      // paint() agree on the same value this frame
+      const onHead = rect ? overHead(curX - rect.left, curY - rect.top) : false;
+      if (onHead) {
+        if (headEnterAt < 0) headEnterAt = t;
+        if (t - headEnterAt >= PET_DWELL_MS) { petHolding = true; petHoverUntil = t + PET_GRACE_MS; }
+      } else { headEnterAt = -1; petHolding = false; }
+      canvas.style.cursor = t < petHoverUntil ? 'grab' : 'default';
       const st = resolveState(t);
       const minFrame = ((st === 'IDLE' || st === 'LOAF') && !(bflyActive() && bf.present)) ? 33 : 16;
       if (t - lastDraw >= minFrame) { paint(t); lastDraw = t; }
