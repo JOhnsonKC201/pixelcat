@@ -493,7 +493,7 @@
     let headEnterAt = -1, petHolding = false, petHoverUntil = 0, petAmt = 0;
     const PET_DWELL_MS = 140, PET_GRACE_MS = 300, PET_EASE_MS = 160;
     // butterfly cadence — a brief, occasional cameo (not a constant companion)
-    const BFLY_VISIT_MS = [6000, 3000], BFLY_FIRST_GAP_MS = [25000, 20000], BFLY_GAP_MS = [70000, 60000];
+    const BFLY_VISIT_MS = [9000, 4000], BFLY_FIRST_GAP_MS = [25000, 20000], BFLY_GAP_MS = [70000, 60000];
     // auto-showcase reel
     // TYPE + CLIMB are showcased automatically too (no manual input on the site)
     const REEL = ['TYPE', 'HUNT', 'CLIMB', 'STRETCH', 'ZOOMIES', 'GROOM', 'LOAF'];
@@ -776,7 +776,7 @@
       bf.vx = -side * 4; bf.vy = 0;
       bf.wpX = hX; bf.wpY = hY - 16;
       bf.nextWp = t + 1200; bf.nextDive = t + 2400;
-      bf.palIdx = pickStyle(bf.palIdx); bf.shiny = Math.random() < 0.10; bf.nextLap = t + 8000 + Math.random() * 7000;
+      bf.palIdx = pickStyle(bf.palIdx); bf.shiny = Math.random() < 0.10; bf.nextLap = t + 2500 + Math.random() * 2000;
     }
 
     // butterfly flight + cat-reaction logic (stage CSS-px space)
@@ -828,7 +828,7 @@
       if (bf.mode !== 'out') {
         if (bf.mode === 'dodge' && t > bf.dodgeUntil) bf.mode = 'wander';
         if (bf.mode === 'wander' && t > bf.nextLap) {
-          bf.mode = 'lap'; bf.lapEdge = bf.x < headX ? -1 : 1; bf.nextLap = t + 10000 + Math.random() * 6000;
+          bf.mode = 'lap'; bf.lapEdge = bf.x < headX ? -1 : 1; bf.nextLap = t + 6000 + Math.random() * 3000;
         } else if (bf.mode === 'wander' && t > bf.nextDive) {
           bf.mode = 'dive'; bf.diveUntil = t + 1800; bf.nextDive = t + 1800 + Math.random() * 2200;
           if (Math.random() < 0.45 && autoState !== 'HUNT') { autoState = 'HUNT'; autoUntil = t + REEL_MS.HUNT; nextAuto = autoUntil + 1600; flickT0 = t; }   // stand-up bat
@@ -851,7 +851,7 @@
         // orbit close around the cat's head — or the cursor, when a still cursor is luring it
         if (t > bf.nextWp) {
           const cX = lure ? cxp : headX, cY = lure ? cyp : headY;
-          const spreadX = lure ? 44 : Math.min(cssW * 0.22, 100), spreadY = lure ? 38 : Math.min(cssH * 0.18, 64);
+          const spreadX = lure ? 66 : Math.min(cssW * 0.22, 100), spreadY = lure ? 50 : Math.min(cssH * 0.18, 64);
           bf.wpX = clamp(cX + (Math.random() * 2 - 1) * spreadX, 18, cssW - 18);
           bf.wpY = clamp(cY + (Math.random() * 2 - 1) * spreadY, 18, footY - SH * scale * 0.2);
           bf.nextWp = t + (lure ? 700 : 1300) + Math.random() * (lure ? 700 : 1500);
