@@ -974,7 +974,10 @@
       else { petStreakT0 = -1; if (purring) { purring = false; onPurrStop(); } }
       canvas.style.cursor = t < petHoverUntil ? 'grab' : 'default';
       const st = resolveState(t);
-      const minFrame = ((st === 'IDLE' || st === 'LOAF') && !(bflyActive() && bf.present)) ? 33 : 16;
+      // 60fps while interacting/animating; 30fps idle; 20fps when fully quiet (no recent
+      // cursor activity, no butterfly) to save CPU/battery without hurting eye-follow
+      const idle = (st === 'IDLE' || st === 'LOAF') && !(bflyActive() && bf.present);
+      const minFrame = idle ? (t - lastMove > 4000 ? 50 : 33) : 16;
       if (t - lastDraw >= minFrame) { paint(t); lastDraw = t; }
       rafId = requestAnimationFrame(frame);
     }

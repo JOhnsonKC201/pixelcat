@@ -19,7 +19,7 @@
     "dist": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac",
     "test": "node --test",
-    "lint": "eslint .",
+    "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
     "hook": "node scripts/install-hook.js",
     "test:boot": "node scripts/bootcheck.js",
     "demo": "node scripts/make-demo-gif.js mp4"

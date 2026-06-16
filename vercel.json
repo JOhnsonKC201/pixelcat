@@ -3,5 +3,15 @@
   "rewrites": [
     { "source": "/", "destination": "/site/index.html" },
     { "source": "/((?!site/).*)", "destination": "/site/$1" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/fonts/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/assets/((?!fonts/).*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
+    }
   ]
 }

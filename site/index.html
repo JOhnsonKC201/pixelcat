@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>pixelcat - a cat that lives on your desktop</title>
 <meta name="description" content="pixelcat is a cute pixel cat for your Windows desktop. It follows your cursor, kneads the keyboard when you type, purrs when you pet it, and stretches like mochi. Free & open source." />
@@ -25,10 +25,12 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"pixelcat","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows, macOS","description":"A cute, from-scratch pixel cat that lives on your desktop: follows your cursor, purrs when you pet it, plays with a butterfly, kneads the keyboard when you type, and gets the zoomies. 12 coats. Free & open source.","image":"https://pixelcat-jet.vercel.app/assets/showcase.png","url":"https://pixelcat-jet.vercel.app/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"JohnsonKC201"},"license":"https://github.com/JOhnsonKC201/pixelcat/blob/main/LICENSE"}
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/press-start-2p-latin.woff2" crossorigin />
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/vt323-latin.woff2" crossorigin />
 <style>
+/* self-hosted fonts (latin subset) - no render-blocking third-party request */
+@font-face{font-family:'Press Start 2P';font-style:normal;font-weight:400;font-display:swap;src:url('assets/fonts/press-start-2p-latin.woff2') format('woff2')}
+@font-face{font-family:'VT323';font-style:normal;font-weight:400;font-display:swap;src:url('assets/fonts/vt323-latin.woff2') format('woff2')}
 /* ============================================================ tokens */
 :root{
   --bg:#15161d;        /* deepest, warm-dark */
@@ -410,7 +412,10 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
         <div class="screen">
           <span class="scrlabel">● LIVE — hover to pet · click to meow</span>
           <!-- static sprite sheet behind the canvas: the hero never renders blank if JS is slow/blocked -->
-          <img class="screen-fallback" src="assets/showcase.png" alt="pixelcat - every pose (sit, typing, hunt, loaf) across all 12 coats" width="1218" height="398" decoding="async" />
+          <picture>
+            <source srcset="assets/showcase.webp" type="image/webp" />
+            <img class="screen-fallback" src="assets/showcase.png" alt="pixelcat - every pose (sit, typing, hunt, loaf) across all 12 coats" width="1218" height="398" decoding="async" />
+          </picture>
           <canvas id="liveCat" class="livecat" role="img" aria-label="A live pixel-art cat that breathes, blinks, watches your cursor, purrs when you pet its head, and plays with a butterfly"></canvas>
         </div>
         <span class="glass"></span>
