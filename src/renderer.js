@@ -437,10 +437,11 @@ let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
-let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 90000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextWp = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0;
-// orbit-flight state: angle/radius/spin direction around the cat's head, a hover-pause
-// timer, and a short fading sparkle trail.
-let bfOrbA = 0, bfOrbR = 95, bfOrbDir = 1, bfHoverUntil = 0, bfNextTrail = 0, bfTrail = [];
+let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 90000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0;
+// a short fading sparkle trail behind the butterfly
+let bfNextTrail = 0, bfTrail = [];
+// "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
+let bfDriftCx = 0, bfDriftCy = 0, bfDriftTX = 0, bfDriftTY = 0, bfNextDrift = 0, bfPhase = 0;
 let hearts = [], lastHeart = 0, lastBodyTrill = -9999;
 let idleSparkles = [], nextIdleSparkle = 0;
 let loafZZZ = [], nextLoafZ = 0;
@@ -457,7 +458,7 @@ let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir 
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
 let nextIdleAt = 0, leanTarget = 0, lean = 0, cursorLean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0, groomUntil = 0;
-let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null;   // autonomous wandering
+let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null, roamDur = 1500;   // autonomous wandering
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
 let lowPower = false;   // main's derived low-power flag (user toggle and/or on battery)
 // Comnyang-style productivity layer: settings from main + reminder/break bubble
@@ -817,6 +818,12 @@ const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUN
 // long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge;
 // BF_EDGE is the screen-edge keep-out for the whole sprite (covers the wingspan).
 const BF_PLAY_IDLE = 1800, BF_TOP = 46, BF_EDGE = 18, BF_SCALE = 1.25;
+// "air currents & the chase" (mirrors site/cat-live.js): the butterfly glides a drifting
+// figure-eight across the screen; the cat creeps after it via the existing roam machinery.
+const DRIFT_PHASE_RATE = 0.012, DRIFT_EASE = 0.012, LISSA_RATIO = 2, LISSA_DELTA = Math.PI / 2;
+const DRIFT_REPICK_MS = [4200, 3000], WANDER_ACCEL = 0.022;
+const BURST_RATIO = 3.0, BURST_GATE = 0.7, BURST_LIFT = 26, FLAP_BURST_MULT = 2.2;
+const BUG_INTEREST_MIN = 90, BUG_STANDOFF = 70, BUG_RETARGET_DIST = 60, BUG_CREEP_MS = 1400, BUG_POUNCE_TRIGGER = POUNCE_RANGE * 1.6;
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
@@ -868,8 +875,10 @@ function startBflyVisit(t) {
   // pinned into a corner.
   const side = pos.x < canvas.width / 2 ? 1 : -1;
   bfX = clamp(pos.x + side * 220, BF_EDGE, canvas.width - BF_EDGE); bfY = clamp(pos.y - SH - 40, BF_TOP, canvas.height - BF_EDGE);
-  bfVx = -side * 4; bfVy = 0; bfWpX = pos.x; bfWpY = pos.y - SH * 0.8; bfNextWp = t + 1200; bfNextDive = t + 3000; bfDiveUntil = 0; bfDodgeUntil = 0;
-  bfOrbA = side > 0 ? 0 : Math.PI; bfOrbDir = Math.random() < 0.5 ? 1 : -1; bfHoverUntil = 0; bfTrail = [];
+  bfVx = -side * 4; bfVy = 0; bfWpX = pos.x; bfWpY = pos.y - SH * 0.8; bfNextDive = t + 3000; bfDiveUntil = 0; bfDodgeUntil = 0; bfTrail = [];
+  // seed the air-current glider: a wandering figure-eight center, re-picked soon to ramble across the screen
+  bfDriftCx = clamp(bfX, 80, canvas.width - 80); bfDriftCy = clamp(pos.y - SH - 30, BF_TOP, canvas.height * 0.5);
+  bfDriftTX = bfDriftCx; bfDriftTY = bfDriftCy; bfPhase = Math.random() * Math.PI * 2; bfNextDrift = t + 500;
 }
 // Flight + cat reaction. f = { follow, grabbing, hunting, typing, petting, startleActive, calm }.
 function updateButterflyDesk(t, dt, step, f) {
@@ -900,20 +909,31 @@ function updateButterflyDesk(t, dt, step, f) {
     // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
   }
-  let tx, ty;
+  let tx, ty, burst = false;
   if (bfMode === 'out') { tx = bfX < headX ? -40 : canvas.width + 40; ty = bfY; }
   else if (bfMode === 'dive') { tx = headX + Math.sin(t / 200) * 26; ty = headY - 6 + Math.cos(t / 170) * 12; }
   else if (bfMode === 'dodge') { tx = bfWpX; ty = bfWpY; }
   else {
-    // gentle elliptical orbit around the cat's head: always near the cat, always on-screen.
-    if (t > bfHoverUntil) bfOrbA += bfOrbDir * 0.020 * dtf;          // hover-pause freezes the spin
-    if (t > bfNextWp) { bfHoverUntil = Math.random() < 0.4 ? t + 600 + Math.random() * 600 : 0; bfNextWp = t + 1400 + Math.random() * 1600; }
-    bfOrbR = 78 + 34 * Math.sin(t / 1700);                            // radius breathes
-    bfWpX = clamp(headX + Math.cos(bfOrbA) * bfOrbR, BF_EDGE, canvas.width - BF_EDGE);
-    bfWpY = clamp(headY + Math.sin(bfOrbA) * bfOrbR * 0.7 - 16, BF_TOP, canvas.height - BF_EDGE);
+    // air-current glider: a wandering center traces a lazy figure-eight across the whole screen,
+    // with periodic flap-bursts to climb then glide back down (mirrors site/cat-live.js).
+    bfPhase += DRIFT_PHASE_RATE * dtf;
+    const ax = Math.min(canvas.width * 0.30, 220), ay = Math.min(canvas.height * 0.16, 100);
+    if (t > bfNextDrift) {
+      const de = Math.min(ax + 24, canvas.width * 0.42);
+      bfDriftTX = de + Math.random() * Math.max(0, canvas.width - 2 * de);
+      bfDriftTY = BF_TOP + Math.random() * Math.max(0, canvas.height * 0.5 - BF_TOP);
+      bfNextDrift = t + DRIFT_REPICK_MS[0] + Math.random() * DRIFT_REPICK_MS[1];
+    }
+    bfDriftCx += (bfDriftTX - bfDriftCx) * DRIFT_EASE * dtf;
+    bfDriftCy += (bfDriftTY - bfDriftCy) * DRIFT_EASE * dtf;
+    bfWpX = clamp(bfDriftCx + ax * Math.sin(bfPhase), BF_EDGE, canvas.width - BF_EDGE);
+    let gy = bfDriftCy + ay * Math.sin(bfPhase * LISSA_RATIO + LISSA_DELTA);
+    burst = Math.sin(bfPhase * BURST_RATIO) > BURST_GATE;
+    if (burst) gy -= BURST_LIFT;                                      // flap-burst to gain height, then glide down
+    bfWpY = clamp(gy, BF_TOP, canvas.height - BF_EDGE);
     tx = bfWpX; ty = bfWpY;
   }
-  let accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : 0.03));
+  let accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : WANDER_ACCEL));
   // ease-out: ease off the throttle as it nears the target so arrivals glide, not snap
   if (bfMode !== 'dodge' && bfMode !== 'out') accel *= clamp(Math.hypot(tx - bfX, ty - bfY) / 100, 0.4, 1);
   bfVx += (tx - bfX) * accel * dtf; bfVy += (ty - bfY) * accel * dtf;
@@ -923,7 +943,7 @@ function updateButterflyDesk(t, dt, step, f) {
   const sp = Math.hypot(bfVx, bfVy), maxv = bfMode === 'dodge' ? 10 : (bfMode === 'out' ? 8 : 5.5);
   if (sp > maxv) { bfVx *= maxv / sp; bfVy *= maxv / sp; }
   bfX += bfVx * dtf; bfY += bfVy * dtf;
-  bfFlap += (0.18 + sp * 0.03) * dtf;
+  bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
   if (bfMode === 'out' && (bfX < -30 || bfX > canvas.width + 30)) { bfOn = false; huntTarget = null; bfNextVisit = t + 120000 + Math.random() * 120000; return; }
   const m = 10;
   if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > canvas.width - m) { bfX = canvas.width - m; bfVx = -Math.abs(bfVx); }
@@ -933,7 +953,7 @@ function updateButterflyDesk(t, dt, step, f) {
   const atEdge = bfX <= BF_EDGE || bfX >= canvas.width - BF_EDGE || bfY <= BF_TOP || bfY >= canvas.height - BF_EDGE;
   if (atEdge) { if (!bfEdgeSince) bfEdgeSince = t; } else bfEdgeSince = 0;
   if (bfEdgeSince && t - bfEdgeSince > 600 && bfMode !== 'out') {
-    bfMode = 'wander'; bfNextWp = 0; bfHoverUntil = 0; bfEdgeSince = 0;
+    bfMode = 'wander'; bfDriftTX = headX; bfDriftTY = headY - 40; bfNextDrift = t + 1500; bfEdgeSince = 0;   // re-aim the glide center inward
     bfVx += (headX - bfX) * 0.04; bfVy += (headY - bfY) * 0.04;   // re-aim inward, toward the cat
   }
   // short fading sparkle trail (kept tiny; skipped in low power)
@@ -948,7 +968,11 @@ function updateButterflyDesk(t, dt, step, f) {
     if (!f.hunting && t > bfSwatCool) { leanTarget = clamp((bfX - pos.x) / 280, -0.06, 0.06); leanUntil = t + 220; }
   }
   const dh = Math.hypot(bfX - headX, bfY - headY);
-  if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting) {
+  // the chase pays off: once the cat has crept within range of a calmly wandering bug, pounce at it
+  if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && !f.hunting && t >= huntUntil && t > bfSwatCool && !(config && config.huntOn === false) && !SHOT) {
+    huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; bfSwatCool = t + 1200;
+  }
+  if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting && t >= huntUntil) {
     if (cursorIdle && t > bfSwatCool) { bfSwatCool = t + 900; tailFlickT0 = t; leanTarget = clamp((bfX - pos.x) / 120, -0.12, 0.12); leanUntil = t + 260; }
     bfMode = 'dodge'; bfDodgeUntil = t + 460;
     const aw = Math.atan2(bfY - headY, bfX - headX) + (Math.random() - 0.5);
@@ -1208,18 +1232,29 @@ function draw(t) {
     // and then stroll to a random spot inside the play area with a little hop-walk.
     if (nextRoam === 0) nextRoam = t + 15000 + Math.random() * 15000;
     const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && agentState === 'idle' && !(config && config.roamOn === false) && !((config && config.reducedMotion) || lowPower);
-    if (roamIdle && roamUntil < t && t > nextRoam) {
+    // the chase: when a butterfly is drifting far off (and the cursor is idle), creep toward it
+    const cursorIdleNow = (t - lastCursorMove) > BF_PLAY_IDLE;
+    const bugStalkOn = roamIdle && follow && cursorIdleNow && bfOn && bfMode !== 'out' &&
+      Math.hypot(bfX - pos.x, bfY - (pos.y - SH * 0.5)) > BUG_INTEREST_MIN;
+    if (bugStalkOn) {
+      const side = Math.sign(bfX - pos.x) || 1;
+      const tgX = zoneClampX(bfX - side * BUG_STANDOFF);
+      if (roamUntil < t || !roamTo || Math.abs(roamTo.x - tgX) > BUG_RETARGET_DIST) {   // (re)aim as the bug drifts
+        roamFrom = { x: pos.x, y: pos.y }; roamTo = { x: tgX, y: pos.y };               // walk horizontally toward it
+        roamDur = BUG_CREEP_MS; roamUntil = t + roamDur; nextRoam = t + 20000;          // pause random roam during the chase
+      }
+    } else if (roamIdle && roamUntil < t && t > nextRoam) {
       roamFrom = { x: pos.x, y: pos.y };
       const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
       const ry = playArea ? (playArea.y + Math.random() * playArea.h) * canvas.height : canvas.height * 0.45 + Math.random() * canvas.height * 0.5;
       roamTo = { x: zoneClampX(rx), y: zoneClampY(ry) };
-      roamUntil = t + 1500; nextRoam = t + 20000 + Math.random() * 25000; tailFlickT0 = t; loafUntil = 0;
+      roamDur = 1500; roamUntil = t + roamDur; nextRoam = t + 20000 + Math.random() * 25000; tailFlickT0 = t; loafUntil = 0;
     }
     if (roamUntil > t && roamFrom && roamTo) {
-      const e = clamp((t - (roamUntil - 1500)) / 1500, 0, 1);
+      const e = clamp((t - (roamUntil - roamDur)) / roamDur, 0, 1);
       const ease = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;   // easeInOut
       pos.x = roamFrom.x + (roamTo.x - roamFrom.x) * ease;
-      pos.y = roamFrom.y + (roamTo.y - roamFrom.y) * ease - Math.abs(Math.sin(e * Math.PI * 5)) * 3;   // hop-walk
+      pos.y = roamFrom.y + (roamTo.y - roamFrom.y) * ease - Math.abs(Math.sin(e * Math.PI * 5)) * (bugStalkOn ? 1 : 3);   // low creep while stalking, hop-walk otherwise
       restSprings();
       if (e >= 1) persistPos();
       wantHighFps = true;

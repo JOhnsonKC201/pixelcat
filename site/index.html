@@ -720,12 +720,34 @@ perch?.addEventListener('click',(e)=>{ meow(); const r=perch.getBoundingClientRe
 const liveCanvas=document.getElementById('liveCat');
 if(liveCanvas && window.PixelCatLive){
   const ddCap=document.getElementById('ddCap');
+  /* persisted bond: the cat remembers you across visits (trust, visit count, name, unlocks) */
+  const bond=(()=>{ try{ return JSON.parse(localStorage.getItem('pixelcat.bond'))||{}; }catch(e){ return {}; } })();
+  const daysAway=bond.lastSeen ? (Date.now()-new Date(bond.lastSeen).getTime())/86400000 : -1;
+  bond.visits=(bond.visits||0)+1; bond.lastSeen=new Date().toISOString();
+  function saveBond(){ try{ localStorage.setItem('pixelcat.bond',JSON.stringify(bond)); }catch(e){} }
+  saveBond();
+  window.__bond=bond; window.__daysAway=daysAway;   // exposed for the welcome-back / trust UI (Phase 4)
+  let gifted=!!bond.gifted;
+  /* small bond UI: a trust meter that fills as you pet, a "name me?" chip, and the gift payoff */
+  const meter=document.createElement('div');
+  meter.style.cssText='position:fixed;left:12px;bottom:12px;z-index:9000;font:10px/1.5 monospace;color:#ffe9b0;background:rgba(20,18,28,.72);padding:5px 9px;border-radius:8px;opacity:0;transition:opacity .5s;pointer-events:none';
+  const mh=document.createElement('span'); meter.append('bond ',mh); document.body.appendChild(meter);
+  function renderMeter(){ const tr=bond.trust||0,f=Math.round(tr*5); mh.textContent='♥'.repeat(f)+'♡'.repeat(5-f); meter.style.opacity=tr>0?'1':'0'; }
+  function showGiftRibbon(){ const a=document.createElement('a'); a.href='https://github.com/JOhnsonKC201/pixelcat/releases'; a.target='_blank'; a.rel='noopener'; a.textContent='★ '+(bond.name||'the cat')+' brought you something → download'; a.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9001;font:11px monospace;color:#241f30;background:#ffd76b;padding:8px 14px;border-radius:10px;text-decoration:none;box-shadow:0 4px 16px rgba(0,0,0,.35)'; document.body.appendChild(a); setTimeout(()=>{a.style.transition='opacity .6s';a.style.opacity='0';setTimeout(()=>a.remove(),700);},10000); }
+  function maybeGift(){ if(gifted||(bond.trust||0)<1)return; gifted=true; bond.gifted=true; saveBond(); if(window.__cat&&window.__cat.gift)window.__cat.gift(); showGiftRibbon(); }
+  let nameChipShown=false;
+  function showNameChip(){ if(nameChipShown||bond.name)return; nameChipShown=true; const chip=document.createElement('div'); chip.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9000;font:10px monospace;color:#ffe9b0;background:rgba(20,18,28,.78);padding:6px 9px;border-radius:8px;cursor:pointer'; chip.textContent='name me? ♥'; chip.onclick=()=>{ const inp=document.createElement('input'); inp.maxLength=16; inp.placeholder='name…'; inp.style.cssText='font:10px monospace;width:84px;background:#0c0a12;color:#ffe9b0;border:1px solid #555;border-radius:4px;padding:2px 5px'; chip.textContent=''; chip.appendChild(inp); inp.focus(); inp.onkeydown=(e)=>{ if(e.key==='Enter'){ const n=inp.value.trim().slice(0,16); if(n){ bond.name=n; saveBond(); window.__cat.setName(n); window.__cat.greet('hi! i\'m '+n+' ♥'); } chip.remove(); } }; }; document.body.appendChild(chip); }
   window.__cat=PixelCatLive.init(liveCanvas,{
-    coatIndex: TUX,
+    coatIndex: TUX, name: bond.name||'',
     onMeow:meow, onHearts:(x,y)=>heartBurst(x,y), cycleCoatOnClick:true,
     onPurrStart:startPurr, onPurrStop:stopPurr,
+    onAffection:(info)=>{ bond.pets=(bond.pets||0)+1; bond.trust=Math.min(1,(bond.trust||0)+0.08); saveBond(); renderMeter(); if(!bond.name)showNameChip(); maybeGift(); },
+    onUnlock:(id)=>{ bond.unlocks=bond.unlocks||[]; if(!bond.unlocks.includes(id)){ bond.unlocks.push(id); saveBond(); } },
     onBehavior:(name)=>{ if(ddCap) ddCap.textContent = name || 'watching you…'; },
   });
+  renderMeter();
+  /* welcome-back: returning visitors get a greeting (warmer the longer you've been away) */
+  if(bond.visits>1){ const nm=bond.name?(', '+bond.name):''; const msg=daysAway>=1?('missed you'+nm+' ♥'):('welcome back'+nm+' ♥'); setTimeout(()=>{ try{ window.__cat.greet(msg); }catch(e){} }, 1900); }
   selectCoat(TUX);   // mark the matching gallery card as active
   const fb=document.querySelector('.screen-fallback'); if(fb) fb.style.display='none';   // live canvas is up; drop the static fallback
 }
