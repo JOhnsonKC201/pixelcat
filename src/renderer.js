@@ -944,10 +944,16 @@ function updateButterflyDesk(t, dt, step, f) {
   if (sp > maxv) { bfVx *= maxv / sp; bfVy *= maxv / sp; }
   bfX += bfVx * dtf; bfY += bfVy * dtf;
   bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
-  if (bfMode === 'out' && (bfX < -30 || bfX > canvas.width + 30)) { bfOn = false; huntTarget = null; bfNextVisit = t + 120000 + Math.random() * 120000; return; }
-  const m = 10;
-  if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > canvas.width - m) { bfX = canvas.width - m; bfVx = -Math.abs(bfVx); }
-  if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > canvas.height - m) { bfY = canvas.height - m; bfVy = -Math.abs(bfVy); }
+  // despawn once it has flown off-screen — or, as a failsafe, if it has been leaving too long
+  // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
+  if (bfMode === 'out' && (bfX < -30 || bfX > canvas.width + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 120000 + Math.random() * 120000; return; }
+  // keep the sprite on-screen — but NOT while leaving, or the clamp pins it at the edge and it
+  // can never reach the off-screen despawn threshold above (it would flutter there forever).
+  if (bfMode !== 'out') {
+    const m = 10;
+    if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > canvas.width - m) { bfX = canvas.width - m; bfVx = -Math.abs(bfVx); }
+    if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > canvas.height - m) { bfY = canvas.height - m; bfVy = -Math.abs(bfVy); }
+  }
   // anti-stick safety net: if the butterfly lingers against ANY edge it has gotten trapped
   // (regardless of mode/cat position). Boot it back toward the cat's head.
   const atEdge = bfX <= BF_EDGE || bfX >= canvas.width - BF_EDGE || bfY <= BF_TOP || bfY >= canvas.height - BF_EDGE;
