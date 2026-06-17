@@ -19,6 +19,9 @@ _patch.js
 previews/
 .playwright-mcp/
 
+# Local code intelligence (CodeGraph index)
+.codegraph/
+
 # OS
 .DS_Store
 Thumbs.db
