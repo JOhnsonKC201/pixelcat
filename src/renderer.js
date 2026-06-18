@@ -437,7 +437,7 @@ let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
-let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 90000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0;
+let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0;
 // a short fading sparkle trail behind the butterfly
 let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
@@ -470,7 +470,7 @@ let pomo = null;   // { on, phase: 'focus'|'break', endsAt } - main owns the clo
 let purring = false;
 // Comnyang mood/energy model: 0-100, decays over time, bumped by stimuli. Bands
 // (calm/playful/zoomies) gate + scale every behavior; see bandOf()/intensity.
-let energy = 62;
+let energy = 68;   // start a touch more playful
 let startleT0 = -1, startleUntil = 0, startleMode = 'creep', startleFrom = null, startleTo = null, startleCooldownUntil = -9999;
 let zoomiesT0 = -1, prevBand = '', spinUntil = 0;
 
@@ -830,11 +830,11 @@ const BF_PLAY_IDLE = 1800, BF_TOP = 46, BF_EDGE = 18, BF_SCALE = 1.25;
 const DRIFT_PHASE_RATE = 0.012, DRIFT_EASE = 0.012, LISSA_RATIO = 2, LISSA_DELTA = Math.PI / 2;
 const DRIFT_REPICK_MS = [4200, 3000], WANDER_ACCEL = 0.022;
 const BURST_RATIO = 3.0, BURST_GATE = 0.7, BURST_LIFT = 26, FLAP_BURST_MULT = 2.2;
-const BUG_INTEREST_MIN = 90, BUG_STANDOFF = 70, BUG_RETARGET_DIST = 60, BUG_CREEP_MS = 1400, BUG_POUNCE_TRIGGER = POUNCE_RANGE * 1.6;
+const BUG_INTEREST_MIN = 90, BUG_STANDOFF = 70, BUG_RETARGET_DIST = 60, BUG_CREEP_MS = 1400, BUG_POUNCE_TRIGGER = POUNCE_RANGE * 1.9;
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
-const ENERGY_DECAY = 0.0012;
+const ENERGY_DECAY = 0.0007;   // slower drift back to calm -> the cat stays lively/playful longer
 const CALM_MAX = 50, PLAYFUL_MAX = 80;
 const STARTLE_VEL = 3.5, STARTLE_JUMP = 320, STARTLE_MS = 820, ZOOMIES_MS = 2500;
 const STARTLE_RANGE = 160;   // only flinch when the cursor lunges NEAR the cat - not on every fast move across the screen
@@ -876,7 +876,7 @@ function drawButterfly(g, bx, by, sc, st, flap, t, rot) {
 }
 function startBflyVisit(t) {
   if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) pos = { x: canvas.width / 2, y: canvas.height - 80 };
-  bfOn = true; bfMode = 'in'; bfUntil = t + 16000 + Math.random() * 6000;
+  bfOn = true; bfMode = 'in'; bfUntil = t + 22000 + Math.random() * 8000;
   bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000;
   // enter from whichever side has more room (toward screen interior) so it never spawns
   // pinned into a corner.
@@ -911,7 +911,7 @@ function updateButterflyDesk(t, dt, step, f) {
     if (bfMode === 'in' && (Math.hypot(bfX - headX, bfY - headY) < 160 || t > bfNextDive)) bfMode = 'wander';
     if (bfMode === 'wander' && t > bfNextDive) {
       bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 3500 + Math.random() * 3500;
-      if (cursorIdle && Math.random() < 0.4 && !f.hunting && !(config && config.huntOn === false) && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
+      if (cursorIdle && Math.random() < 0.55 && !f.hunting && !(config && config.huntOn === false) && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
     }
     // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
@@ -953,7 +953,7 @@ function updateButterflyDesk(t, dt, step, f) {
   bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
   // despawn once it has flown off-screen — or, as a failsafe, if it has been leaving too long
   // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
-  if (bfMode === 'out' && (bfX < -30 || bfX > canvas.width + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 120000 + Math.random() * 120000; return; }
+  if (bfMode === 'out' && (bfX < -30 || bfX > canvas.width + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; return; }
   // keep the sprite on-screen — but NOT while leaving, or the clamp pins it at the edge and it
   // can never reach the off-screen despawn threshold above (it would flutter there forever).
   if (bfMode !== 'out') {
@@ -1243,7 +1243,7 @@ function draw(t) {
     }
     // --- autonomous roaming: a real cat wanders. When calm (not busy), now
     // and then stroll to a random spot inside the play area with a little hop-walk.
-    if (nextRoam === 0) nextRoam = t + 15000 + Math.random() * 15000;
+    if (nextRoam === 0) nextRoam = t + 8000 + Math.random() * 9000;
     const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && agentState === 'idle' && !(config && config.roamOn === false) && !((config && config.reducedMotion) || lowPower);
     // the chase: when a butterfly is drifting far off (and the cursor is idle), creep toward it
     const cursorIdleNow = (t - lastCursorMove) > BF_PLAY_IDLE;
@@ -1261,7 +1261,7 @@ function draw(t) {
       const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
       const ry = playArea ? (playArea.y + Math.random() * playArea.h) * canvas.height : canvas.height * 0.45 + Math.random() * canvas.height * 0.5;
       roamTo = { x: zoneClampX(rx), y: zoneClampY(ry) };
-      roamDur = 1500; roamUntil = t + roamDur; nextRoam = t + 20000 + Math.random() * 25000; tailFlickT0 = t; loafUntil = 0;
+      roamDur = 1500; roamUntil = t + roamDur; nextRoam = t + 11000 + Math.random() * 13000; tailFlickT0 = t; loafUntil = 0;
     }
     if (roamUntil > t && roamFrom && roamTo) {
       const e = clamp((t - (roamUntil - roamDur)) / roamDur, 0, 1);
@@ -1302,17 +1302,18 @@ function draw(t) {
     const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && roamUntil < t && agentState === 'idle';
     if (restIdle && !staring) {
       const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
-      if (nextIdleAt === 0) nextIdleAt = t + (2600 + Math.random() * 4200) * idleScale;
+      if (nextIdleAt === 0) nextIdleAt = t + (1600 + Math.random() * 2600) * idleScale;
       if (t > nextIdleAt) {
-        nextIdleAt = t + (3200 + Math.random() * 6000) * idleScale;
+        nextIdleAt = t + (2000 + Math.random() * 3600) * idleScale;
         const roll = Math.random();
-        if (roll < 0.34) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
-        else if (roll < 0.50) { tailFlickT0 = t; }
-        else if (roll < 0.62) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.035; leanUntil = t + 750; }
-        else if (roll < 0.78) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
-        else if (roll < 0.92 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (not when hyper)
+        if (roll < 0.30) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
+        else if (roll < 0.48) { tailFlickT0 = t; }
+        else if (roll < 0.62) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.045; leanUntil = t + 700; }   // bigger weight shift
+        else if (roll < 0.74 && band !== 'calm' && !((config && config.reducedMotion) || lowPower)) { doneHopPending = true; tailFlickT0 = t; }   // a little perk-up bounce when awake
+        else if (roll < 0.84) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf (less often now)
+        else if (roll < 0.93 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (not when hyper)
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
-        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.4 && !((config && config.reducedMotion) || lowPower)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
+        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.5 && !((config && config.reducedMotion) || lowPower)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
         if (band === 'zoomies' && Math.random() < 0.3 && !((config && config.reducedMotion) || lowPower)) spinUntil = t + 650;   // tail-chase pirouette
       }
     } else { nextIdleAt = 0; }
