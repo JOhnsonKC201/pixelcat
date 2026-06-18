@@ -101,6 +101,7 @@ function createWindow() {
   const opts = {
     transparent: true, frame: false, resizable: false, alwaysOnTop: true,
     skipTaskbar: true, hasShadow: false,
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),   // window/alt-tab icon when run from source (dev)
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   };
   if (SHOT || SHEET) {
@@ -401,6 +402,7 @@ function openSettings() {
   settingsWin = new BrowserWindow({
     width: 400, height: 560, resizable: false, fullscreenable: false, maximizable: false,
     title: 'pixelcat settings', skipTaskbar: false, alwaysOnTop: true,
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),   // taskbar icon for the settings window
     show: false, backgroundColor: '#191b22',   // dark from the first paint - no white flash
     webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
