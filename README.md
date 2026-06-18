@@ -12,6 +12,7 @@ desktop pet built with Electron - nearly every sprite, animation, and sound is
 original and procedural (the optional scroll rope-climb can use painterly sprite
 frames; everything else is pure code).
 
+[![download for Windows](https://img.shields.io/badge/⬇_download_for_Windows-2563EB?style=flat&labelColor=15161d)](https://github.com/JOhnsonKC201/pixelcat/releases/latest)
 [![live demo](https://img.shields.io/badge/▶_live_demo-22C55E?style=flat&labelColor=15161d)](https://pixelcat-jet.vercel.app)
 [![CI](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml/badge.svg)](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml)
 ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20(beta)-blue)
@@ -28,6 +29,14 @@ frames; everything else is pure code).
 
 ## Quick start
 
+**Just want the cat?** Grab the Windows installer - no git or Node needed, just run it:
+
+### ⬇ [Download for Windows](https://github.com/JOhnsonKC201/pixelcat/releases/latest)
+
+Prefer to try before installing? [Play with the cat in your browser →](https://pixelcat-jet.vercel.app) - no install.
+
+**Run from source** (to develop, or to run on macOS):
+
 ```powershell
 git clone https://github.com/JOhnsonKC201/pixelcat.git
 cd pixelcat
@@ -35,7 +44,7 @@ npm install
 npm start
 ```
 
-That's it - the cat appears in the corner and starts at login from now on.
+Either way, the cat appears in the corner and starts at login from now on.
 To stop it launching at login: `npm run autostart:off`.
 
 > **macOS (beta):** same commands. On first run, grant **Accessibility permission**
