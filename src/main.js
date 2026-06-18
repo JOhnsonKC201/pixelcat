@@ -331,8 +331,7 @@ function trayImage() {
   const p = path.join(APP_DIR, 'assets', 'tray.png');
   const img = nativeImage.createFromPath(p);
   if (img.isEmpty()) return nativeImage.createEmpty();
-  // macOS renders template images correctly in light & dark menu bars.
-  if (process.platform === 'darwin') img.setTemplateImage(true);
+  // The tray icon is a colored tile (not a monochrome glyph), so it is NOT a template image.
   return img;
 }
 function createTray() {

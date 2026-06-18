@@ -58,31 +58,10 @@ function buildIco(entries) {  // entries: [{ size, data }]
 
 const logo = stripBackground(loadLogo());   // transparent cat only (no scene background)
 const rgbaAt = (size) => resizeSquare(logo, size);
-// Tray glyph treatment: the mascot is dark, so on a dark Windows system tray a fully
-// transparent icon disappears. Wrap the cat in a crisp light "sticker" outline (the same
-// look as the in-app cat) so it reads on dark AND light taskbars. On macOS the tray image
-// is used as a template (silhouette), so the outline just slightly fattens that silhouette.
-function withHalo(size) {
-  const cat = rgbaAt(size);
-  const r = Math.max(1, Math.round(size / 14));
-  const alphaAt = (x, y) => (x < 0 || y < 0 || x >= size || y >= size) ? 0 : cat[(y * size + x) * 4 + 3];
-  const out = new Uint8ClampedArray(size * size * 4);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const o = (y * size + x) * 4;
-    if (cat[o + 3] > 60) { out[o] = cat[o]; out[o + 1] = cat[o + 1]; out[o + 2] = cat[o + 2]; out[o + 3] = cat[o + 3]; continue; }
-    let near = false;
-    for (let dy = -r; dy <= r && !near; dy++) for (let dx = -r; dx <= r; dx++) { if (alphaAt(x + dx, y + dy) > 120) { near = true; break; } }
-    if (near) { out[o] = 245; out[o + 1] = 246; out[o + 2] = 250; out[o + 3] = 255; }   // soft white outline
-  }
-  return out;
-}
-const haloEntry = (size) => ({ size, data: size >= 256 ? encodePng(withHalo(size), size) : encodeBmp(withHalo(size), size) });
-
-// App-icon tile. The mascot is dark, so a transparent icon turns into a dark blob at
-// 16-48px on dark taskbars/wallpapers. Composite the cat onto a bold, rounded, warm
-// gradient tile (cream -> soft orange, echoing the spikes) so the desktop/taskbar icon
-// stays clearly visible on ANY background. Tray glyphs stay transparent (they live in
-// the system tray and must adapt to it), so only the app icons get the tile.
+// App + tray icon tile. The mascot is dark, so a transparent icon turns into a dark blob
+// at 16-48px on dark taskbars/wallpapers/system tray. Composite the cat onto a bold,
+// rounded, warm gradient tile (cream -> soft orange, echoing the spikes) so the icon stays
+// clearly visible on ANY background. Both the app icons AND the tray glyph use this tile.
 const TILE_TOP = [255, 234, 200];   // warm cream (top)
 const TILE_BOT = [255, 170, 104];   // soft orange (bottom)
 const CAT_SCALE = 0.84;             // cat occupies 84% of the tile, leaving a clean frame
@@ -126,10 +105,10 @@ fs.writeFileSync(path.join(outDir, 'icon-512.png'), encodePng(onTile(512), 512))
 // Transparent 512 mascot mark for the README hero (no tile).
 fs.writeFileSync(path.join(outDir, 'logo-mark.png'), encodePng(rgbaAt(512), 512));
 
-// Tray glyph (16 + retina 32) and the legacy tray .ico — light "sticker" outline so the
-// dark mascot stays visible on a dark system tray (and on light taskbars too).
-fs.writeFileSync(path.join(outDir, 'tray.png'), encodePng(withHalo(16), 16));
-fs.writeFileSync(path.join(outDir, 'tray@2x.png'), encodePng(withHalo(32), 32));
-fs.writeFileSync(path.join(outDir, 'pixelcat.ico'), buildIco([32, 16].map(haloEntry)));
+// Tray glyph (16 + retina 32) and the legacy tray .ico — on the same warm tile as the app
+// icon so the dark mascot is clearly visible on a dark system tray.
+fs.writeFileSync(path.join(outDir, 'tray.png'), encodePng(onTile(16), 16));
+fs.writeFileSync(path.join(outDir, 'tray@2x.png'), encodePng(onTile(32), 32));
+fs.writeFileSync(path.join(outDir, 'pixelcat.ico'), buildIco([32, 16].map(tileEntry)));
 
 console.log('wrote assets/{icon.png,icon.ico,icon-512.png} on tile + tray glyphs from logo.png (BMP small ICO entries)');
