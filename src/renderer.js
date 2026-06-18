@@ -235,8 +235,13 @@ function drawCat(g, sp, t, palRGB, o) {
   if (!typing) {
     g.strokeStyle = 'rgba(245,245,245,0.6)'; g.lineWidth = 1; g.lineCap = 'round';
     const my = sp.muzzle.y + bob, cl = sp.muzzle.x - 4.5 * CELL, cr = sp.muzzle.x + 4.5 * CELL;
+    // whiskers are alive: a slow waft plus a quick twitch every ~5s (t==0 on the
+    // contact sheet => no offset, so QA frames stay byte-stable).
+    const waft = Math.sin(t / 1400) * 0.6;
+    const twitch = (t % 5200) < 200 ? Math.sin(t / 26) * 1.5 : 0;
     for (const [sx, dir] of [[cl, -1], [cr, 1]]) for (let i = 0; i < 3; i++) {
-      g.beginPath(); g.moveTo(sx, my + i * 3 - 2); g.lineTo(sx + dir * 13, my + i * 5 - 1); g.stroke();
+      const tipY = my + i * 5 - 1 + waft + twitch + Math.sin(t / 900 + i) * 0.5;
+      g.beginPath(); g.moveTo(sx, my + i * 3 - 2); g.lineTo(sx + dir * 13, tipY); g.stroke();
     }
   }
   if (blush) {
@@ -460,6 +465,7 @@ let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, climbDir 
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
 let nextIdleAt = 0, leanTarget = 0, lean = 0, cursorLean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0, groomUntil = 0;
+let playUntil = 0, playT0 = -1, mote = null;   // idle paw-play: the cat bats a drifting leaf with a front paw
 let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null, roamDur = 1500;   // autonomous wandering
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
 let lowPower = false;   // main's derived low-power flag (user toggle and/or on battery)
@@ -817,6 +823,53 @@ function drawGroom(palRGB, cx, faceY, t) {
   const sp = (t % 1600) / 1600;                                   // occasional "squeaky clean" sparkle
   if (sp < 0.4) { ctx.globalAlpha = (0.4 - sp) * 2; ctx.fillStyle = '#fff6d6';
     const sx = cx + 11, sy = faceY - 5 - sp * 7; ctx.fillRect(sx, sy, 2, 2); ctx.fillRect(sx + 2, sy - 3, 1, 1); ctx.globalAlpha = 1; }
+}
+
+// Idle paw-play: a small leaf drifts in front of the seated cat and it bats at it with
+// a front paw. Self-contained (it plays by itself, never grabs the cursor) so it reads
+// as "alive and playful" without getting in the user's way.
+function startPlay(t) {
+  const side = Math.random() < 0.5 ? -1 : 1;
+  playT0 = t; playUntil = t + 2600 + Math.random() * 1600;
+  mote = { x: pos.x + side * 16, y: pos.y - SH * 0.95, vx: side * 0.5, vy: 0.5, spin: Math.random() * 6.28, side, batCyc: -1 };
+  tailFlickT0 = t;
+}
+// A little tumbling leaf the cat bats around (drawn in screen coords).
+function drawMote(x, y, spin) {
+  ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(spin);
+  ctx.fillStyle = '#5fae4e'; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.6, 0, 0, Math.PI * 2); ctx.fill();      // leaf body
+  ctx.fillStyle = '#7ccb62'; ctx.beginPath(); ctx.ellipse(-1, -0.7, 3.2, 1.5, 0, 0, Math.PI * 2); ctx.fill(); // lit top
+  ctx.strokeStyle = '#3c7a32'; ctx.lineWidth = 0.8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-4.5, 0); ctx.lineTo(5, 0); ctx.stroke();                                       // center vein
+  ctx.strokeStyle = '#4e8f40'; ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(7.6, 1.3); ctx.stroke();         // stem
+  ctx.restore();
+}
+// Update the leaf physics + draw the batting paw. Called from the seated render once
+// per frame while `playing` (oy = sprite top). Reuses drawGripPaw for the reaching arm.
+function renderPlay(palRGB, oy, t, step) {
+  if (!mote) { mote = { x: pos.x + 14, y: oy + SH * 0.06, vx: 0, vy: 0.5, spin: 0.6, side: 1, batCyc: -1 }; if (playT0 < 0) playT0 = t; }   // QA --state=play
+  // the leaf springs gently back toward a hover point in front of the face, with a
+  // little gravity so it keeps sinking and the cat keeps batting it back up.
+  const hoverX = pos.x + mote.side * 12, hoverY = oy + SH * 0.30;
+  mote.vx += (hoverX - mote.x) * 0.010 * step;
+  mote.vy += ((hoverY - mote.y) * 0.010 + 0.06) * step;
+  mote.vx *= 0.93; mote.vy *= 0.93;
+  mote.x += mote.vx * step; mote.y += mote.vy * step;
+  mote.spin += 0.05 * step;
+  // the left front paw reaches up toward the leaf and strikes once per cycle
+  const CYC = 540, cyc = Math.floor((t - playT0) / CYC), phase = ((t - playT0) % CYC) / CYC;
+  const strike = Math.sin(clamp(phase, 0, 1) * Math.PI);
+  const shX = pos.x - 8, shY = oy + SH * 0.60, reach = 0.42 + strike * 0.5;
+  const px = shX + (mote.x - shX) * reach, py = shY + (mote.y - shY) * reach;
+  drawGripPaw(palRGB, shX, shY, px, py, strike > 0.55);   // splayed toe-beans on the strike
+  if (cyc !== mote.batCyc && phase > 0.42 && phase < 0.72) {   // connect once per cycle near the strike peak
+    mote.batCyc = cyc;
+    const aw = Math.atan2(mote.y - shY, mote.x - shX) + (Math.random() - 0.5) * 0.8;
+    mote.vx += Math.cos(aw) * 2.8; mote.vy += Math.sin(aw) * 1.4 - 2.0;   // knock it up and away
+    idleSparkles.push({ x: mote.x, y: mote.y, t0: t });
+    tailFlickT0 = t;
+  }
+  drawMote(mote.x, mote.y, mote.spin);
 }
 
 // hunt/pet tuning
@@ -1260,7 +1313,7 @@ function draw(t) {
     // --- autonomous roaming: a real cat wanders. When calm (not busy), now
     // and then stroll to a random spot inside the play area with a little hop-walk.
     if (nextRoam === 0) nextRoam = t + 8000 + Math.random() * 9000;
-    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && agentState === 'idle' && !(config && config.roamOn === false) && !((config && config.reducedMotion) || lowPower);
+    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && t >= playUntil && agentState === 'idle' && !(config && config.roamOn === false) && !((config && config.reducedMotion) || lowPower);
     // the chase: when a butterfly is drifting far off (and the cursor is idle), creep toward it
     const cursorIdleNow = (t - lastCursorMove) > BF_PLAY_IDLE;
     const bugStalkOn = roamIdle && follow && cursorIdleNow && bfOn && bfMode !== 'out' &&
@@ -1319,18 +1372,20 @@ function draw(t) {
     if (restIdle && !staring) {
       const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
       if (nextIdleAt === 0) nextIdleAt = t + (1600 + Math.random() * 2600) * idleScale;
-      if (t > nextIdleAt) {
+      if (t > nextIdleAt && t >= playUntil) {   // don't start a new idle action mid-play
         nextIdleAt = t + (2000 + Math.random() * 3600) * idleScale;
         const roll = Math.random();
-        if (roll < 0.30) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
-        else if (roll < 0.48) { tailFlickT0 = t; }
-        else if (roll < 0.62) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.045; leanUntil = t + 700; }   // bigger weight shift
-        else if (roll < 0.74 && band !== 'calm' && !((config && config.reducedMotion) || lowPower)) { doneHopPending = true; tailFlickT0 = t; }   // a little perk-up bounce when awake
-        else if (roll < 0.84) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf (less often now)
-        else if (roll < 0.93 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (not when hyper)
+        const motionOK = !((config && config.reducedMotion) || lowPower);
+        if (roll < 0.26) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
+        else if (roll < 0.42) { tailFlickT0 = t; }
+        else if (roll < 0.54) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.045; leanUntil = t + 700; }   // weight shift
+        else if (roll < 0.70 && band !== 'calm' && motionOK) { startPlay(t); }   // bat a drifting leaf with a paw (self-play; never grabs the cursor)
+        else if (roll < 0.80) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
+        else if (roll < 0.90 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (paw to muzzle)
+        else if (roll < 0.95 && band !== 'calm' && motionOK) { doneHopPending = true; tailFlickT0 = t; }   // an occasional perk-up bounce (rare now)
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
-        if ((band === 'playful' || band === 'zoomies') && Math.random() < 0.5 && !((config && config.reducedMotion) || lowPower)) { doneHopPending = true; tailFlickT0 = t; }   // spontaneous playful bounce
-        if (band === 'zoomies' && Math.random() < 0.3 && !((config && config.reducedMotion) || lowPower)) spinUntil = t + 650;   // tail-chase pirouette
+        if (band === 'zoomies' && Math.random() < 0.45 && motionOK) startPlay(t);   // hyper: more likely to break into play
+        if (band === 'zoomies' && Math.random() < 0.22 && motionOK) spinUntil = t + 650;   // tail-chase pirouette
       }
     } else { nextIdleAt = 0; }
     if (lookTarget && t > lookTargetUntil) lookTarget = null;
@@ -1366,13 +1421,16 @@ function draw(t) {
       // keycaps and kneads them with alternating paws (Comnyang-style).
       renderTypeFront(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - TW / 2 - 16, pos.y - TH - 8, TW + 32, TH + 16, false);
-    } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive || FORCED_STATE === 'loaf' || FORCED_STATE === 'groom')) {
+    } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive || FORCED_STATE === 'loaf' || FORCED_STATE === 'groom' || FORCED_STATE === 'play')) {
       const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
       const grooming = FORCED_STATE === 'groom' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < groomUntil);
-      const loafing = !grooming && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
+      const playing = !grooming && (FORCED_STATE === 'play' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < playUntil));
+      const loafing = !grooming && !playing && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
       const wig = idleSway;   // calm "normal" patting - no fast side-to-side jitter while petted
       const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
-      const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 } : smoothLook;   // look the way it climbs the rope
+      const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 }
+        : (playing && mote) ? { x: clamp((mote.x - pos.x) / 70, -1, 1), y: clamp((mote.y - (pos.y - SH * 0.72)) / 70, -1, 1) }   // watch the leaf
+        : smoothLook;   // look the way it climbs the rope
       const climbRaster = paperActive && !petting && !stretching && coatHasFrames(coatSlug(P.name));   // painted climb for THIS coat?
       const breath = Math.sin(t / 1500);                              // gentle breathing
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
@@ -1415,8 +1473,8 @@ function draw(t) {
         // baked planted front legs+paws on the offscreen sprite (so it scales/flips
         // with the cat) - otherwise they read as extra limbs behind the climbing arms.
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
-      } else if (grooming) {
-        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised + one planted
+      } else if (grooming || playing) {
+        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised (washing / batting) + one planted
       }
       ctx.save();
       const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
@@ -1439,13 +1497,15 @@ function draw(t) {
       }
       }
       if (grooming && !paperActive) drawGroom(palRGB, pos.x + wig, oy + SH * 0.30, t);   // raise a paw, wash its face
+      if (playing && !paperActive) renderPlay(palRGB, oy, t, step);                       // bat the drifting leaf with a paw
+      else if (mote && t > playUntil) mote = null;                                        // play over -> drop the leaf
       if (t < labelUntil) {
         ctx.globalAlpha = Math.min(1, (labelUntil - t) / 300); ctx.font = 'bold 10px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
         const name = P.name, w = ctx.measureText(name).width + 10, bx = pos.x, by = oy + SH + 14;
         ctx.fillStyle = 'rgba(20,20,24,0.82)'; ctx.fillRect(bx - w / 2, by - 13, w, 13); ctx.fillStyle = '#fff'; ctx.fillText(name, bx, by); ctx.globalAlpha = 1;
       }
       // fully idle (only breathing/tail)? let the governor drop to ~33fps
-      if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !blinking
+      if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !playing && !blinking
           && !lookTarget && t > lookTargetUntil && hearts.length === 0 && idleSparkles.length === 0 && loafZZZ.length === 0 && musicNotes.length === 0 && !jamMotion && t >= bubbleUntil
           && (tailFlickT0 < 0 || t - tailFlickT0 > 700) && Math.abs(lean) < 0.004) wantHighFps = false;
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
