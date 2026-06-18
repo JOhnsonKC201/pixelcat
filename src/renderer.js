@@ -911,7 +911,7 @@ function updateButterflyDesk(t, dt, step, f) {
     if (bfMode === 'in' && (Math.hypot(bfX - headX, bfY - headY) < 160 || t > bfNextDive)) bfMode = 'wander';
     if (bfMode === 'wander' && t > bfNextDive) {
       bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 3500 + Math.random() * 3500;
-      if (cursorIdle && Math.random() < 0.55 && !f.hunting && !(config && config.huntOn === false) && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
+      if (cursorIdle && Math.random() < 0.55 && !f.hunting && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
     }
     // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
@@ -982,7 +982,7 @@ function updateButterflyDesk(t, dt, step, f) {
   }
   const dh = Math.hypot(bfX - headX, bfY - headY);
   // the chase pays off: once the cat has crept within range of a calmly wandering bug, pounce at it
-  if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && !f.hunting && t >= huntUntil && t > bfSwatCool && !(config && config.huntOn === false) && !SHOT) {
+  if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && !f.hunting && t >= huntUntil && t > bfSwatCool && !SHOT) {
     huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; bfSwatCool = t + 1200;
   }
   if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting && t >= huntUntil) {
@@ -1102,7 +1102,7 @@ function draw(t) {
   const huntOn = follow && !!(config && config.huntOn);
   const dCur = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5));
   if (huntOn && !grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) { huntUntil = t + 1400; huntTarget = null; addEnergy(0.6 * step); }
-  const hunting = !startleActive && (FORCED_STATE === 'hunt' || (huntOn && t < huntUntil));
+  const hunting = !startleActive && (FORCED_STATE === 'hunt' || (huntOn && t < huntUntil) || (t < huntUntil && huntTarget && bfOn));
 
   // pet detection (cursor resting on the head, slow, not hunting/grabbing)
   const headBox = { x: pos.x - SW / 2, y: pos.y - SH, w: SW, h: SH * 0.42 };
@@ -1195,7 +1195,15 @@ function draw(t) {
       const tgt = pounceTarget || cursor;
       pos.x = pounceFrom.x + (tgt.x - pounceFrom.x) * ease;
       pos.y = pounceFrom.y + (tgt.y - pounceFrom.y) * ease;
-      leap = Math.sin(e * Math.PI) * 18; stretchY = 1 + Math.sin(e * Math.PI) * 0.18;
+      leap = Math.sin(e * Math.PI) * 32; stretchY = 1 + Math.sin(e * Math.PI) * 0.26;   // a big, paws-up leap
+      // the catch: if the leap reaches a real butterfly, the cat bats it between its paws -> a happy
+      // burst of stars + a heart, and the bug flutters up and away (escapes the paws).
+      if (bfOn && huntTarget && bfMode !== 'out' && e > 0.4 && Math.hypot(bfX - pos.x, bfY - (pos.y - leap - HH * 0.55)) < 44) {
+        const cx = pos.x, cy = pos.y - leap - HH * 0.6;
+        for (let i = 0; i < 6; i++) idleSparkles.push({ x: cx + (Math.random() - 0.5) * 24, y: cy + (Math.random() - 0.5) * 16, t0: t });
+        hearts.push({ x: cx, y: cy - 6, t0: t, s: 1.3 });
+        bfMode = 'out'; bfVy = -11; bfVx = (bfX < cx ? -1 : 1) * 4; bfFlap += 3; addEnergy(22); tailFlickT0 = t;
+      }
       if (e >= 1) { pouncing = false; huntUntil = 0; huntTarget = null; persistPos(); tailFlickT0 = t; idleSparkles.push({ x: pos.x, y: pos.y - HH * 0.7, t0: t }); }   // "got it!" beat
     } else if (FORCED_STATE !== 'hunt' && d < POUNCE_RANGE) {
       pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: (huntTarget || cursor).x, y: (huntTarget || cursor).y };
@@ -1216,6 +1224,14 @@ function draw(t) {
         ctx.fillStyle = pal.C;
         ctx.fillRect(Math.round(pos.x - pdx / plen * i * 7 - 2), Math.round(pos.y - leap - HH * 0.5 - pdy / plen * i * 7 - 3), 4, 6);
       }
+      // two front paws reaching out toward the butterfly at the apex of the leap
+      const reach = Math.sin(pe * Math.PI) * 17, ux = pdx / plen, uy = pdy / plen;
+      const hx = pos.x + ux * reach, hy = pos.y - leap - HH * 0.5 + uy * reach, pa = Math.atan2(uy, ux);
+      ctx.globalAlpha = Math.sin(pe * Math.PI);
+      ctx.fillStyle = pal.C;
+      for (const so of [-4.5, 4.5]) { ctx.beginPath(); ctx.ellipse(hx + so, hy, 3.4, 2.5, pa, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#f3d2e2';
+      for (const so of [-4.5, 4.5]) ctx.fillRect(Math.round(hx + so - 1), Math.round(hy - 1), 2, 2);   // toe beans
       ctx.globalAlpha = 1;
     }
     drawShadow(pos.x, pos.y, 0.18, 26);
