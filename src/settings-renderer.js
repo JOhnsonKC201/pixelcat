@@ -68,6 +68,9 @@ function render() {
   if (document.activeElement !== $('emailPort')) $('emailPort').value = String(em.port || 993);
   if (document.activeElement !== $('emailInterval')) $('emailInterval').value = String(em.intervalMin || 5);
   refreshEmailPassState();
+  const lj = cfg.lobbyJam || { on: false, mood: 'cozy' };
+  $('lobbyJamOn').checked = !!lj.on;
+  $('lobbyJamMood').value = lj.mood || 'cozy';
   const cal = cfg.calendar || {};
   $('calOn').checked = !!cal.on;
   if (document.activeElement !== $('calUrl')) $('calUrl').value = cal.icsUrl || '';
@@ -127,6 +130,9 @@ const pomoSave = () => save({ pomodoro: { on: $('pomoOn').checked, focusMin: Num
 $('pomoOn').addEventListener('change', pomoSave);
 $('pomoFocus').addEventListener('change', pomoSave);
 $('pomoBreak').addEventListener('change', pomoSave);
+const lobbyJamSave = () => save({ lobbyJam: { on: $('lobbyJamOn').checked, mood: $('lobbyJamMood').value } });
+$('lobbyJamOn').addEventListener('change', lobbyJamSave);
+$('lobbyJamMood').addEventListener('change', lobbyJamSave);
 let noteTimer = null;
 $('pinnedNote').addEventListener('input', () => {
   clearTimeout(noteTimer);

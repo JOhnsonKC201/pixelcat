@@ -445,6 +445,8 @@ let bfDriftCx = 0, bfDriftCy = 0, bfDriftTX = 0, bfDriftTY = 0, bfNextDrift = 0,
 let hearts = [], lastHeart = 0, lastBodyTrill = -9999;
 let idleSparkles = [], nextIdleSparkle = 0;
 let loafZZZ = [], nextLoafZ = 0;
+let musicNotes = [], nextMusicNote = 0;        // floating notes while the Lobby Jam plays
+let jamRunning = false, jamMoodCur = '';       // reconciled against config.lobbyJam (audio start/stop)
 // stretch reminder (08) + AI-agent thinking/done (10/11)
 let stretchT0 = -1, nextStretch = 0;
 let agentState = 'idle', doneHopT0 = -1, doneHopPending = false, doneIsAgent = false, errorPending = false;
@@ -523,6 +525,11 @@ if (window.cat) {
     if (!c) return;
     config = c;
     if (master) master.gain.value = volNow();
+    // reconcile the Lobby Jam audio with the new config (covers settings, tray, auto-resume)
+    const lj = (c.lobbyJam && typeof c.lobbyJam === 'object') ? c.lobbyJam : { on: false, mood: 'cozy' };
+    if (lj.on && !jamRunning) { if (window.jamStart) window.jamStart(lj.mood); jamRunning = true; jamMoodCur = lj.mood; }
+    else if (!lj.on && jamRunning) { if (window.jamStop) window.jamStop(); jamRunning = false; }
+    else if (lj.on && jamRunning && lj.mood !== jamMoodCur) { if (window.jamSetMood) window.jamSetMood(lj.mood); jamMoodCur = lj.mood; }
     playArea = c.playArea || null;
     pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y); persistPos();
     if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
@@ -1268,7 +1275,10 @@ function draw(t) {
     const axX = feet.x - head.x, axY = feet.y - head.y, len = Math.hypot(axX, axY) || 1, ang = Math.atan2(axY, axX), ratio = len / SH;
     const speed = Math.hypot(head.vx, head.vy) + Math.hypot(feet.vx, feet.vy);
     const calm = !grabbing && FORCED_STATE !== 'mochi' && Math.abs(ratio - 1) < 0.02 && speed < 0.45 && Math.abs(ang - Math.PI / 2) < 0.03;
-    const bob = Math.round(Math.sin(t / (typing ? 220 : 700)) * 3);
+    const jamming = !!(config && config.lobbyJam && config.lobbyJam.on) || FORCED_STATE === 'jam';
+    const jamMotion = jamming && !((config && config.reducedMotion) || lowPower);
+    const jamPhase = (jamMotion && window.jamBeatPhase) ? window.jamBeatPhase() : 0;
+    const bob = Math.round(Math.sin(t / (typing ? 220 : 700)) * 3) + (jamMotion ? Math.round(Math.sin(jamPhase * Math.PI * 2) * 2) : 0);
 
     // --- mouse-idle stare: after 10s of a still cursor the cat fixates on it, then
     // roams its eyes (mostly small wanders near the cursor, some glances around).
@@ -1400,6 +1410,7 @@ function draw(t) {
       ctx.scale(faceLeft ? -sx : sx, sy);
       ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
       ctx.restore();
+      if (jamming) drawGuitar(pos.x + wig + 2, oy + SH * 0.62, jamPhase);   // the cat plays a tiny guitar while the Lobby Jam loops
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
       if (petting && t - lastHeart > 520) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 14, y: oy - 4, t0: t, s: 2.1 }); lastHeart = t; }   // big love hearts rising from the head
       else if (bodyPet && t - lastHeart > 950) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 22, y: oy + 6, t0: t, s: 1.5 }); lastHeart = t; }
@@ -1418,7 +1429,7 @@ function draw(t) {
       }
       // fully idle (only breathing/tail)? let the governor drop to ~33fps
       if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !blinking
-          && !lookTarget && t > lookTargetUntil && hearts.length === 0 && idleSparkles.length === 0 && loafZZZ.length === 0 && t >= bubbleUntil
+          && !lookTarget && t > lookTargetUntil && hearts.length === 0 && idleSparkles.length === 0 && loafZZZ.length === 0 && musicNotes.length === 0 && !jamMotion && t >= bubbleUntil
           && (tailFlickT0 < 0 || t - tailFlickT0 > 700) && Math.abs(lean) < 0.004) wantHighFps = false;
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
     } else if (grabbing || FORCED_STATE === 'mochi' || ratio > 1.06) {
@@ -1455,6 +1466,11 @@ function draw(t) {
   for (const s of idleSparkles) { const a = (t - s.t0) / 400; ctx.globalAlpha = (1 - a) * 0.9; ctx.fillStyle = '#fff6d6'; ctx.fillRect(Math.round(s.x), Math.round(s.y - a * 12), 2, 2); ctx.fillRect(Math.round(s.x + 3), Math.round(s.y - a * 12 - 3), 1, 1); ctx.globalAlpha = 1; }
   loafZZZ = loafZZZ.filter((z) => t - z.t0 < 1100);
   for (const z of loafZZZ) { const a = (t - z.t0) / 1100, yOff = a * 14, fade = a < 0.15 ? a / 0.15 : a > 0.75 ? (1 - a) / 0.25 : 1; ctx.globalAlpha = fade * 0.65; ctx.fillStyle = '#8ab4cc'; const zx = Math.round(z.x), zy = Math.round(z.y - yOff), s = z.sz; ctx.fillRect(zx, zy, s * 4, s); ctx.fillRect(zx + s * 2, zy + s, s * 2, s); ctx.fillRect(zx + s, zy + s * 2, s * 2, s); ctx.fillRect(zx, zy + s * 3, s * 4, s); ctx.globalAlpha = 1; }
+  // floating music notes while the Lobby Jam plays (outside the pose branches so they show in any pose)
+  const jamNotesOn = !!(config && config.lobbyJam && config.lobbyJam.on) && !((config && config.reducedMotion) || lowPower);
+  if (jamNotesOn && t > nextMusicNote) { musicNotes.push({ x: pos.x + (Math.random() - 0.5) * 24, y: pos.y - SH * 0.45, t0: t, vx: (Math.random() - 0.5) * 1.6, k: Math.random() < 0.4 ? 1 : 0 }); nextMusicNote = t + 320 + Math.random() * 220; }
+  musicNotes = musicNotes.filter((m) => t - m.t0 < 1300);
+  for (const m of musicNotes) { const a = (t - m.t0) / 1300, fade = a < 0.12 ? a / 0.12 : a > 0.8 ? (1 - a) / 0.2 : 1; drawNote(m.x + m.vx * a * 34, m.y - a * 30 + Math.sin(a * 8) * 3, fade * 0.85, m.k); }
 
   // reminder/break speech bubble - drawn here (outside the pose branches) so it's
   // visible even if a reminder fires mid-hunt or mid-type. A transient bubble

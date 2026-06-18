@@ -108,9 +108,17 @@ test('email config normalizes + clamps', () => {
   assert.strictEqual(e.host, 'imap.gmail.com');
   assert.strictEqual(e.port, 65535);
   assert.strictEqual(e.user, 'a@b.com');
-  assert.strictEqual(e.secure, false);
+  assert.strictEqual(e.secure, true);   // non-143 ports force implicit TLS (security hardening, config.js)
   assert.strictEqual(e.intervalMin, 1);
   assert.deepStrictEqual(normalize({ email: 'junk' }).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 });
+});
+
+test('lobbyJam config normalizes (mood enum + on flag)', () => {
+  const { normalize } = require(path.join(ROOT, 'src', 'config.js'));
+  assert.deepStrictEqual(normalize({}).lobbyJam, { on: false, mood: 'cozy' });
+  assert.deepStrictEqual(normalize({ lobbyJam: { on: 1, mood: 'dreamy' } }).lobbyJam, { on: true, mood: 'dreamy' });
+  assert.strictEqual(normalize({ lobbyJam: { mood: 'banana' } }).lobbyJam.mood, 'cozy');   // unknown mood -> cozy
+  assert.deepStrictEqual(normalize({ lobbyJam: 'junk' }).lobbyJam, { on: false, mood: 'cozy' });
 });
 
 test('calendar config normalizes (url validation + webcal + clamp)', () => {
