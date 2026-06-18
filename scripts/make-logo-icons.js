@@ -101,8 +101,8 @@ function onTile(size) {
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     if (!inside(x, y)) continue;
     const o = (y * size + x) * 4, t = y / (size - 1);
-    const dome = 1 - (Math.hypot(x - lx, y - ly) / maxd) * 1.25;
-    const k = 0.74 + 0.46 * dome;
+    const dome = 1 - (Math.hypot(x - lx, y - ly) / maxd) * 1.45;
+    const k = 0.58 + 0.64 * dome;
     out[o] = lerp(TILE_TOP[0], TILE_BOT[0], t) * k; out[o + 1] = lerp(TILE_TOP[1], TILE_BOT[1], t) * k;
     out[o + 2] = lerp(TILE_TOP[2], TILE_BOT[2], t) * k; out[o + 3] = 255;
   }
@@ -111,20 +111,29 @@ function onTile(size) {
     if (!inside(x, y)) continue;
     const ex = (x - size * 0.5) / (size * 0.46), ey = (y - size * 0.24) / (size * 0.26);
     const e = ex * ex + ey * ey; if (e >= 1) continue;
-    const a = (1 - e) * (1 - e) * 0.5;
+    const a = (1 - e) * (1 - e) * 0.66;
     const o = (y * size + x) * 4;
     out[o] += (255 - out[o]) * a; out[o + 1] += (255 - out[o + 1]) * a; out[o + 2] += (255 - out[o + 2]) * a;
   }
+  // 2b) Beveled rim — bright on top-facing edges, dark on bottom-facing edges (raised-button look).
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    if (!inside(x, y)) continue;
+    const top = !inside(x, y - 1) || !inside(x, y - 2), bot = !inside(x, y + 1) || !inside(x, y + 2);
+    if (!top && !bot) continue;
+    const o = (y * size + x) * 4;
+    if (top) { out[o] += (255 - out[o]) * 0.6; out[o + 1] += (255 - out[o + 1]) * 0.6; out[o + 2] += (255 - out[o + 2]) * 0.6; }
+    else { out[o] *= 0.68; out[o + 1] *= 0.68; out[o + 2] *= 0.68; }
+  }
   // 3) Soft drop shadow under the cat — blurred, offset down, so the cat lifts off the tile.
-  const shadow = new Float32Array(size * size), dyShadow = Math.round(size * 0.045);
+  const shadow = new Float32Array(size * size), dyShadow = Math.round(size * 0.06);
   for (let y = 0; y < catSz; y++) for (let x = 0; x < catSz; x++) {
     if (cat[(y * catSz + x) * 4 + 3] < 40) continue;
     const X = off + x, Y = off + y + dyShadow;
     if (X >= 0 && Y >= 0 && X < size && Y < size) shadow[Y * size + X] = 1;
   }
-  const blur = boxBlur(shadow, size, Math.max(1, Math.round(size / 28)));
+  const blur = boxBlur(shadow, size, Math.max(1, Math.round(size / 22)));
   for (let i = 0; i < size * size; i++) {
-    const s = blur[i] * 0.42; if (s <= 0.002) continue;
+    const s = blur[i] * 0.6; if (s <= 0.002) continue;
     const x = i % size, y = (i / size) | 0; if (!inside(x, y)) continue;
     const o = i * 4, m = 1 - s;
     out[o] *= m; out[o + 1] *= m; out[o + 2] *= m;
