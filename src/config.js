@@ -84,7 +84,7 @@ function normalize(cfg) {
     })(),
     lobbyJam: (() => {
       const lj = (c.lobbyJam && typeof c.lobbyJam === 'object') ? c.lobbyJam : {};
-      return { on: !!lj.on, mood: ['cozy', 'dreamy', 'upbeat', 'focus', 'rain'].includes(lj.mood) ? lj.mood : 'cozy' };
+      return { on: !!lj.on, mood: ['cozy', 'dreamy', 'upbeat', 'focus', 'rain', 'sleepy'].includes(lj.mood) ? lj.mood : 'cozy' };
     })(),
     email: (() => {
       const e = (c.email && typeof c.email === 'object') ? c.email : {};

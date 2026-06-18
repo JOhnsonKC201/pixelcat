@@ -112,20 +112,25 @@ function stopPurr() {
   } catch (e) { /* ignore */ }
   purrNodes = null;
 }
-// Happy little chirp/trill (AI agent finished a task).
+// A happy cat "chirrup"/trill (tap, body-pet, playful beat, agent done): a short
+// rising note with the fast rolled "r" flutter cats make — friendlier than a meow.
 function playChirp() {
   const ac = audio(); if (!ac) return;
-  const t0 = ac.currentTime, g = ac.createGain(); g.connect(master);
+  const t0 = ac.currentTime, v = voiceFor();
+  const g = ac.createGain(); g.connect(master);
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(0.13, t0 + 0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
-  const v = voiceFor();
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.30);
   const o = ac.createOscillator(); o.type = 'triangle';
-  o.frequency.setValueAtTime(780 * v.pitch, t0);
-  o.frequency.linearRampToValueAtTime(1180 * v.pitch, t0 + 0.08);
-  o.frequency.linearRampToValueAtTime(1020 * v.pitch, t0 + 0.2);
-  o.connect(g); o.start(t0); o.stop(t0 + 0.24);
-  o.onended = () => { try { g.disconnect(); } catch (e) { /* ignore */ } };
+  o.frequency.setValueAtTime(760 * v.pitch, t0);
+  o.frequency.linearRampToValueAtTime(1120 * v.pitch, t0 + 0.10);
+  o.frequency.linearRampToValueAtTime(1260 * v.pitch, t0 + 0.26);   // rises at the end (questioning chirrup)
+  // the rolled "r": a fast tremolo flutter riding the amplitude envelope
+  const roll = ac.createOscillator(); roll.type = 'sine'; roll.frequency.value = 33;
+  const rollAmt = ac.createGain(); rollAmt.gain.value = 0.05;
+  roll.connect(rollAmt); rollAmt.connect(g.gain);
+  o.connect(g); o.start(t0); roll.start(t0); o.stop(t0 + 0.32); roll.stop(t0 + 0.32);
+  o.onended = () => { try { g.disconnect(); rollAmt.disconnect(); } catch (e) { /* ignore */ } };
 }
 // Startled "mrrp" - a short falling growl (sudden jolt / agent error).
 function playMrrp() {

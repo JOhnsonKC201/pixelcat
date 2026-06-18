@@ -124,8 +124,9 @@ A **realistic synthesized** meow - a voiced sawtooth shaped by a moving mouth
 formant (it opens into the "ee" and closes through the "ow"), with a breath of air
 on the onset and gentle vibrato. Each meow randomly comes out as a short *mew*, a
 two-syllable *meow*, or a drawn-out *meeow*, so it never sounds canned; pitch and
-length also vary by **cat species**. Plus purr, chirp, and a startled mrrp - all
-Web Audio synthesized in code, no audio assets to ship. Toggle in Settings.
+length also vary by **cat species**. Plus a purr, a rolled **chirrup/trill** (the
+flutter cats greet you with), and a startled mrrp - all Web Audio synthesized in
+code, no audio assets to ship. Toggle in Settings.
 
 </details>
 
@@ -171,6 +172,7 @@ It's all Web Audio, generated live, with **no audio files**. Pick a mood:
 | **Upbeat lounge** | Brighter and a touch faster |
 | **Deep focus** | Steady and minimal - almost no flourishes, so it stays out of the way while you work |
 | **Rainy study** | A cozy loop over a soft, gusting rain bed |
+| **Sleepy night** | Very slow, warm and dark - for late-night wind-down |
 
 The music mixes through the same Volume control as the meow/purr, and the floating
 notes + the cat's strumming bob along in time with the beat.

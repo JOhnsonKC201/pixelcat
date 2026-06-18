@@ -59,7 +59,7 @@ test('audio.js synth path runs for every breed + meow variant', () => {
 
 test('jam.js starts/stops/changes mood for every shipped mood', () => {
   const s = loadAudioJam();
-  assert.deepStrictEqual(Array.from(s.window.jamMoods), ['cozy', 'dreamy', 'upbeat', 'focus', 'rain']);   // Array.from: cross-realm vm array
+  assert.deepStrictEqual(Array.from(s.window.jamMoods), ['cozy', 'dreamy', 'upbeat', 'focus', 'rain', 'sleepy']);   // Array.from: cross-realm vm array
   for (const mood of s.window.jamMoods) {
     s.window.jamStart(mood);
     s.window.jamSetMood(mood);

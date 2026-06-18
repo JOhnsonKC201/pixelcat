@@ -33,6 +33,8 @@
     focus: { bpm: 80, swing: 0.05, mel: 0.14, rev: 0.18, bright: 0.55 },
     // "study with rain": a cozy, slow loop laid over a soft rain bed (see rainBed).
     rain: { bpm: 70, swing: 0.13, mel: 0.32, rev: 0.40, bright: 0.42, rain: 0.9 },
+    // wind-down/night: very slow, warm and dark, washed in reverb — for late study.
+    sleepy: { bpm: 54, swing: 0.10, mel: 0.20, rev: 0.52, bright: 0.30 },
   };
   const MOOD_NAMES = Object.keys(MOODS);
 

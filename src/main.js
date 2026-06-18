@@ -396,7 +396,7 @@ function rebuildTrayMenu() {
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
     { label: '🎸 Lobby Jam', submenu: (() => {
       const lj = (cfg && cfg.lobbyJam) || { on: false, mood: 'cozy' };
-      const MOODS = [['cozy', 'Cozy café'], ['dreamy', 'Dreamy'], ['upbeat', 'Upbeat lounge'], ['focus', 'Deep focus'], ['rain', 'Rainy study']];
+      const MOODS = [['cozy', 'Cozy café'], ['dreamy', 'Dreamy'], ['upbeat', 'Upbeat lounge'], ['focus', 'Deep focus'], ['rain', 'Rainy study'], ['sleepy', 'Sleepy night']];
       return [
         { label: 'Play music', type: 'checkbox', checked: !!lj.on, click: () => persistAndBroadcast({ ...cfg, lobbyJam: { ...lj, on: !lj.on } }) },
         { type: 'separator' },
