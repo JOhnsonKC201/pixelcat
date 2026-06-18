@@ -66,27 +66,76 @@ const TILE_TOP = [255, 234, 200];   // warm cream (top)
 const TILE_BOT = [255, 170, 104];   // soft orange (bottom)
 const CAT_SCALE = 0.84;             // cat occupies 84% of the tile, leaving a clean frame
 const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+// 3D-ish glossy treatment: a domed light gradient + a glassy top sheen + a soft drop
+// shadow under the cat, so the icon reads like a dimensional button instead of a flat tile.
+function boxBlur(src, size, r) {
+  if (r < 1) return src;
+  const h = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    let acc = 0, n = 0;
+    for (let d = -r; d <= r; d++) { const xx = x + d; if (xx < 0 || xx >= size) continue; acc += src[y * size + xx]; n++; }
+    h[y * size + x] = acc / n;
+  }
+  const out = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    let acc = 0, n = 0;
+    for (let d = -r; d <= r; d++) { const yy = y + d; if (yy < 0 || yy >= size) continue; acc += h[yy * size + x]; n++; }
+    out[y * size + x] = acc / n;
+  }
+  return out;
+}
 function onTile(size) {
   const catSz = Math.round(size * CAT_SCALE);
   const cat = rgbaAt(catSz);
   const off = Math.floor((size - catSz) / 2);
   const radius = Math.round(size * 0.22);
   const out = new Uint8ClampedArray(size * size * 4);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {           // rounded gradient tile
-    const o = (y * size + x) * 4;
+  const inside = (x, y) => {
     const rx = Math.max(0, radius - x, x - (size - 1 - radius));
     const ry = Math.max(0, radius - y, y - (size - 1 - radius));
-    if (rx > 0 && ry > 0 && rx * rx + ry * ry > radius * radius) continue;  // outside rounded corner -> transparent
-    const t = y / (size - 1);
-    out[o] = lerp(TILE_TOP[0], TILE_BOT[0], t); out[o + 1] = lerp(TILE_TOP[1], TILE_BOT[1], t);
-    out[o + 2] = lerp(TILE_TOP[2], TILE_BOT[2], t); out[o + 3] = 255;
+    return !(rx > 0 && ry > 0 && rx * rx + ry * ry > radius * radius);
+  };
+  // 1) Domed base — warm vertical gradient shaded by a light source in the upper-left,
+  //    so the surface looks curved (bright near the light, darker toward the far corner).
+  const lx = size * 0.36, ly = size * 0.28, maxd = Math.hypot(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    if (!inside(x, y)) continue;
+    const o = (y * size + x) * 4, t = y / (size - 1);
+    const dome = 1 - (Math.hypot(x - lx, y - ly) / maxd) * 1.25;
+    const k = 0.74 + 0.46 * dome;
+    out[o] = lerp(TILE_TOP[0], TILE_BOT[0], t) * k; out[o + 1] = lerp(TILE_TOP[1], TILE_BOT[1], t) * k;
+    out[o + 2] = lerp(TILE_TOP[2], TILE_BOT[2], t) * k; out[o + 3] = 255;
   }
-  for (let y = 0; y < catSz; y++) for (let x = 0; x < catSz; x++) {          // alpha-over composite of the cat
+  // 2) Glassy specular sheen — a soft bright ellipse across the top.
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    if (!inside(x, y)) continue;
+    const ex = (x - size * 0.5) / (size * 0.46), ey = (y - size * 0.24) / (size * 0.26);
+    const e = ex * ex + ey * ey; if (e >= 1) continue;
+    const a = (1 - e) * (1 - e) * 0.5;
+    const o = (y * size + x) * 4;
+    out[o] += (255 - out[o]) * a; out[o + 1] += (255 - out[o + 1]) * a; out[o + 2] += (255 - out[o + 2]) * a;
+  }
+  // 3) Soft drop shadow under the cat — blurred, offset down, so the cat lifts off the tile.
+  const shadow = new Float32Array(size * size), dyShadow = Math.round(size * 0.045);
+  for (let y = 0; y < catSz; y++) for (let x = 0; x < catSz; x++) {
+    if (cat[(y * catSz + x) * 4 + 3] < 40) continue;
+    const X = off + x, Y = off + y + dyShadow;
+    if (X >= 0 && Y >= 0 && X < size && Y < size) shadow[Y * size + X] = 1;
+  }
+  const blur = boxBlur(shadow, size, Math.max(1, Math.round(size / 28)));
+  for (let i = 0; i < size * size; i++) {
+    const s = blur[i] * 0.42; if (s <= 0.002) continue;
+    const x = i % size, y = (i / size) | 0; if (!inside(x, y)) continue;
+    const o = i * 4, m = 1 - s;
+    out[o] *= m; out[o + 1] *= m; out[o + 2] *= m;
+  }
+  // 4) Composite the cat on top.
+  for (let y = 0; y < catSz; y++) for (let x = 0; x < catSz; x++) {
     const s = (y * catSz + x) * 4, a = cat[s + 3] / 255; if (!a) continue;
     const X = off + x, Y = off + y; if (X < 0 || Y < 0 || X >= size || Y >= size) continue;
-    const o = (Y * size + X) * 4; if (out[o + 3] === 0) continue;           // keep the rounded corners clean
-    out[o] = Math.round(cat[s] * a + out[o] * (1 - a)); out[o + 1] = Math.round(cat[s + 1] * a + out[o + 1] * (1 - a));
-    out[o + 2] = Math.round(cat[s + 2] * a + out[o + 2] * (1 - a));
+    const o = (Y * size + X) * 4; if (out[o + 3] === 0) continue;
+    out[o] = cat[s] * a + out[o] * (1 - a); out[o + 1] = cat[s + 1] * a + out[o + 1] * (1 - a);
+    out[o + 2] = cat[s + 2] * a + out[o + 2] * (1 - a);
   }
   return out;
 }
