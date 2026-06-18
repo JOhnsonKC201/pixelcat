@@ -23,28 +23,73 @@ function voiceFor() {
   return base;
 }
 function playMeow() {
-  // A soft, cute "mew": a gentle triangle tone with a rise-then-fall pitch contour,
-  // light vibrato, and a low-pass to keep it warm (not buzzy). Synthesized (no audio
-  // files); voiceFor() gives each breed its own pitch/length.
+  // A real cat's "meow" = a voiced source (rich in harmonics) shaped by the mouth
+  // opening and closing on a vowel. We model that: a sawtooth "voice" + a soft
+  // sub-octave for body, a moving formant filter (the mouth) sweeping up into the
+  // open "ee" and back down through the closing "ow", a fixed vocal peak so it reads
+  // as a voice (not a bleep), gentle vibrato, and a breath of air on the onset.
+  // Each call randomly picks a short "mew", a two-syllable "meow", or a drawn-out
+  // "meeow" — and detunes a hair — so repeated meows vary like a real cat.
+  // Still 100% synthesized; voiceFor() keeps each breed's own pitch/length.
   const ac = audio(); if (!ac) return;
   const v = voiceFor();
-  const t0 = ac.currentTime, dur = 0.42 * v.dur, f = (hz) => hz * v.pitch;
-  const o = ac.createOscillator(); o.type = 'triangle';
-  o.frequency.setValueAtTime(f(500), t0);
-  o.frequency.linearRampToValueAtTime(f(720), t0 + dur * 0.40);   // "mee"
-  o.frequency.linearRampToValueAtTime(f(470), t0 + dur);          // "ow"
-  const vib = ac.createOscillator(); vib.type = 'sine'; vib.frequency.value = 7;
-  const vibGain = ac.createGain(); vibGain.gain.value = f(7);
-  vib.connect(vibGain); vibGain.connect(o.frequency);
-  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f(2600); lp.Q.value = 0.6;
-  const amp = ac.createGain();
+  const t0 = ac.currentTime;
+  const r = Math.random();
+  const variant = r < 0.30 ? 'mew' : r < 0.85 ? 'meow' : 'long';
+  const dur = (variant === 'mew' ? 0.34 : variant === 'long' ? 0.78 : 0.52) * v.dur;
+  const f = (hz) => hz * v.pitch * (0.97 + Math.random() * 0.06);   // tiny per-call detune
+  const trash = [];
+
+  // ---- voice: harmonic-rich sawtooth + soft sine sub-octave for warmth ----
+  const o = ac.createOscillator(); o.type = 'sawtooth';
+  const sub = ac.createOscillator(); sub.type = 'sine';
+  const p0 = f(variant === 'mew' ? 470 : 360), pPk = f(variant === 'mew' ? 700 : 600), pEnd = f(variant === 'long' ? 300 : 350);
+  o.frequency.setValueAtTime(p0, t0);
+  o.frequency.linearRampToValueAtTime(pPk, t0 + dur * 0.30);            // rise into the open "ee"
+  if (variant === 'long') o.frequency.linearRampToValueAtTime(pPk * 0.95, t0 + dur * 0.62);   // a held wobble plateau
+  o.frequency.linearRampToValueAtTime(pEnd, t0 + dur);                  // fall through the closing "ow"
+  sub.frequency.setValueAtTime(p0 / 2, t0);
+  sub.frequency.linearRampToValueAtTime(pPk / 2, t0 + dur * 0.30);
+  sub.frequency.linearRampToValueAtTime(pEnd / 2, t0 + dur);
+  const subG = ac.createGain(); subG.gain.value = 0.32; trash.push(subG);
+
+  // ---- vibrato (a touch faster on the drawn-out meow) ----
+  const vib = ac.createOscillator(); vib.type = 'sine'; vib.frequency.value = variant === 'long' ? 11 : 7;
+  const vibGain = ac.createGain(); vibGain.gain.value = f(variant === 'long' ? 11 : 6); trash.push(vibGain);
+  vib.connect(vibGain); vibGain.connect(o.frequency); vibGain.connect(sub.frequency);
+
+  // ---- the "mouth": a lowpass that opens then closes + a fixed vocal formant peak ----
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.0; trash.push(lp);
+  lp.frequency.setValueAtTime(f(700), t0);
+  lp.frequency.linearRampToValueAtTime(f(2800), t0 + dur * 0.30);
+  lp.frequency.linearRampToValueAtTime(f(900), t0 + dur);
+  const fmt = ac.createBiquadFilter(); fmt.type = 'peaking'; fmt.frequency.value = f(1500); fmt.Q.value = 3; fmt.gain.value = 8; trash.push(fmt);
+
+  // ---- amp envelope: quick attack, a tiny mid dip (the "me|ow" break), then release ----
+  const amp = ac.createGain(); trash.push(amp);
   amp.gain.setValueAtTime(0.0001, t0);
-  amp.gain.exponentialRampToValueAtTime(0.2, t0 + 0.05);
-  amp.gain.setValueAtTime(0.18, t0 + dur * 0.55);
-  amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.06);
-  o.connect(lp); lp.connect(amp); amp.connect(master);
-  o.start(t0); vib.start(t0); o.stop(t0 + dur + 0.1); vib.stop(t0 + dur + 0.1);
-  o.onended = () => { try { lp.disconnect(); amp.disconnect(); vibGain.disconnect(); } catch (e) { /* ignore */ } };
+  amp.gain.exponentialRampToValueAtTime(0.22, t0 + 0.04);
+  if (variant !== 'mew') {
+    amp.gain.linearRampToValueAtTime(0.12, t0 + dur * 0.46);            // dip between syllables
+    amp.gain.linearRampToValueAtTime(0.20, t0 + dur * 0.62);            // swell back up on the "ow"
+  }
+  amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.07);
+
+  o.connect(fmt); subG.connect(fmt); sub.connect(subG);
+  fmt.connect(lp); lp.connect(amp); amp.connect(master);
+
+  // ---- a soft breath of air on the onset (the inhale before the cry) ----
+  const blen = Math.max(1, (ac.sampleRate * 0.05) | 0), bbuf = ac.createBuffer(1, blen, ac.sampleRate), bd = bbuf.getChannelData(0);
+  for (let i = 0; i < blen; i++) bd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / blen, 1.5);
+  const bs = ac.createBufferSource(); bs.buffer = bbuf;
+  const bbp = ac.createBiquadFilter(); bbp.type = 'bandpass'; bbp.frequency.value = f(1800); bbp.Q.value = 0.8; trash.push(bbp);
+  const bg = ac.createGain(); bg.gain.value = 0.05; trash.push(bg);
+  bs.connect(bbp).connect(bg).connect(master); bs.start(t0);
+
+  const stopAt = t0 + dur + 0.12;
+  o.start(t0); sub.start(t0); vib.start(t0);
+  o.stop(stopAt); sub.stop(stopAt); vib.stop(stopAt);
+  o.onended = () => { for (const n of trash) { try { n.disconnect(); } catch (e) { /* ignore */ } } };
 }
 let purrNodes = null;
 function startPurr() {
