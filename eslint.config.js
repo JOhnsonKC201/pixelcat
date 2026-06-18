@@ -18,6 +18,7 @@ const sharedOverlay = {
   startPurr: 'readonly', stopPurr: 'readonly', playChirp: 'readonly', playMrrp: 'readonly',
   // effects.js provides these:
   drawThinkBubble: 'readonly', drawWorkBubble: 'readonly', drawDoneSpark: 'readonly', drawHeart: 'readonly',
+  drawGuitar: 'readonly', drawNote: 'readonly',
 };
 
 const CONSUMER_OVERLAY = ['src/renderer.js', 'src/settings-renderer.js', 'src/cat-preview.js'];
@@ -30,7 +31,7 @@ module.exports = [
   {
     // Node / CommonJS: main process, workers, scripts, tests, configs, template.js
     files: ['**/*.js'],
-    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/patterns.js', 'src/audio.js', 'src/effects.js'],
+    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/patterns.js', 'src/audio.js', 'src/effects.js', 'src/jam.js'],
     languageOptions: { sourceType: 'commonjs', ecmaVersion: 2023, globals: { ...globals.node } },
   },
   {
@@ -47,6 +48,12 @@ module.exports = [
     // and uses the shared canvas context `ctx`.
     files: ['src/effects.js'],
     languageOptions: { sourceType: 'script', ecmaVersion: 2023, globals: { ...globals.browser, ctx: 'readonly' } },
+  },
+  {
+    // jam.js: classic overlay <script> ("Lobby Jam" synth) that REUSES audio.js's shared
+    // AudioContext (audio()) and routes through the shared `master` gain.
+    files: ['src/jam.js'],
+    languageOptions: { sourceType: 'script', ecmaVersion: 2023, globals: { ...globals.browser, audio: 'readonly', master: 'readonly' } },
   },
   {
     // cat-sprite.js / patterns.js are dual-loaded: classic <script> in the overlay AND

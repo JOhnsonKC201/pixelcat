@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PixelCat · Lobby Jam</title>
+<style>
+  :root{
+    --bg-0:#15110d; --bg-1:#241a12; --card:#1c1611cc;
+    --text:#f3e7d6; --muted:#bfa98f; --accent:#ff9a4d; --accent-2:#ffd9a8;
+    --ring:#3a2c1f;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:var(--text);
+    background:
+      radial-gradient(120% 90% at 20% 0%, #3a2616 0%, transparent 60%),
+      radial-gradient(120% 120% at 90% 100%, #2a1c10 0%, transparent 55%),
+      linear-gradient(160deg,var(--bg-1),var(--bg-0));
+    display:grid; place-items:center; overflow:hidden;
+  }
+  .card{
+    position:relative; width:min(92vw,440px); padding:34px 30px 28px;
+    background:var(--card); border:1px solid #ffffff14; border-radius:26px;
+    box-shadow:0 30px 80px -30px #000, inset 0 1px 0 #ffffff1f;
+    backdrop-filter:blur(14px); text-align:center;
+  }
+  .eyebrow{letter-spacing:.32em; font-size:11px; text-transform:uppercase; color:var(--muted)}
+  h1{margin:.35em 0 .1em; font-size:30px; font-weight:800; letter-spacing:-.5px}
+  h1 .accent{color:var(--accent)}
+  .sub{color:var(--muted); font-size:13.5px; margin:0 0 22px; line-height:1.5}
+  canvas{width:100%; height:96px; display:block; margin:6px 0 20px;
+    border-radius:14px; background:#0d0a07a0; border:1px solid #ffffff10}
+  .play{
+    width:104px; height:104px; border-radius:50%; border:none; cursor:pointer;
+    margin:2px auto 0; display:grid; place-items:center; color:#1a120a;
+    background:radial-gradient(120% 120% at 35% 25%,var(--accent-2),var(--accent) 55%,#e07a2e);
+    box-shadow:0 14px 34px -10px #ff9a4d99, inset 0 2px 4px #ffffffaa, inset 0 -6px 12px #00000033;
+    transition:transform .18s cubic-bezier(.16,1,.3,1), box-shadow .25s;
+  }
+  .play:hover{transform:translateY(-2px) scale(1.03)}
+  .play:active{transform:scale(.97)}
+  .play.playing{animation:breathe 2.4s ease-in-out infinite}
+  @keyframes breathe{50%{box-shadow:0 14px 46px -6px #ff9a4dcc, inset 0 2px 4px #ffffffaa, inset 0 -6px 12px #00000033}}
+  .play svg{width:42px;height:42px;margin-left:4px;filter:drop-shadow(0 1px 0 #ffffff66)}
+  .play.playing svg{margin-left:0}
+  .status{margin-top:18px; min-height:20px; font-size:13px; color:var(--muted)}
+  .status b{color:var(--accent-2); font-weight:600}
+  .row{display:flex; gap:8px; justify-content:center; margin-top:18px; flex-wrap:wrap}
+  .chip{
+    border:1px solid var(--ring); background:#ffffff08; color:var(--muted);
+    padding:7px 14px; border-radius:999px; font-size:12.5px; cursor:pointer;
+    transition:.18s;
+  }
+  .chip[aria-pressed="true"]{border-color:var(--accent); color:var(--accent-2); background:#ff9a4d1a}
+  .chip:hover{color:var(--text)}
+  footer{margin-top:20px; font-size:11px; color:#7c6a55}
+  .foot-note{opacity:.8}
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="eyebrow">PixelCat</div>
+    <h1>Lobby <span class="accent">Jam</span></h1>
+    <p class="sub">An endless, improvised lo-fi guitar — every note synthesized live in code.<br>No samples, no loops. It never plays the same thing twice.</p>
+
+    <canvas id="viz" width="760" height="192" aria-hidden="true"></canvas>
+
+    <button id="play" class="play" aria-label="Play">
+      <svg id="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+
+    <div class="status" id="status">Tap to start the jam</div>
+
+    <div class="row" role="group" aria-label="Mood">
+      <button class="chip" data-mood="cozy" aria-pressed="true">☕ Cozy</button>
+      <button class="chip" data-mood="dreamy" aria-pressed="false">🌙 Dreamy</button>
+      <button class="chip" data-mood="upbeat" aria-pressed="false">🎐 Upbeat</button>
+    </div>
+
+    <footer><span class="foot-note">Karplus–Strong plucked strings · improvised ii–V–I voicings · tape-warmed Web Audio</span></footer>
+  </main>
+
+<script>
+(() => {
+  "use strict";
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const pick = (arr) => arr[(Math.random() * arr.length) | 0];
+  const chance = (p) => Math.random() < p;
+
+  // ---- chord vocabulary (MIDI sets), in a warm key around C ----------------
+  // name -> root-position 7th voicing; the improviser revoices/transposes these.
+  const CHORDS = {
+    Cmaj7:[60,64,67,71], Am7:[57,60,64,67], Dm7:[62,65,69,72],
+    G7:[55,59,62,65],   Fmaj7:[53,57,60,64], Em7:[52,55,59,62],
+    A7:[57,61,64,67],   Bm7b5:[59,62,65,69]
+  };
+  // Loose progression graph: where each chord likes to go next (lobby-jazz pull).
+  const NEXT = {
+    Cmaj7:["Am7","Dm7","Fmaj7","Em7"], Am7:["Dm7","Fmaj7","A7","Em7"],
+    Dm7:["G7","Bm7b5","Fmaj7"], G7:["Cmaj7","Em7","Am7"],
+    Fmaj7:["G7","Em7","Dm7","Bm7b5"], Em7:["Am7","A7","Dm7"],
+    A7:["Dm7","Fmaj7"], Bm7b5:["G7","Em7"]
+  };
+  // pentatonic-ish melody pool (C major / A minor friendly), in semitones over C
+  const MEL = [0,2,4,7,9,12,14,16,11];
+
+  const MOODS = {
+    cozy:   { bpm:74, swing:0.16, mel:0.45, rev:0.30, bright:0.5, oct:0, name:"Cozy café" },
+    dreamy: { bpm:62, swing:0.10, mel:0.30, rev:0.46, bright:0.38, oct:0, name:"Dreamy" },
+    upbeat: { bpm:92, swing:0.22, mel:0.6,  rev:0.22, bright:0.62, oct:0, name:"Upbeat lounge" },
+  };
+
+  let ctx = null, master = null, dryGain = null, wetGain = null, lp = null, analyser = null, crackleSrc = null;
+  let running = false, mood = MOODS.cozy, timer = null;
+  let nextTime = 0, beat = 0, cur = "Cmaj7";
+  const LOOKAHEAD = 0.12, TICK = 25;
+
+  // ---- master FX chain: compressor -> lowpass(tape) -> saturator -> dry+reverb
+  function buildGraph() {
+    master = ctx.createGain(); master.gain.value = 0.0;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
+    lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600; lp.Q.value = 0.4;
+    // gentle wow on the cutoff for tape feel
+    const wow = ctx.createOscillator(); const wowAmt = ctx.createGain();
+    wow.frequency.value = 0.18; wowAmt.gain.value = 220; wow.connect(wowAmt).connect(lp.frequency); wow.start();
+    const sat = ctx.createWaveShaper(); sat.curve = makeSatCurve(0.6); sat.oversample = "2x";
+
+    dryGain = ctx.createGain(); dryGain.gain.value = 0.82;
+    wetGain = ctx.createGain(); wetGain.gain.value = mood.rev;
+    const conv = ctx.createConvolver(); conv.buffer = makeImpulse(2.6, 2.4);
+
+    analyser = ctx.createAnalyser(); analyser.fftSize = 1024;
+
+    comp.connect(lp); lp.connect(sat);
+    sat.connect(dryGain); sat.connect(conv); conv.connect(wetGain);
+    dryGain.connect(master); wetGain.connect(master);
+    master.connect(analyser); analyser.connect(ctx.destination);
+    busInput = comp;
+
+    startCrackle();
+    master.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 1.2);
+  }
+  let busInput = null;
+
+  function makeSatCurve(k) {
+    const n = 1024, c = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(x * (1 + k * 2)) / Math.tanh(1 + k * 2); }
+    return c;
+  }
+  function makeImpulse(dur, decay) {
+    const sr = ctx.sampleRate, len = (sr * dur) | 0, buf = ctx.createBuffer(2, len, sr);
+    for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+    return buf;
+  }
+  function startCrackle() {
+    const sr = ctx.sampleRate, len = sr * 2, buf = ctx.createBuffer(1, len, sr), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = chance(0.0012) ? (Math.random() * 2 - 1) * rnd(0.3, 1) : 0;
+    crackleSrc = ctx.createBufferSource(); crackleSrc.buffer = buf; crackleSrc.loop = true;
+    const g = ctx.createGain(); g.gain.value = 0.05;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1400;
+    crackleSrc.connect(hp).connect(g).connect(master); crackleSrc.start();
+  }
+
+  // ---- Karplus-Strong plucked string -> AudioBuffer (cached per pitch) -----
+  const ksCache = new Map();
+  function ksBuffer(freq, dur, bright) {
+    const key = Math.round(freq) + ":" + dur.toFixed(2) + ":" + bright.toFixed(2);
+    if (ksCache.has(key)) return ksCache.get(key);
+    const sr = ctx.sampleRate, N = Math.max(2, Math.round(sr / freq)), len = Math.floor(sr * dur);
+    const buf = ctx.createBuffer(1, len, sr), out = buf.getChannelData(0);
+    const line = new Float32Array(N);
+    for (let i = 0; i < N; i++) line[i] = Math.random() * 2 - 1;     // noise burst
+    const decay = 0.49 + 0.009 * bright;                             // loop gain < 0.5 stays stable; brighter = longer sustain
+    let idx = 0;
+    for (let i = 0; i < len; i++) {
+      const cur = line[idx], nxt = line[(idx + 1) % N];
+      out[i] = cur;
+      line[idx] = (cur + nxt) * decay;                              // averaging lowpass = string damping
+      idx = (idx + 1) % N;
+    }
+    // pluck attack + gentle release envelope
+    const atk = (sr * 0.004) | 0, rel = (sr * 0.18) | 0;
+    for (let i = 0; i < len; i++) {
+      let e = 1;
+      if (i < atk) e = i / atk;
+      if (i > len - rel) e *= (len - i) / rel;
+      out[i] *= e;
+    }
+    if (ksCache.size > 220) ksCache.clear();
+    ksCache.set(key, buf);
+    return buf;
+  }
+  function pluck(midi, when, gain, dur, bright, pan) {
+    const src = ctx.createBufferSource(); src.buffer = ksBuffer(mtof(midi), dur, bright);
+    const g = ctx.createGain(); g.gain.value = gain;
+    const p = ctx.createStereoPanner(); p.pan.value = pan;
+    src.connect(g).connect(p).connect(busInput); src.start(when);
+    return src;
+  }
+  function bass(midi, when, dur) {
+    const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = mtof(midi);
+    const g = ctx.createGain(), t = when;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.16, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 420;
+    o.connect(f).connect(g).connect(busInput); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function brush(when) {                                            // soft brushed percussion
+    const sr = ctx.sampleRate, len = (sr * 0.09) | 0, b = ctx.createBuffer(1, len, sr), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    const s = ctx.createBufferSource(); s.buffer = b;
+    const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 6000; f.Q.value = 0.6;
+    const g = ctx.createGain(); g.gain.value = 0.05;
+    s.connect(f).connect(g).connect(busInput); s.start(when);
+  }
+
+  // ---- the improviser: schedule one beat at a time ------------------------
+  function voiced(chordName) {
+    const base = CHORDS[chordName];
+    const lift = chance(0.5) ? 0 : 12;                              // sometimes up an octave
+    return base.map((m, i) => m + (i === 0 ? 0 : (chance(0.18) ? 12 : 0)) + mood.oct * 12 + (lift && i > 1 ? 0 : 0));
+  }
+  function scheduleBeat(name, t, spb) {
+    const ch = voiced(name);
+    // strum the chord on beat 1 & 3, lighter "comp" on 2 & 4
+    const onBeat = beat % 2 === 0;
+    if (onBeat || chance(0.6)) {
+      const strum = onBeat ? rnd(0.012, 0.03) : rnd(0.006, 0.016);
+      const up = chance(0.3);
+      const notes = up ? [...ch].reverse() : ch;
+      notes.forEach((m, i) => {
+        pluck(m, t + i * strum, (onBeat ? 0.12 : 0.07) * rnd(0.85, 1.05),
+              rnd(1.1, 1.8), mood.bright * rnd(0.85, 1.1), rnd(-0.25, 0.25));
+      });
+    }
+    // walking-ish bass on the downbeat (root, occasionally fifth/third)
+    if (onBeat) {
+      const root = ch[0] - 12;
+      const note = chance(0.7) ? root : root + pick([7, 5, 3]);
+      bass(note, t, spb * (chance(0.5) ? 2 : 1) * 0.95);
+    }
+    // brushed percussion with swing
+    if (chance(0.8)) brush(t + spb * 0.5 + (chance(0.5) ? mood.swing * spb : 0));
+    if (onBeat && chance(0.5)) brush(t);
+    // improvised melody flourish
+    if (chance(mood.mel)) {
+      const n = 1 + ((Math.random() * 3) | 0);
+      let last = ch[ch.length - 1];
+      for (let i = 0; i < n; i++) {
+        const step = ch[0] + pick(MEL) + (chance(0.4) ? 12 : 0);
+        last = step;
+        const off = (i / n) * spb + (chance(0.5) ? mood.swing * spb * 0.5 : 0);
+        pluck(last, t + off, 0.085 * rnd(0.8, 1.1), rnd(0.5, 1.0), mood.bright * 1.15, rnd(-0.4, 0.4));
+      }
+    }
+  }
+
+  function scheduler() {
+    const spb = 60 / mood.bpm;                                     // seconds per beat
+    while (nextTime < ctx.currentTime + LOOKAHEAD) {
+      scheduleBeat(cur, nextTime, spb);
+      beat++;
+      if (beat % 4 === 0) {                                        // advance the progression each bar
+        cur = chance(0.82) ? pick(NEXT[cur]) : pick(Object.keys(CHORDS));
+        flashStatus(cur);
+      }
+      const sw = (beat % 2 === 1) ? mood.swing * spb : 0;          // lazy swing feel
+      nextTime += spb + sw;
+    }
+  }
+
+  // ---- visualizer ---------------------------------------------------------
+  const canvas = document.getElementById("viz"), g2 = canvas.getContext("2d");
+  let raf = 0, buf8 = null;
+  function draw() {
+    raf = requestAnimationFrame(draw);
+    const w = canvas.width, h = canvas.height;
+    g2.clearRect(0, 0, w, h);
+    if (!analyser) return;
+    analyser.getByteTimeDomainData(buf8);
+    g2.lineWidth = 2.5; g2.strokeStyle = "#ff9a4d"; g2.shadowBlur = 12; g2.shadowColor = "#ff9a4d";
+    g2.beginPath();
+    for (let i = 0; i < buf8.length; i++) {
+      const x = (i / buf8.length) * w, y = (buf8[i] / 255) * h;
+      i ? g2.lineTo(x, y) : g2.moveTo(x, y);
+    }
+    g2.stroke(); g2.shadowBlur = 0;
+  }
+
+  // ---- UI -----------------------------------------------------------------
+  const btn = document.getElementById("play"), icon = document.getElementById("icon"), statusEl = document.getElementById("status");
+  const PLAY = "M8 5v14l11-7z", PAUSE = "M7 5h3.5v14H7zM13.5 5H17v14h-3.5z";
+  let flashT = 0;
+  function flashStatus(name) {
+    const pretty = name.replace("maj7", "△7").replace("b5", "ø").replace("m7", "m7");
+    statusEl.innerHTML = 'improvising <b>' + pretty + '</b> · ' + mood.name;
+  }
+
+  async function start() {
+    if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); buildGraph();
+      buf8 = new Uint8Array(analyser.fftSize); }
+    if (ctx.state === "suspended") await ctx.resume();
+    running = true; nextTime = ctx.currentTime + 0.15; beat = 0; cur = "Cmaj7";
+    timer = setInterval(scheduler, TICK);
+    draw();
+    btn.classList.add("playing"); icon.setAttribute("d", PAUSE); btn.setAttribute("aria-label", "Pause");
+    flashStatus(cur);
+  }
+  function stop() {
+    running = false; clearInterval(timer); cancelAnimationFrame(raf);
+    if (master) master.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 0.4);
+    setTimeout(() => { if (!running && master) master.gain.value = 0.9; }, 500);
+    btn.classList.remove("playing"); icon.setAttribute("d", PLAY); btn.setAttribute("aria-label", "Play");
+    statusEl.textContent = "paused — tap to keep jamming";
+    g2.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  btn.addEventListener("click", () => running ? stop() : start());
+
+  document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => {
+    document.querySelectorAll(".chip").forEach((o) => o.setAttribute("aria-pressed", "false"));
+    c.setAttribute("aria-pressed", "true");
+    mood = MOODS[c.dataset.mood];
+    if (wetGain && ctx) wetGain.gain.setTargetAtTime(mood.rev, ctx.currentTime, 0.3);
+    if (running) flashStatus(cur);
+  }));
+
+  // keyboard: space to toggle
+  window.addEventListener("keydown", (e) => { if (e.code === "Space") { e.preventDefault(); btn.click(); } });
+})();
+</script>
+</body>
+</html>

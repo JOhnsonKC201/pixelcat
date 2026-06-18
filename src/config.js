@@ -29,6 +29,7 @@ const DEFAULTS = {
   pinnedNote: '',      // fixed message pinned above the cat's head ('' = off)
   notifyOn: true,      // also pop a Windows toast for reminders/messages
   pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
+  lobbyJam: { on: false, mood: 'cozy' },  // synthesized lo-fi "study music" the cat plays (cozy/dreamy/upbeat)
   reminders: [],       // [{ id, hhmm: 'HH:MM', message, recur, days, lastFired }]
   email: { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 }, // IMAP unread alerts (app-password stored separately, encrypted)
   calendar: { on: false, icsUrl: '', leadMin: 10 }, // nudge before events from a secret .ics URL
@@ -80,6 +81,10 @@ function normalize(cfg) {
     pomodoro: (() => {
       const p = (c.pomodoro && typeof c.pomodoro === 'object') ? c.pomodoro : {};
       return { on: !!p.on, focusMin: clampInt(p.focusMin, 5, 120, 25), breakMin: clampInt(p.breakMin, 1, 60, 5) };
+    })(),
+    lobbyJam: (() => {
+      const lj = (c.lobbyJam && typeof c.lobbyJam === 'object') ? c.lobbyJam : {};
+      return { on: !!lj.on, mood: ['cozy', 'dreamy', 'upbeat'].includes(lj.mood) ? lj.mood : 'cozy' };
     })(),
     email: (() => {
       const e = (c.email && typeof c.email === 'object') ? c.email : {};

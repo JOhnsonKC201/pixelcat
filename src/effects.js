@@ -2,7 +2,7 @@
 // spinner, "done!" burst, love heart). Classic <script> loaded before renderer.js,
 // sharing the overlay global scope; draws on the shared canvas context `ctx`.
 // Extracted from renderer.js to keep that file focused on the main loop.
-/* exported drawThinkBubble, drawWorkBubble, drawDoneSpark, drawHeart */
+/* exported drawThinkBubble, drawWorkBubble, drawDoneSpark, drawHeart, drawGuitar, drawNote */
 
 // Thinking indicator: three dots that pulse near the head (AI agent working).
 function drawThinkBubble(x, y, t) {
@@ -57,4 +57,44 @@ function drawHeart(x, y, color, alpha, s) {
   r(-5, -1, 10, 3);                                         // wide middle
   r(-4, 2, 8, 2); r(-2, 4, 4, 2); r(-1, 6, 2, 1);           // taper to a point
   ctx.globalAlpha = 1;
+}
+// A small acoustic guitar held across the cat's lap while the Lobby Jam plays; the
+// strumming paw bobs with `phase` (0..1 within the beat). Drawn in screen coords.
+function drawGuitar(x, y, phase) {
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+  ctx.rotate(-0.5);
+  const e = (cx, cy, rx, ry, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); };
+  ctx.fillStyle = '#5a3a1c'; ctx.fillRect(-31, -4, 21, 4.5);                                // neck
+  ctx.fillStyle = '#3a2410'; ctx.fillRect(-35, -5.5, 5, 7);                                 // headstock
+  ctx.fillStyle = '#e6d199'; ctx.fillRect(-34, -4.5, 2, 1); ctx.fillRect(-34, -1.5, 2, 1);  // tuning pegs
+  e(-2, 0, 13, 10, '#6e4220'); e(-13, -2, 9, 7, '#6e4220');                                 // body outline (two bouts)
+  e(-2, 0, 11.4, 8.6, '#bb7831'); e(-13, -2, 7.6, 5.8, '#bb7831');                          // wood
+  e(-6, -3, 5, 3.4, '#db944b');                                                             // top-left sheen
+  e(-3, 0, 3, 2.5, '#21130a');                                                              // soundhole
+  ctx.strokeStyle = '#efe2c0'; ctx.globalAlpha = 0.7; ctx.lineWidth = 0.6;
+  for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(-31, -3 + i * 1.1); ctx.lineTo(6, 1 + i * 1.5); ctx.stroke(); }   // strings
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#3a2410'; ctx.fillRect(4, -1, 3, 3);                                      // bridge
+  const sp = Math.sin(phase * Math.PI * 2) * 2.4;                                            // strumming paw
+  e(2, 2 + sp, 3.2, 2.6, '#2c2230'); e(2, 2 + sp, 2.4, 1.9, '#3b3046');
+  ctx.fillStyle = '#d2a6cf'; ctx.fillRect(0, 1 + sp, 1, 1); ctx.fillRect(3, 1 + sp, 1, 1);   // toe beans
+  ctx.restore();
+}
+// A floating music note (♪, or ♫ when `kind`). Soft purple, like the thinking dots.
+function drawNote(x, y, alpha, kind) {
+  ctx.save();
+  ctx.globalAlpha = alpha; ctx.fillStyle = '#c6a6e4';
+  x = Math.round(x); y = Math.round(y);
+  ctx.fillRect(x + 3, y - 7, 1.4, 8);                                                        // stem
+  ctx.beginPath(); ctx.ellipse(x + 2, y + 1, 2.3, 1.7, -0.3, 0, Math.PI * 2); ctx.fill();    // note head
+  if (kind) {
+    ctx.fillRect(x + 7, y - 8, 1.4, 8);
+    ctx.beginPath(); ctx.ellipse(x + 6, y, 2.3, 1.7, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(x + 4, y - 8, 4, 1.4);                                                      // beam (♫)
+  } else {
+    ctx.fillRect(x + 4, y - 7, 3, 1.3);                                                      // flag (♪)
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }

@@ -9,6 +9,10 @@ const cal = require('./cal');
 const themes = require('./themes');
 const { PATTERN_NAMES } = require('./patterns');
 
+// Let the overlay auto-resume the Lobby Jam music at launch without a click — Chromium
+// otherwise blocks autoplay until a user gesture.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 // AI-agent status file: hooks (e.g. Claude Code) write 'thinking' | 'done' here
 // and the cat reacts. See README "AI agent reactions".
 const AGENT_FILE = path.join(os.tmpdir(), 'pixelcat-agent.state');
@@ -390,6 +394,7 @@ function rebuildTrayMenu() {
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
     { label: onBattery ? 'Low power mode (on battery)' : 'Low power mode', type: 'checkbox', checked: effectiveLowPower(), click: () => persistAndBroadcast({ ...cfg, lowPower: !(cfg && cfg.lowPower) }) },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
+    { label: '🎸 Lobby Jam', type: 'checkbox', checked: !!(cfg && cfg.lobbyJam && cfg.lobbyJam.on), click: () => persistAndBroadcast({ ...cfg, lobbyJam: { ...(cfg.lobbyJam || { mood: 'cozy' }), on: !(cfg.lobbyJam && cfg.lobbyJam.on) } }) },
     { type: 'separator' },
     { label: 'Quit pixelcat', click: () => app.quit() },
   ]));
