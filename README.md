@@ -81,6 +81,7 @@ to your cursor, to your typing, and to its own internal mood.
 | ⌨️ **Type in any app** | It leans onto two big keys and **kneads them with its paws**; type fast and it **overheats** (turns red with steam), then cools down. |
 | 🧶 **Scroll anywhere** | Grabs a yarn rope and **climbs** it hand-over-hand - up when you scroll up, down when you scroll down - with a ball of yarn anchored on the floor. |
 | 🦋 **Wait for a visitor** | Once in a while a butterfly flutters in. The cat tracks it, swats at it, and now and then **pounces and catches it** between its paws - then it flutters off again. |
+| 🍃 **Leave it be** | Left alone it keeps itself busy - **bats a drifting leaf with a paw**, washes its face, loafs, and its whiskers twitch - lively without ever getting in your way. |
 
 <details>
 <summary><b>🎨 Coats &amp; pixel art</b> - 12 built-in patterns, custom coats, polished sticker look</summary>
@@ -119,9 +120,12 @@ reactions** (Settings or tray) for the classic always-playful behaviour. The tra
 <details>
 <summary><b>🔊 Sound</b> - synthesized meow, purr, chirp, and mrrp (no audio files)</summary>
 
-A **realistic synthesized** meow (a formant "mee-ow" glide with vibrato) whose pitch
-and length vary by **cat species**, plus purr, chirp, and a startled mrrp. It's all
-Web Audio synthesized in code - there are no audio assets to ship. Toggle in Settings.
+A **realistic synthesized** meow - a voiced sawtooth shaped by a moving mouth
+formant (it opens into the "ee" and closes through the "ow"), with a breath of air
+on the onset and gentle vibrato. Each meow randomly comes out as a short *mew*, a
+two-syllable *meow*, or a drawn-out *meeow*, so it never sounds canned; pitch and
+length also vary by **cat species**. Plus purr, chirp, and a startled mrrp - all
+Web Audio synthesized in code, no audio assets to ship. Toggle in Settings.
 
 </details>
 
@@ -149,6 +153,27 @@ through the cat (a meow + speech bubble), with an optional real desktop notifica
 - **Pomodoro timer** - set **focus/break loops** and a **pixel timer floats next to
   the cat** (tomato dot = focus, green = break). At each focus end the cat stretches
   with you; when the break ends it meows "Back to focus!". Toggle in Settings or tray.
+
+</details>
+
+<details>
+<summary><b>🎸 Lobby Jam</b> - synthesized lo-fi study music the cat plays live</summary>
+
+Flip on **Lobby Jam** (Settings or the tray submenu) and the cat picks up a little
+guitar and plays an endlessly-improvising lo-fi loop - plucked Karplus-Strong
+guitar over lazy jazz voicings, soft bass, brushed percussion, and tape warmth.
+It's all Web Audio, generated live, with **no audio files**. Pick a mood:
+
+| Mood | For |
+|------|-----|
+| **Cozy café** | A warm, easy background loop |
+| **Dreamy** | Slow and washed-out, lots of reverb |
+| **Upbeat lounge** | Brighter and a touch faster |
+| **Deep focus** | Steady and minimal - almost no flourishes, so it stays out of the way while you work |
+| **Rainy study** | A cozy loop over a soft, gusting rain bed |
+
+The music mixes through the same Volume control as the meow/purr, and the floating
+notes + the cat's strumming bob along in time with the beat.
 
 </details>
 
@@ -220,16 +245,18 @@ running, and reminder times use your local clock.
 
 ## AI agent reactions
 
-The cat reacts to a coding agent's work status - a thinking "…" bubble while an
-agent (Claude Code, Codex, Cursor, …) is working, and a happy **hop** when it
-finishes. Any tool can signal it by running the bundled helper, which writes a tiny
-status file the cat watches (`%TEMP%/pixelcat-agent.state`):
+The cat reacts to a coding agent's work status, and it uses its paws to do it: it
+raises a paw to its chin to **ponder** (with a "…" bubble) while an agent (Claude
+Code, Codex, Cursor, …) thinks, **taps a paw along** (with a spinner) while it works,
+and does a happy **hop + meow** when it finishes. Any tool can signal it by running
+the bundled helper, which writes a tiny status file the cat watches
+(`%TEMP%/pixelcat-agent.state`):
 
 ```bash
-node agent-hook.js thinking   # thinking "…" bubble
-node agent-hook.js editing    # "working" spinner (also: writing/testing/building/running)
+node agent-hook.js thinking   # ponders, paw to chin + "…" bubble
+node agent-hook.js editing    # taps a paw + "working" spinner (also: writing/testing/building/running)
 node agent-hook.js error      # the cat startles (flinch)
-node agent-hook.js done       # happy hop
+node agent-hook.js done       # happy hop + meow
 node agent-hook.js idle       # back to normal
 ```
 
