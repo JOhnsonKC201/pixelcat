@@ -1473,8 +1473,8 @@ function draw(t) {
         // baked planted front legs+paws on the offscreen sprite (so it scales/flips
         // with the cat) - otherwise they read as extra limbs behind the climbing arms.
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
-      } else if (grooming || playing) {
-        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised (washing / batting) + one planted
+      } else if (grooming || playing || thinking || working) {
+        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised (washing / batting / pondering / tapping) + one planted
       }
       ctx.save();
       const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
@@ -1489,8 +1489,15 @@ function draw(t) {
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
       if (petting && t - lastHeart > 520) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 14, y: oy - 4, t0: t, s: 2.1 }); lastHeart = t; }   // big love hearts rising from the head
       else if (bodyPet && t - lastHeart > 950) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 22, y: oy + 6, t0: t, s: 1.5 }); lastHeart = t; }
-      if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
-      else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
+      if (thinking) {
+        drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
+        const py = oy + SH * 0.34 + Math.sin(t / 700) * 1.4;   // a paw raised to the chin: "hmm…"
+        drawGripPaw(palRGB, pos.x - 8, oy + SH * 0.60, pos.x - 1, py, false);
+      } else if (working) {
+        drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
+        const tap = Math.abs(Math.sin(t / 150));               // a front paw tapping along while the agent works
+        drawGripPaw(palRGB, pos.x - 8, oy + SH * 0.56, pos.x - 6, oy + SH * 0.78 - tap * 9, tap > 0.55);
+      }
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
       if (paperActive && !petting && !stretching) {
         drawRopeClimb(palRGB, pos, t, climbing, climbDir, Math.round(paperLen), climbBob, climbSway);
