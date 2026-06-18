@@ -60,19 +60,57 @@ const logo = stripBackground(loadLogo());   // transparent cat only (no scene ba
 const rgbaAt = (size) => resizeSquare(logo, size);
 const icoEntry = (size) => ({ size, data: size >= 256 ? encodePng(rgbaAt(size), size) : encodeBmp(rgbaAt(size), size) });
 
+// App-icon tile. The mascot is dark, so a transparent icon turns into a dark blob at
+// 16-48px on dark taskbars/wallpapers. Composite the cat onto a bold, rounded, warm
+// gradient tile (cream -> soft orange, echoing the spikes) so the desktop/taskbar icon
+// stays clearly visible on ANY background. Tray glyphs stay transparent (they live in
+// the system tray and must adapt to it), so only the app icons get the tile.
+const TILE_TOP = [255, 234, 200];   // warm cream (top)
+const TILE_BOT = [255, 170, 104];   // soft orange (bottom)
+const CAT_SCALE = 0.84;             // cat occupies 84% of the tile, leaving a clean frame
+const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+function onTile(size) {
+  const catSz = Math.round(size * CAT_SCALE);
+  const cat = rgbaAt(catSz);
+  const off = Math.floor((size - catSz) / 2);
+  const radius = Math.round(size * 0.22);
+  const out = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {           // rounded gradient tile
+    const o = (y * size + x) * 4;
+    const rx = Math.max(0, radius - x, x - (size - 1 - radius));
+    const ry = Math.max(0, radius - y, y - (size - 1 - radius));
+    if (rx > 0 && ry > 0 && rx * rx + ry * ry > radius * radius) continue;  // outside rounded corner -> transparent
+    const t = y / (size - 1);
+    out[o] = lerp(TILE_TOP[0], TILE_BOT[0], t); out[o + 1] = lerp(TILE_TOP[1], TILE_BOT[1], t);
+    out[o + 2] = lerp(TILE_TOP[2], TILE_BOT[2], t); out[o + 3] = 255;
+  }
+  for (let y = 0; y < catSz; y++) for (let x = 0; x < catSz; x++) {          // alpha-over composite of the cat
+    const s = (y * catSz + x) * 4, a = cat[s + 3] / 255; if (!a) continue;
+    const X = off + x, Y = off + y; if (X < 0 || Y < 0 || X >= size || Y >= size) continue;
+    const o = (Y * size + X) * 4; if (out[o + 3] === 0) continue;           // keep the rounded corners clean
+    out[o] = Math.round(cat[s] * a + out[o] * (1 - a)); out[o + 1] = Math.round(cat[s + 1] * a + out[o + 1] * (1 - a));
+    out[o + 2] = Math.round(cat[s + 2] * a + out[o + 2] * (1 - a));
+  }
+  return out;
+}
+const tileEntry = (size) => ({ size, data: size >= 256 ? encodePng(onTile(size), size) : encodeBmp(onTile(size), size) });
+
 const outDir = path.join(__dirname, '..', 'assets');
 fs.mkdirSync(outDir, { recursive: true });
 
-// Windows app icon: multi-size .ico (BMP small + PNG 256) and a 256 PNG.
-fs.writeFileSync(path.join(outDir, 'icon.png'), encodePng(rgbaAt(256), 256));
-fs.writeFileSync(path.join(outDir, 'icon.ico'), buildIco([256, 128, 64, 48, 32, 16].map(icoEntry)));
+// Windows app icon: multi-size .ico (BMP small + PNG 256) and a 256 PNG, on the tile.
+fs.writeFileSync(path.join(outDir, 'icon.png'), encodePng(onTile(256), 256));
+fs.writeFileSync(path.join(outDir, 'icon.ico'), buildIco([256, 128, 64, 48, 32, 16].map(tileEntry)));
 
-// macOS app icon (electron-builder needs >= 512px).
-fs.writeFileSync(path.join(outDir, 'icon-512.png'), encodePng(rgbaAt(512), 512));
+// macOS app icon (electron-builder needs >= 512px), on the tile.
+fs.writeFileSync(path.join(outDir, 'icon-512.png'), encodePng(onTile(512), 512));
 
-// Tray glyph (16 + retina 32) and the legacy tray .ico.
+// Transparent 512 mascot mark for the README hero (no tile).
+fs.writeFileSync(path.join(outDir, 'logo-mark.png'), encodePng(rgbaAt(512), 512));
+
+// Tray glyph (16 + retina 32) and the legacy tray .ico — transparent mascot, no tile.
 fs.writeFileSync(path.join(outDir, 'tray.png'), encodePng(rgbaAt(16), 16));
 fs.writeFileSync(path.join(outDir, 'tray@2x.png'), encodePng(rgbaAt(32), 32));
 fs.writeFileSync(path.join(outDir, 'pixelcat.ico'), buildIco([32, 16].map(icoEntry)));
 
-console.log('wrote assets/{icon.png,icon.ico,icon-512.png,tray.png,tray@2x.png,pixelcat.ico} from logo.png (BMP small ICO entries)');
+console.log('wrote assets/{icon.png,icon.ico,icon-512.png} on tile + tray glyphs from logo.png (BMP small ICO entries)');
