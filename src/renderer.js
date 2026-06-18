@@ -466,6 +466,7 @@ let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
 let nextIdleAt = 0, leanTarget = 0, lean = 0, cursorLean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0, groomUntil = 0;
 let playUntil = 0, playT0 = -1, mote = null;   // idle paw-play: the cat bats a drifting leaf with a front paw
+let yawnUntil = 0;   // occasional sleepy yawn (open mouth + squint)
 let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null, roamDur = 1500;   // autonomous wandering
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
 let lowPower = false;   // main's derived low-power flag (user toggle and/or on battery)
@@ -843,6 +844,15 @@ function drawMote(x, y, spin) {
   ctx.beginPath(); ctx.moveTo(-4.5, 0); ctx.lineTo(5, 0); ctx.stroke();                                       // center vein
   ctx.strokeStyle = '#4e8f40'; ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(7.6, 1.3); ctx.stroke();         // stem
   ctx.restore();
+}
+// A sleepy yawn drawn INTO the offscreen sprite buffer (so it scales/leans with the
+// cat): a dark open mouth below the nose with a little pink tongue. `open` is 0..1.
+function drawYawn(g, sp, bob, open) {
+  const mx = sp.muzzle.x, my = sp.muzzle.y + bob + 6;
+  g.fillStyle = '#3a2230';
+  g.beginPath(); g.ellipse(mx, my, 2.8, 1.2 + 4.6 * open, 0, 0, Math.PI * 2); g.fill();   // open mouth
+  g.fillStyle = '#ff8fa3';
+  g.beginPath(); g.ellipse(mx, my + 1.8 * open, 1.5, 0.9 + 2.0 * open, 0, 0, Math.PI * 2); g.fill();   // tongue
 }
 // Update the leaf physics + draw the batting paw. Called from the seated render once
 // per frame while `playing` (oy = sprite top). Reuses drawGripPaw for the reaching arm.
@@ -1372,7 +1382,7 @@ function draw(t) {
     if (restIdle && !staring) {
       const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
       if (nextIdleAt === 0) nextIdleAt = t + (1600 + Math.random() * 2600) * idleScale;
-      if (t > nextIdleAt && t >= playUntil) {   // don't start a new idle action mid-play
+      if (t > nextIdleAt && t >= playUntil && t >= yawnUntil) {   // don't start a new idle action mid-play/yawn
         nextIdleAt = t + (2000 + Math.random() * 3600) * idleScale;
         const roll = Math.random();
         const motionOK = !((config && config.reducedMotion) || lowPower);
@@ -1383,6 +1393,7 @@ function draw(t) {
         else if (roll < 0.80) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else if (roll < 0.90 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (paw to muzzle)
         else if (roll < 0.95 && band !== 'calm' && motionOK) { doneHopPending = true; tailFlickT0 = t; }   // an occasional perk-up bounce (rare now)
+        else if (band === 'calm' && Math.random() < 0.5) { yawnUntil = t + 1000; }   // a big sleepy yawn
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
         if (band === 'zoomies' && Math.random() < 0.45 && motionOK) startPlay(t);   // hyper: more likely to break into play
         if (band === 'zoomies' && Math.random() < 0.22 && motionOK) spinUntil = t + 650;   // tail-chase pirouette
@@ -1421,13 +1432,14 @@ function draw(t) {
       // keycaps and kneads them with alternating paws (Comnyang-style).
       renderTypeFront(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - TW / 2 - 16, pos.y - TH - 8, TW + 32, TH + 16, false);
-    } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive || FORCED_STATE === 'loaf' || FORCED_STATE === 'groom' || FORCED_STATE === 'play')) {
+    } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive || FORCED_STATE === 'loaf' || FORCED_STATE === 'groom' || FORCED_STATE === 'play' || FORCED_STATE === 'yawn')) {
       const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
       const grooming = FORCED_STATE === 'groom' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < groomUntil);
       const playing = !grooming && (FORCED_STATE === 'play' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < playUntil));
       const loafing = !grooming && !playing && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
+      const yawning = FORCED_STATE === 'yawn' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !playing && !loafing && t < yawnUntil);
       const wig = idleSway;   // calm "normal" patting - no fast side-to-side jitter while petted
-      const emode = (petting || stretching || loafing || grooming || hopActive) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint
+      const emode = (petting || stretching || loafing || grooming || hopActive || yawning) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint; squint on a yawn
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 }
         : (playing && mote) ? { x: clamp((mote.x - pos.x) / 70, -1, 1), y: clamp((mote.y - (pos.y - SH * 0.72)) / 70, -1, 1) }   // watch the leaf
         : smoothLook;   // look the way it climbs the rope
@@ -1476,6 +1488,10 @@ function draw(t) {
       } else if (grooming || playing || thinking || working) {
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised (washing / batting / pondering / tapping) + one planted
       }
+      if (yawning) {   // open mouth + tongue, drawn into the sprite buffer so it scales/leans with the cat
+        const yp = FORCED_STATE === 'yawn' ? Math.sin((t % 1600) / 1600 * Math.PI) : Math.sin((1 - clamp((yawnUntil - t) / 1000, 0, 1)) * Math.PI);
+        drawYawn(octx, catSprite, bob, yp);
+      }
       ctx.save();
       const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
       ctx.translate(pos.x + wig + climbSway + purrJit, pos.y - hop - climbBob - petPush);   // nuzzle push + purr buzz ride on the rest pose
@@ -1512,7 +1528,7 @@ function draw(t) {
         ctx.fillStyle = 'rgba(20,20,24,0.82)'; ctx.fillRect(bx - w / 2, by - 13, w, 13); ctx.fillStyle = '#fff'; ctx.fillText(name, bx, by); ctx.globalAlpha = 1;
       }
       // fully idle (only breathing/tail)? let the governor drop to ~33fps
-      if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !playing && !blinking
+      if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !playing && !yawning && !blinking
           && !lookTarget && t > lookTargetUntil && hearts.length === 0 && idleSparkles.length === 0 && loafZZZ.length === 0 && musicNotes.length === 0 && !jamMotion && t >= bubbleUntil
           && (tailFlickT0 < 0 || t - tailFlickT0 > 700) && Math.abs(lean) < 0.004) wantHighFps = false;
       sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
