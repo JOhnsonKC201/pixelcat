@@ -1488,8 +1488,10 @@ function draw(t) {
       } else if (grooming || playing || thinking || working) {
         octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised (washing / batting / pondering / tapping) + one planted
       }
-      if (yawning) {   // open mouth + tongue, drawn into the sprite buffer so it scales/leans with the cat
-        const yp = FORCED_STATE === 'yawn' ? Math.sin((t % 1600) / 1600 * Math.PI) : Math.sin((1 - clamp((yawnUntil - t) / 1000, 0, 1)) * Math.PI);
+      if (yawning || stretching) {   // open mouth + tongue, drawn into the sprite buffer so it scales/leans with the cat (cats yawn as they stretch)
+        const sprog = FORCED_STATE === 'stretch' ? (t % STRETCH_MS) / STRETCH_MS : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
+        const yp = stretching ? Math.sin(clamp((sprog - 0.08) / 0.84, 0, 1) * Math.PI) * 0.85
+          : FORCED_STATE === 'yawn' ? Math.sin((t % 1600) / 1600 * Math.PI) : Math.sin((1 - clamp((yawnUntil - t) / 1000, 0, 1)) * Math.PI);
         drawYawn(octx, catSprite, bob, yp);
       }
       ctx.save();
