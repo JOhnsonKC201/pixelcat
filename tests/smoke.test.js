@@ -117,6 +117,9 @@ test('lobbyJam config normalizes (mood enum + on flag)', () => {
   const { normalize } = require(path.join(ROOT, 'src', 'config.js'));
   assert.deepStrictEqual(normalize({}).lobbyJam, { on: false, mood: 'cozy' });
   assert.deepStrictEqual(normalize({ lobbyJam: { on: 1, mood: 'dreamy' } }).lobbyJam, { on: true, mood: 'dreamy' });
+  for (const mood of ['cozy', 'dreamy', 'upbeat', 'focus', 'rain']) {   // every shipped mood survives normalize
+    assert.strictEqual(normalize({ lobbyJam: { on: true, mood } }).lobbyJam.mood, mood);
+  }
   assert.strictEqual(normalize({ lobbyJam: { mood: 'banana' } }).lobbyJam.mood, 'cozy');   // unknown mood -> cozy
   assert.deepStrictEqual(normalize({ lobbyJam: 'junk' }).lobbyJam, { on: false, mood: 'cozy' });
 });

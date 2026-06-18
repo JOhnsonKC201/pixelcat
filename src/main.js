@@ -394,7 +394,16 @@ function rebuildTrayMenu() {
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
     { label: onBattery ? 'Low power mode (on battery)' : 'Low power mode', type: 'checkbox', checked: effectiveLowPower(), click: () => persistAndBroadcast({ ...cfg, lowPower: !(cfg && cfg.lowPower) }) },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
-    { label: '🎸 Lobby Jam', type: 'checkbox', checked: !!(cfg && cfg.lobbyJam && cfg.lobbyJam.on), click: () => persistAndBroadcast({ ...cfg, lobbyJam: { ...(cfg.lobbyJam || { mood: 'cozy' }), on: !(cfg.lobbyJam && cfg.lobbyJam.on) } }) },
+    { label: '🎸 Lobby Jam', submenu: (() => {
+      const lj = (cfg && cfg.lobbyJam) || { on: false, mood: 'cozy' };
+      const MOODS = [['cozy', 'Cozy café'], ['dreamy', 'Dreamy'], ['upbeat', 'Upbeat lounge'], ['focus', 'Deep focus'], ['rain', 'Rainy study']];
+      return [
+        { label: 'Play music', type: 'checkbox', checked: !!lj.on, click: () => persistAndBroadcast({ ...cfg, lobbyJam: { ...lj, on: !lj.on } }) },
+        { type: 'separator' },
+        ...MOODS.map(([id, label]) => ({ label, type: 'radio', checked: (lj.mood || 'cozy') === id,
+          click: () => persistAndBroadcast({ ...cfg, lobbyJam: { mood: id, on: true } }) })),   // picking a mood also starts the jam
+      ];
+    })() },
     { type: 'separator' },
     { label: 'Quit pixelcat', click: () => app.quit() },
   ]));

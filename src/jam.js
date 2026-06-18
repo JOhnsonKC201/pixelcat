@@ -28,12 +28,18 @@
     cozy: { bpm: 74, swing: 0.16, mel: 0.45, rev: 0.30, bright: 0.5 },
     dreamy: { bpm: 62, swing: 0.10, mel: 0.30, rev: 0.46, bright: 0.38 },
     upbeat: { bpm: 92, swing: 0.22, mel: 0.60, rev: 0.22, bright: 0.62 },
+    // study/deep-work: a steady, minimal pulse with very few melodic flourishes so it
+    // stays in the background and doesn't pull your attention off the work.
+    focus: { bpm: 80, swing: 0.05, mel: 0.14, rev: 0.18, bright: 0.55 },
+    // "study with rain": a cozy, slow loop laid over a soft rain bed (see rainBed).
+    rain: { bpm: 70, swing: 0.13, mel: 0.32, rev: 0.40, bright: 0.42, rain: 0.9 },
   };
+  const MOOD_NAMES = Object.keys(MOODS);
 
-  let ac = null, jamBus = null, busInput = null, wetGain = null;
+  let ac = null, jamBus = null, busInput = null, wetGain = null, rainGain = null;
   let running = false, mood = MOODS.cozy, timer = null;
   let nextTime = 0, beat = 0, cur = 'Cmaj7', t0 = 0;
-  const LOOKAHEAD = 0.12, TICK = 25;
+  const LOOKAHEAD = 0.12, TICK = 25, RAIN_ON = 0.5;
   const ksCache = new Map();
 
   function makeSatCurve(k) {
@@ -70,6 +76,24 @@
     const cg = ac.createGain(); cg.gain.value = 0.05;
     const chp = ac.createBiquadFilter(); chp.type = 'highpass'; chp.frequency.value = 1400;
     cs.connect(chp).connect(cg).connect(jamBus); cs.start();
+    // rain bed (only audible in the 'rain' mood): a soft gusting hiss. Always wired so
+    // setRain() can fade it in/out; routes through jamBus so it mutes when the jam stops.
+    rainGain = ac.createGain(); rainGain.gain.value = 0.0001;
+    const rlen = sr * 3, rbuf = ac.createBuffer(1, rlen, sr), rd = rbuf.getChannelData(0);
+    let rb = 0;                                                  // brown-ish noise = softer, less hissy rain
+    for (let i = 0; i < rlen; i++) { rb = (rb + 0.02 * (Math.random() * 2 - 1)) / 1.02; rd[i] = rb * 3; }
+    const rs = ac.createBufferSource(); rs.buffer = rbuf; rs.loop = true;
+    const rhp = ac.createBiquadFilter(); rhp.type = 'highpass'; rhp.frequency.value = 420;
+    const rlp = ac.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 3200; rlp.Q.value = 0.3;
+    const rgust = ac.createGain(); rgust.gain.value = 0.7;        // slow "gusts" swell the rain in/out
+    const gust = ac.createOscillator(), gustAmt = ac.createGain();
+    gust.frequency.value = 0.08; gustAmt.gain.value = 0.3; gust.connect(gustAmt).connect(rgust.gain); gust.start();
+    rs.connect(rhp).connect(rlp).connect(rgust).connect(rainGain).connect(jamBus); rs.start();
+  }
+  // Fade the rain bed in/out for the active mood (m.rain is 0..1, undefined = no rain).
+  function setRain(m) {
+    if (!rainGain || !ac) return;
+    rainGain.gain.setTargetAtTime((m && m.rain) ? RAIN_ON * m.rain : 0.0001, ac.currentTime, 0.4);
   }
   // Karplus-Strong plucked string rendered into a cached AudioBuffer
   function ksBuffer(freq, dur, bright) {
@@ -141,6 +165,7 @@
       ac = ctx; mood = MOODS[m] || MOODS.cozy;
       if (!jamBus) buildGraph();
       running = true; t0 = ac.currentTime; nextTime = ac.currentTime + 0.15; beat = 0; cur = 'Cmaj7';
+      setRain(mood);
       jamBus.gain.cancelScheduledValues(ac.currentTime);
       jamBus.gain.setValueAtTime(Math.max(0.0001, jamBus.gain.value), ac.currentTime);
       jamBus.gain.linearRampToValueAtTime(0.6, ac.currentTime + 1.2);   // gentle background level
@@ -157,8 +182,10 @@
   };
   window.jamSetMood = function (m) {
     mood = MOODS[m] || mood;
-    try { if (running && wetGain && ac) wetGain.gain.setTargetAtTime(mood.rev, ac.currentTime, 0.3); } catch (e) { /* ignore */ }
+    try { if (running && wetGain && ac) { wetGain.gain.setTargetAtTime(mood.rev, ac.currentTime, 0.3); setRain(mood); } } catch (e) { /* ignore */ }
   };
+  // expose the mood list so the UI/tray can build pickers from one source of truth
+  window.jamMoods = MOOD_NAMES;
   // 0..1 phase within the current beat — lets the cat bob/strum in time with the music.
   window.jamBeatPhase = function () {
     if (!running || !ac) return 0;
