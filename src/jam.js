@@ -39,7 +39,7 @@
   const MOOD_NAMES = Object.keys(MOODS);
 
   let ac = null, jamBus = null, busInput = null, wetGain = null, rainGain = null;
-  let running = false, mood = MOODS.cozy, timer = null;
+  let running = false, mood = MOODS.cozy, timer = null, stopTimer = null, graphNodes = [];
   let nextTime = 0, beat = 0, cur = 'Cmaj7', t0 = 0;
   const LOOKAHEAD = 0.12, TICK = 25, RAIN_ON = 0.5;
   const ksCache = new Map();
@@ -91,6 +91,7 @@
     const gust = ac.createOscillator(), gustAmt = ac.createGain();
     gust.frequency.value = 0.08; gustAmt.gain.value = 0.3; gust.connect(gustAmt).connect(rgust.gain); gust.start();
     rs.connect(rhp).connect(rlp).connect(rgust).connect(rainGain).connect(jamBus); rs.start();
+    graphNodes = [wow, cs, gust, rs];   // persistent oscillators + loop sources, stopped on teardown
   }
   // Fade the rain bed in/out for the active mood (m.rain is 0..1, undefined = no rain).
   function setRain(m) {
@@ -161,8 +162,17 @@
     }
   }
 
+  // Fully release the always-on graph nodes (modulator oscillators + vinyl/rain loop
+  // sources) so a stopped jam costs nothing on the audio thread. jamStart rebuilds fresh.
+  function teardownGraph() {
+    for (const n of graphNodes) { try { n.stop(); } catch (e) { /* already stopped */ } try { n.disconnect(); } catch (e) { /* ignore */ } }
+    graphNodes = [];
+    try { if (jamBus) jamBus.disconnect(); } catch (e) { /* ignore */ }
+    jamBus = null; busInput = null; wetGain = null; rainGain = null;
+  }
   window.jamStart = function (m) {
     try {
+      if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }   // re-toggled before teardown fired -> keep the live graph
       const ctx = audio(); if (!ctx) return;     // reuse + resume the shared AudioContext
       ac = ctx; mood = MOODS[m] || MOODS.cozy;
       if (!jamBus) buildGraph();
@@ -180,6 +190,9 @@
       running = false;
       if (timer) { clearInterval(timer); timer = null; }
       if (jamBus && ac) { jamBus.gain.cancelScheduledValues(ac.currentTime); jamBus.gain.setTargetAtTime(0.0001, ac.currentTime, 0.18); }
+      if (stopTimer) clearTimeout(stopTimer);
+      stopTimer = setTimeout(teardownGraph, 700);          // after the fade, free the always-on nodes
+      if (stopTimer && stopTimer.unref) stopTimer.unref();  // (node test env) don't keep the process alive
     } catch (e) { /* ignore */ }
   };
   window.jamSetMood = function (m) {

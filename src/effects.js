@@ -2,7 +2,7 @@
 // spinner, "done!" burst, love heart). Classic <script> loaded before renderer.js,
 // sharing the overlay global scope; draws on the shared canvas context `ctx`.
 // Extracted from renderer.js to keep that file focused on the main loop.
-/* exported drawThinkBubble, drawWorkBubble, drawDoneSpark, drawHeart, drawGuitar, drawNote */
+/* exported drawThinkBubble, drawWorkBubble, drawDoneSpark, drawHeart, drawSparkle, drawGuitar, drawNote */
 
 // Thinking indicator: three dots that pulse near the head (AI agent working).
 function drawThinkBubble(x, y, t) {
@@ -56,6 +56,19 @@ function drawHeart(x, y, color, alpha, s) {
   r(-5, -4, 3, 3); r(2, -4, 3, 3);                          // two top bumps
   r(-5, -1, 10, 3);                                         // wide middle
   r(-4, 2, 8, 2); r(-2, 4, 4, 2); r(-1, 6, 2, 1);           // taper to a point
+  ctx.globalAlpha = 1;
+}
+// A soft-pink 4-point sparkle/twinkle that scales with `s` - mixed in among the love
+// hearts now and then. Same pixel-spoke idea as the stars in drawDoneSpark.
+function drawSparkle(x, y, alpha, s) {
+  s = s || 1;
+  ctx.globalAlpha = alpha; ctx.fillStyle = '#ffd1e0';            // soft pink, matches the love theme
+  const r = Math.max(1, Math.round(3 * s));
+  ctx.fillRect(Math.round(x), Math.round(y - r), 1, r * 2 + 1);  // vertical spoke
+  ctx.fillRect(Math.round(x - r), Math.round(y), r * 2 + 1, 1);  // horizontal spoke
+  const d = Math.max(1, Math.round(r * 0.6));                    // four diagonal glints
+  ctx.fillRect(Math.round(x - d), Math.round(y - d), 1, 1); ctx.fillRect(Math.round(x + d), Math.round(y - d), 1, 1);
+  ctx.fillRect(Math.round(x - d), Math.round(y + d), 1, 1); ctx.fillRect(Math.round(x + d), Math.round(y + d), 1, 1);
   ctx.globalAlpha = 1;
 }
 // A small acoustic guitar held across the cat's lap while the Lobby Jam plays; the

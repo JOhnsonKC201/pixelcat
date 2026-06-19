@@ -242,6 +242,7 @@ function createWindow() {
     notifyTail += chunk;
     const lines = notifyTail.split('\n');
     notifyTail = lines.pop();   // keep any trailing partial line for next time
+    if (notifyTail.length > 65536) notifyTail = '';   // a producer that never writes a newline can't grow memory unbounded
     for (const line of lines) {
       const t = line.trim(); if (!t) continue;
       let o; try { o = JSON.parse(t); } catch (e) { continue; }
@@ -250,7 +251,11 @@ function createWindow() {
       if (notifySeen.has(id)) continue;
       notifySeen.add(id);
       if (notifySeen.size > 500) { for (const k of notifySeen) { notifySeen.delete(k); if (notifySeen.size <= 250) break; } }
-      notify(String(o.message), { source: 'bridge', dedupeKey: 'bridge:' + id, title: o.title || 'pixelcat', level: o.level, ttl: o.ttl, sound: o.sound });
+      // sanitize fields from the untrusted bridge file before they reach Notification + renderer IPC
+      const level = ['info', 'success', 'warn', 'alert'].includes(o.level) ? o.level : 'info';
+      const ttl = Math.max(500, Math.min(30000, Math.round(Number(o.ttl)) || 5000));
+      const title = String(o.title || 'pixelcat').slice(0, 80);
+      notify(String(o.message).slice(0, 300), { source: 'bridge', dedupeKey: 'bridge:' + id, title, level, ttl, sound: o.sound !== false });
     }
   };
   try { lastAgent = fs.readFileSync(AGENT_FILE, 'utf8').trim(); } catch (e) { /* none yet */ }
@@ -392,6 +397,7 @@ function rebuildTrayMenu() {
     ] },
     { label: 'Always on top', type: 'checkbox', checked: !(cfg && cfg.onTop === false), click: () => persistAndBroadcast({ ...cfg, onTop: !(cfg && cfg.onTop !== false) }) },
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
+    { label: 'Stay on the floor', type: 'checkbox', checked: !(cfg && cfg.floorLock === false), click: () => persistAndBroadcast({ ...cfg, floorLock: !(cfg && cfg.floorLock !== false) }) },
     { label: onBattery ? 'Low power mode (on battery)' : 'Low power mode', type: 'checkbox', checked: effectiveLowPower(), click: () => persistAndBroadcast({ ...cfg, lowPower: !(cfg && cfg.lowPower) }) },
     { label: 'Sound', type: 'checkbox', checked: !!(cfg && cfg.soundOn), click: () => persistAndBroadcast({ ...cfg, soundOn: !cfg.soundOn }) },
     { label: '🎸 Lobby Jam', submenu: (() => {
@@ -545,18 +551,20 @@ function tick() {
   if (minuteKey !== lastMinuteKey) { lastMinuteKey = minuteKey; firedThisMinute = new Set(); }
   // Catch-up: after a sleep/resume or long stall, also fire any reminders whose
   // minute we skipped entirely (timers don't run while suspended).
-  const skipped = new Set();
+  const skipped = new Map();   // 'HH:MM' -> the Date of that skipped minute, so the recurrence gate checks the RIGHT day
   if (lastTickAt) {
     for (let ms = lastTickAt + 60000; ms < now.getTime(); ms += 60000) {
       const d = new Date(ms);
-      skipped.add(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+      const k = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      if (!skipped.has(k)) skipped.set(k, d);
     }
   }
   lastTickAt = now.getTime();
   let onceFired = false;
   for (const r of cfg.reminders) {
-    const hit = (r.hhmm === hhmm) || skipped.has(r.hhmm);
-    if (!hit || firedThisMinute.has(r.id) || !reminderDueOn(r, now)) continue;
+    const skippedDate = skipped.get(r.hhmm);   // a minute we slept through (possibly on a different day)
+    const hit = (r.hhmm === hhmm) || skippedDate !== undefined;
+    if (!hit || firedThisMinute.has(r.id) || !reminderDueOn(r, skippedDate || now)) continue;
     firedThisMinute.add(r.id);
     lastReminder = { id: r.id, message: r.message };
     notify(r.message, { source: 'reminder', dedupeKey: 'rem:' + r.id });
@@ -584,6 +592,10 @@ function cleanup() {
   if (agentTimer) clearInterval(agentTimer);
   if (scheduleTimer) clearInterval(scheduleTimer);
   if (pomoTimer) clearTimeout(pomoTimer);
+  if (historySaveTimer) {   // flush any pending history write now, then cancel the debounce so it can't fire mid-teardown
+    clearTimeout(historySaveTimer); historySaveTimer = null;
+    try { fs.writeFileSync(notifyHistoryPath(), JSON.stringify(notifyHistory.slice(-NOTIFY_HISTORY_MAX))); } catch (e) { /* best effort */ }
+  }
   if (agentWatcher) { try { agentWatcher.close(); } catch (e) { /* ignore */ } }
   if (hookStarted) { try { require('uiohook-napi').uIOhook.stop(); } catch (e) { /* ignore */ } }
   try { mail.stop(); } catch (e) { /* ignore */ }
@@ -592,7 +604,11 @@ function cleanup() {
 }
 
 // Renderer reports the cat's interactive bbox (overlay-local px) + drag state.
-ipcMain.on('hot', (_e, o) => { if (o) hot = o; });
+ipcMain.on('hot', (_e, o) => {
+  if (!o || typeof o !== 'object') return;
+  const num = (v) => (Number.isFinite(v) ? v : 0);   // reject NaN/Infinity from a misbehaving/forged renderer (else the click-through bbox could become unbounded and capture all clicks)
+  hot = { x: num(o.x), y: num(o.y), w: Math.max(0, num(o.w)), h: Math.max(0, num(o.h)), dragging: !!o.dragging };
+});
 function startSetArea() {
   if (!win || win.isDestroyed() || settingArea) return;   // ignore re-clicks while already setting
   settingArea = true;

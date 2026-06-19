@@ -166,6 +166,14 @@ function groundBaselineY() {
   const bottomInset = Math.max(0, (s.height || 0) - (s.availHeight || 0) - topInset);
   return canvas.height - (bottomInset > 0 ? bottomInset : 48);
 }
+// Floor-lock: when on (the default), the cat rests on the ground line and only
+// strolls horizontally - it never autonomously wanders up the screen. Orthogonal
+// to the play area, which still bounds left/right. config is null until the first
+// onConfig, so an unset flag reads as "on".
+function floorLockOn() { return !(config && config.floorLock === false); }
+function restingY() {
+  return floorLockOn() ? clamp(groundBaselineY(), SH + 10, canvas.height - 10) : zoneClampY(groundBaselineY());
+}
 
 // offscreen buffer big enough for either sprite
 const oc = document.createElement('canvas');
@@ -190,8 +198,12 @@ if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().in
 // Custom coats: layer user-defined palettes (from themes.json, sent by main over
 // IPC) on top of the 12 built-ins, building each one's sit + type sprites at
 // runtime. Re-applied wholesale on every update so add/delete just work.
+// Cached "cold" (non-overheat) palette, rebuilt only when the coat changes - avoids
+// recomputing ~12 colour conversions every single frame. Invalidated in applyThemes().
+let _palKey = -1, _coldPalRGB = null, _coldPal = null;
 const BASE_PATTERNS = PATTERNS.length;
 function applyThemes(list) {
+  _palKey = -1;   // coat palettes changed -> force a cold-palette rebuild next frame
   PATTERNS.length = BASE_PATTERNS; PATTERN_BUILD.length = BASE_PATTERNS; TABBY.length = BASE_PATTERNS;
   sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS; loafSprites.length = BASE_PATTERNS;
   for (const th of (Array.isArray(list) ? list : [])) {
@@ -448,6 +460,26 @@ let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
 let bfDriftCx = 0, bfDriftCy = 0, bfDriftTX = 0, bfDriftTY = 0, bfNextDrift = 0, bfPhase = 0;
 let hearts = [], lastHeart = 0, lastBodyTrill = -9999;
+// Pop one (sometimes a 2-3 burst) love particle with randomized size + drift so no
+// two look alike; ~1 in 6 is a sparkle instead of a heart. `base` = typical heart scale.
+function popLove(t, x, y, base, spreadX) {
+  const calm = (config && config.reducedMotion) || lowPower;
+  const n = calm ? 1 : (Math.random() < 0.22 ? (Math.random() < 0.4 ? 3 : 2) : 1);
+  for (let i = 0; i < n; i++) {
+    hearts.push({
+      x: x + (Math.random() - 0.5) * spreadX,
+      y: y + (Math.random() - 0.5) * 6,
+      t0: t,
+      s: base * (0.7 + Math.random() * 0.8),                 // 0.7x-1.5x of the context base size
+      kind: (!calm && Math.random() < 0.18) ? 'spark' : 'heart',
+      vy: 24 + Math.random() * 18,                           // rise distance over life (px)
+      wobA: 2 + Math.random() * 5,                           // sideways wobble amplitude
+      wobF: 4 + Math.random() * 4,                           // wobble frequency
+      ph: Math.random() * Math.PI * 2,                       // wobble phase offset
+      life: 950 + Math.random() * 500,                       // lifetime (ms)
+    });
+  }
+}
 let idleSparkles = [], nextIdleSparkle = 0;
 let loafZZZ = [], nextLoafZ = 0;
 let musicNotes = [], nextMusicNote = 0;        // floating notes while the Lobby Jam plays
@@ -488,7 +520,7 @@ else if (!pos || typeof pos.x !== 'number') pos = { x: canvas.width - 300, y: ca
 pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 // Start each launch resting on the taskbar line (keep the remembered X, snap Y to
 // the baseline) so the cat always begins the day on the same line, never mid-screen.
-if (!SHOT) pos.y = zoneClampY(groundBaselineY());
+if (!SHOT) pos.y = restingY();
 // Don't let the home spot jam against the clock: when there's no custom play area,
 // pull a far-right-parked cat in from the edge on launch (only ever moves it left).
 if (!SHOT && !playArea) pos.x = Math.min(pos.x, canvas.width - 300);
@@ -538,7 +570,7 @@ if (window.cat) {
     else if (!lj.on && jamRunning) { if (window.jamStop) window.jamStop(); jamRunning = false; }
     else if (lj.on && jamRunning && lj.mood !== jamMoodCur) { if (window.jamSetMood) window.jamSetMood(lj.mood); jamMoodCur = lj.mood; }
     playArea = c.playArea || null;
-    pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y); persistPos();
+    pos.x = zoneClampX(pos.x); pos.y = floorLockOn() ? restingY() : zoneClampY(pos.y); persistPos();
     if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
     resumeRaf();
   });
@@ -1075,7 +1107,7 @@ function draw(t) {
   const moved = Math.hypot(cursor.x - prevCursor.x, cursor.y - prevCursor.y);
   const inst = moved / Math.max(1, dt);
   const cursorDx = cursor.x - prevCursor.x;
-  velEMA = velEMA * 0.5 + inst * 0.5; prevCursor = { x: cursor.x, y: cursor.y };
+  velEMA = velEMA * 0.5 + inst * 0.5; prevCursor.x = cursor.x; prevCursor.y = cursor.y;   // mutate in place (no per-frame allocation)
   // any real cursor movement refreshes the idle timer and drops a stare instantly
   if (moved > 0.5) { lastCursorMove = t; if (staringT0 >= 0) { staringT0 = -1; lookTarget = null; } }
 
@@ -1205,15 +1237,28 @@ function draw(t) {
   const P = PATTERNS[patternIndex];
   const catSprite = sprites[patternIndex];   // this coat's body build (slender/stocky/fluffy/standard)
   const loafSprite = loafSprites[patternIndex] || catSprite;   // compact resting (loaf) body for the same coat
-  const palRGB = {
-    O: toRgb(heatT ? lerpHex(P.outline, HOT_OUTLINE, heatT) : P.outline),
-    C: toRgb(heatT ? lerpHex(P.coat, HOT_BODY, heatT) : P.coat),
-    K: toRgb(heatT ? lerpHex(P.mark, HOT_BODY, heatT) : P.mark),
-    W: toRgb(heatT ? lerpHex(P.white, HOT_BODY, heatT * 0.5) : P.white),
-    X: toRgb(heatT ? lerpHex(P.patch, HOT_BODY, heatT) : P.patch),
-    I: toRgb(P.inner), N: toRgb(P.nose), E: toRgb(P.eye), H: toRgb(HALO),
-  };
-  const pal = { O: rgbStr(palRGB.O), C: rgbStr(palRGB.C), W: rgbStr(palRGB.W), N: rgbStr(palRGB.N) };
+  let palRGB, pal;
+  if (heatT) {                              // overheat tint is transient - rebuild fresh while it lasts
+    palRGB = {
+      O: toRgb(lerpHex(P.outline, HOT_OUTLINE, heatT)),
+      C: toRgb(lerpHex(P.coat, HOT_BODY, heatT)),
+      K: toRgb(lerpHex(P.mark, HOT_BODY, heatT)),
+      W: toRgb(lerpHex(P.white, HOT_BODY, heatT * 0.5)),
+      X: toRgb(lerpHex(P.patch, HOT_BODY, heatT)),
+      I: toRgb(P.inner), N: toRgb(P.nose), E: toRgb(P.eye), H: toRgb(HALO),
+    };
+    pal = { O: rgbStr(palRGB.O), C: rgbStr(palRGB.C), W: rgbStr(palRGB.W), N: rgbStr(palRGB.N) };
+  } else {                                  // common case: reuse the cached cold palette for this coat
+    if (_palKey !== patternIndex) {
+      _coldPalRGB = {
+        O: toRgb(P.outline), C: toRgb(P.coat), K: toRgb(P.mark), W: toRgb(P.white), X: toRgb(P.patch),
+        I: toRgb(P.inner), N: toRgb(P.nose), E: toRgb(P.eye), H: toRgb(HALO),
+      };
+      _coldPal = { O: rgbStr(_coldPalRGB.O), C: rgbStr(_coldPalRGB.C), W: rgbStr(_coldPalRGB.W), N: rgbStr(_coldPalRGB.N) };
+      _palKey = patternIndex;
+    }
+    palRGB = _coldPalRGB; pal = _coldPal;
+  }
 
   // gaze: track the cursor, unless "Follow cursor" is off (then rest forward and
   // let the random idle look-arounds carry the life instead).
@@ -1250,7 +1295,7 @@ function draw(t) {
     sendHot(pos.x - SW / 2 - 6, oy - 6, SW + 12, SH + 12, false);
   } else if (hunting) {
     // ---- MOUSE HUNT: stalk toward the cursor, then pounce -------------------
-    const _ht = huntTarget || cursor; const dx = _ht.x - pos.x, dy = _ht.y - pos.y, d = Math.hypot(dx, dy) || 1;
+    const _raw = huntTarget || cursor; const _ht = { x: zoneClampX(_raw.x), y: zoneClampY(_raw.y) }; const dx = _ht.x - pos.x, dy = _ht.y - pos.y, d = Math.hypot(dx, dy) || 1;   // aim ONLY inside the play area, so a pounce (incl. chasing a butterfly) never leaps to screen center
     let leap = 0, stretchY = 1;
     if (pouncing) {
       const e = clamp((t - pounceT0) / POUNCE_MS, 0, 1);
@@ -1264,12 +1309,12 @@ function draw(t) {
       if (bfOn && huntTarget && bfMode !== 'out' && e > 0.4 && Math.hypot(bfX - pos.x, bfY - (pos.y - leap - HH * 0.55)) < 44) {
         const cx = pos.x, cy = pos.y - leap - HH * 0.6;
         for (let i = 0; i < 6; i++) idleSparkles.push({ x: cx + (Math.random() - 0.5) * 24, y: cy + (Math.random() - 0.5) * 16, t0: t });
-        hearts.push({ x: cx, y: cy - 6, t0: t, s: 1.3 });
+        popLove(t, cx, cy - 6, 1.4, 10);
         bfMode = 'out'; bfVy = -11; bfVx = (bfX < cx ? -1 : 1) * 4; bfFlap += 3; addEnergy(22); tailFlickT0 = t;
       }
       if (e >= 1) { pouncing = false; huntUntil = 0; huntTarget = null; persistPos(); tailFlickT0 = t; idleSparkles.push({ x: pos.x, y: pos.y - HH * 0.7, t0: t }); }   // "got it!" beat
     } else if (FORCED_STATE !== 'hunt' && d < POUNCE_RANGE) {
-      pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: (huntTarget || cursor).x, y: (huntTarget || cursor).y };
+      pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: _ht.x, y: _ht.y };   // leap toward the zone-clamped target (stays in the play area)
     } else if (FORCED_STATE !== 'hunt') {
       const mv = Math.min(Math.max(0, d - STANDOFF), HUNT_SPEED * step);
       pos.x += dx / d * mv; pos.y += dy / d * mv;
@@ -1338,8 +1383,10 @@ function draw(t) {
     } else if (roamIdle && roamUntil < t && t > nextRoam) {
       roamFrom = { x: pos.x, y: pos.y };
       const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
-      const ry = playArea ? (playArea.y + Math.random() * playArea.h) * canvas.height : canvas.height * 0.45 + Math.random() * canvas.height * 0.5;
-      roamTo = { x: zoneClampX(rx), y: zoneClampY(ry) };
+      // Floor-lock keeps strolls on the ground line (left/right only); otherwise pick
+      // a vertical target inside the play area / lower screen.
+      const ry = floorLockOn() ? restingY() : (playArea ? (playArea.y + Math.random() * playArea.h) * canvas.height : canvas.height * 0.45 + Math.random() * canvas.height * 0.5);
+      roamTo = { x: zoneClampX(rx), y: floorLockOn() ? ry : zoneClampY(ry) };
       roamDur = 1500; roamUntil = t + roamDur; nextRoam = t + 11000 + Math.random() * 13000; tailFlickT0 = t; loafUntil = 0;
     }
     if (roamUntil > t && roamFrom && roamTo) {
@@ -1505,8 +1552,8 @@ function draw(t) {
       ctx.restore();
       if (jamming) drawGuitar(pos.x + wig + 2, oy + SH * 0.62, jamPhase);   // the cat plays a tiny guitar while the Lobby Jam loops
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
-      if (petting && t - lastHeart > 520) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 14, y: oy - 4, t0: t, s: 2.1 }); lastHeart = t; }   // big love hearts rising from the head
-      else if (bodyPet && t - lastHeart > 950) { hearts.push({ x: pos.x + (Math.random() - 0.5) * 22, y: oy + 6, t0: t, s: 1.5 }); lastHeart = t; }
+      if (petting && t - lastHeart > 520) { popLove(t, pos.x, oy - 4, 2.1, 14); lastHeart = t; }   // big love hearts rising from the head
+      else if (bodyPet && t - lastHeart > 950) { popLove(t, pos.x, oy + 6, 1.5, 22); lastHeart = t; }
       if (thinking) {
         drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
         const py = oy + SH * 0.34 + Math.sin(t / 700) * 1.4;   // a paw raised to the chin: "hmm…"
@@ -1562,16 +1609,23 @@ function draw(t) {
     drawButterfly(ctx, bfX, bfY, BF_SCALE, BFLY_STYLES[bfPal], bfFlap, t, clamp(bfVx / 44, -0.22, 0.22));
   }
   // floating hearts (update + draw; persist after petting ends)
-  hearts = hearts.filter((h) => t - h.t0 < 1100);
-  for (const h of hearts) { const a = (t - h.t0) / 1100; drawHeart(Math.round(h.x + Math.sin(a * 6) * 4), Math.round(h.y - a * 30), a < 0.5 ? '#ff5a6e' : '#ff8a98', (1 - a) * 0.95, h.s || 1); }
-  idleSparkles = idleSparkles.filter((s) => t - s.t0 < 400);
+  if (hearts.length) hearts = hearts.filter((h) => t - h.t0 < (h.life || 1100));
+  for (const h of hearts) {
+    const life = h.life || 1100, a = (t - h.t0) / life;
+    const dx = Math.round(h.x + Math.sin(a * (h.wobF || 6) + (h.ph || 0)) * (h.wobA != null ? h.wobA : 4));
+    const dy = Math.round(h.y - a * (h.vy || 30));
+    const alpha = (1 - a) * 0.95;
+    if (h.kind === 'spark') drawSparkle(dx, dy, alpha, h.s || 1);
+    else drawHeart(dx, dy, a < 0.5 ? '#ff5a6e' : '#ff8a98', alpha, h.s || 1);
+  }
+  if (idleSparkles.length) idleSparkles = idleSparkles.filter((s) => t - s.t0 < 400);
   for (const s of idleSparkles) { const a = (t - s.t0) / 400; ctx.globalAlpha = (1 - a) * 0.9; ctx.fillStyle = '#fff6d6'; ctx.fillRect(Math.round(s.x), Math.round(s.y - a * 12), 2, 2); ctx.fillRect(Math.round(s.x + 3), Math.round(s.y - a * 12 - 3), 1, 1); ctx.globalAlpha = 1; }
-  loafZZZ = loafZZZ.filter((z) => t - z.t0 < 1100);
+  if (loafZZZ.length) loafZZZ = loafZZZ.filter((z) => t - z.t0 < 1100);
   for (const z of loafZZZ) { const a = (t - z.t0) / 1100, yOff = a * 14, fade = a < 0.15 ? a / 0.15 : a > 0.75 ? (1 - a) / 0.25 : 1; ctx.globalAlpha = fade * 0.65; ctx.fillStyle = '#8ab4cc'; const zx = Math.round(z.x), zy = Math.round(z.y - yOff), s = z.sz; ctx.fillRect(zx, zy, s * 4, s); ctx.fillRect(zx + s * 2, zy + s, s * 2, s); ctx.fillRect(zx + s, zy + s * 2, s * 2, s); ctx.fillRect(zx, zy + s * 3, s * 4, s); ctx.globalAlpha = 1; }
   // floating music notes while the Lobby Jam plays (outside the pose branches so they show in any pose)
   const jamNotesOn = !!(config && config.lobbyJam && config.lobbyJam.on) && !((config && config.reducedMotion) || lowPower);
   if (jamNotesOn && t > nextMusicNote) { musicNotes.push({ x: pos.x + (Math.random() - 0.5) * 24, y: pos.y - SH * 0.45, t0: t, vx: (Math.random() - 0.5) * 1.6, k: Math.random() < 0.4 ? 1 : 0 }); nextMusicNote = t + 320 + Math.random() * 220; }
-  musicNotes = musicNotes.filter((m) => t - m.t0 < 1300);
+  if (musicNotes.length) musicNotes = musicNotes.filter((m) => t - m.t0 < 1300);
   for (const m of musicNotes) { const a = (t - m.t0) / 1300, fade = a < 0.12 ? a / 0.12 : a > 0.8 ? (1 - a) / 0.2 : 1; drawNote(m.x + m.vx * a * 34, m.y - a * 30 + Math.sin(a * 8) * 3, fade * 0.85, m.k); }
 
   // reminder/break speech bubble - drawn here (outside the pose branches) so it's
@@ -1691,7 +1745,7 @@ window.addEventListener('mouseup', () => {
     if (config && config.soundOn) playChirp();
     restSprings();
   } else {
-    pos.x = zoneClampX(head.x); pos.y = zoneClampY(groundBaselineY());   // always land on the taskbar line
+    pos.x = zoneClampX(head.x); pos.y = restingY();   // land on the resting line (honours floor-lock + play area)
     persistPos();
   }
   resumeRaf();

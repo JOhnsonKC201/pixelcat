@@ -53,6 +53,7 @@ function render() {
   $('volumeVal').textContent = ($('volume').value | 0) + '%';
   $('onTop').checked = cfg.onTop === undefined ? true : !!cfg.onTop;
   $('roamOn').checked = cfg.roamOn === undefined ? true : !!cfg.roamOn;
+  $('floorLock').checked = cfg.floorLock === undefined ? true : !!cfg.floorLock;
   $('reducedMotion').checked = !!cfg.reducedMotion;
   $('lowPower').checked = !!cfg.lowPower;
   $('lowPowerOnBattery').checked = cfg.lowPowerOnBattery === undefined ? true : !!cfg.lowPowerOnBattery;
@@ -122,6 +123,7 @@ $('volume').addEventListener('input', () => { $('volumeVal').textContent = ($('v
 $('volume').addEventListener('change', () => save({ volume: Number($('volume').value) }));
 $('onTop').addEventListener('change', () => save({ onTop: $('onTop').checked }));
 $('roamOn').addEventListener('change', () => save({ roamOn: $('roamOn').checked }));
+$('floorLock').addEventListener('change', () => save({ floorLock: $('floorLock').checked }));
 $('reducedMotion').addEventListener('change', () => save({ reducedMotion: $('reducedMotion').checked }));
 $('lowPower').addEventListener('change', () => save({ lowPower: $('lowPower').checked }));
 $('lowPowerOnBattery').addEventListener('change', () => save({ lowPowerOnBattery: $('lowPowerOnBattery').checked }));

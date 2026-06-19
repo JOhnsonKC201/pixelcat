@@ -22,6 +22,7 @@ const DEFAULTS = {
   playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
   onTop: true,         // keep the cat above all other windows
   roamOn: true,        // the cat autonomously wanders its play area
+  floorLock: true,     // pin the cat to the taskbar/Dock line: it strolls left/right but never wanders up the screen
   volume: 100,         // master sound volume 0-100
   reducedMotion: false,// calm mode: no roaming/bouncing/screen-glow
   lowPower: false,     // fewer idle frames + slower cursor polling to spare CPU/GPU
@@ -72,6 +73,7 @@ function normalize(cfg) {
     playArea: normArea(c.playArea),
     onTop: c.onTop === undefined ? true : !!c.onTop,
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,
+    floorLock: c.floorLock === undefined ? true : !!c.floorLock,
     volume: clampInt(c.volume, 0, 100, 100),
     reducedMotion: !!c.reducedMotion,
     lowPower: !!c.lowPower,

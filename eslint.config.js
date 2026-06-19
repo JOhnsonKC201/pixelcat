@@ -18,7 +18,7 @@ const sharedOverlay = {
   startPurr: 'readonly', stopPurr: 'readonly', playChirp: 'readonly', playMrrp: 'readonly',
   // effects.js provides these:
   drawThinkBubble: 'readonly', drawWorkBubble: 'readonly', drawDoneSpark: 'readonly', drawHeart: 'readonly',
-  drawGuitar: 'readonly', drawNote: 'readonly',
+  drawSparkle: 'readonly', drawGuitar: 'readonly', drawNote: 'readonly',
 };
 
 const CONSUMER_OVERLAY = ['src/renderer.js', 'src/settings-renderer.js', 'src/cat-preview.js'];
