@@ -453,6 +453,7 @@ let shakeFlips = 0, shakeDir = 0, lastFlipAt = 0, wobbleUntil = 0;   // mochi sh
 let heat = 0, keyPulse = false, lastKeyAt = -9999;
 let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
+let windingUp = false, windupT0 = 0;   // butterfly pounce: a brief anticipation coil before the spring
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
 let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0;
 // a short fading sparkle trail behind the butterfly
@@ -915,7 +916,7 @@ function renderPlay(palRGB, oy, t, step) {
 }
 
 // hunt/pet tuning
-const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300;
+const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300, POUNCE_WINDUP_MS = 300;
 // butterfly play: the cat only engages the butterfly once the cursor has been still this
 // long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge;
 // BF_EDGE is the screen-edge keep-out for the whole sprite (covers the wingspan).
@@ -1296,7 +1297,9 @@ function draw(t) {
   } else if (hunting) {
     // ---- MOUSE HUNT: stalk toward the cursor, then pounce -------------------
     const _raw = huntTarget || cursor; const _ht = { x: zoneClampX(_raw.x), y: zoneClampY(_raw.y) }; const dx = _ht.x - pos.x, dy = _ht.y - pos.y, d = Math.hypot(dx, dy) || 1;   // aim ONLY inside the play area, so a pounce (incl. chasing a butterfly) never leaps to screen center
-    let leap = 0, stretchY = 1;
+    let leap = 0, stretchY = 1, coil = 0, wiggle = 0;
+    // the wind-up coil completes -> spring into the pounce
+    if (windingUp && t - windupT0 >= POUNCE_WINDUP_MS) { windingUp = false; pouncing = true; pounceT0 = t; pounceTarget = { x: _ht.x, y: _ht.y }; }
     if (pouncing) {
       const e = clamp((t - pounceT0) / POUNCE_MS, 0, 1);
       const ease = 1 - Math.pow(1 - e, 2);
@@ -1313,8 +1316,16 @@ function draw(t) {
         bfMode = 'out'; bfVy = -11; bfVx = (bfX < cx ? -1 : 1) * 4; bfFlap += 3; addEnergy(22); tailFlickT0 = t;
       }
       if (e >= 1) { pouncing = false; huntUntil = 0; huntTarget = null; persistPos(); tailFlickT0 = t; idleSparkles.push({ x: pos.x, y: pos.y - HH * 0.7, t0: t }); }   // "got it!" beat
+    } else if (windingUp) {
+      // anticipation: hold position, crouch + butt-wiggle to telegraph the pounce ("it's about to do it")
+      const wu = clamp((t - windupT0) / POUNCE_WINDUP_MS, 0, 1);
+      coil = Math.sin(wu * Math.PI * 0.5);     // ease into the crouch
+      stretchY = 1 - coil * 0.14;              // squash down (feet stay planted; see the ox/oy render below)
+      wiggle = Math.sin(t / 55) * 2.4 * coil;  // side-to-side butt-wiggle (render-only offset)
     } else if (FORCED_STATE !== 'hunt' && d < POUNCE_RANGE) {
-      pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: _ht.x, y: _ht.y };   // leap toward the zone-clamped target (stays in the play area)
+      // the butterfly pounce telegraphs with a wind-up coil first; the cursor hunt stays snappy
+      if (bfOn && huntTarget) { windingUp = true; windupT0 = t; pounceFrom = { x: pos.x, y: pos.y }; }
+      else { pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: _ht.x, y: _ht.y }; }   // leap toward the zone-clamped target (stays in the play area)
     } else if (FORCED_STATE !== 'hunt') {
       const mv = Math.min(Math.max(0, d - STANDOFF), HUNT_SPEED * step);
       pos.x += dx / d * mv; pos.y += dy / d * mv;
@@ -1322,7 +1333,7 @@ function draw(t) {
     pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
     restSprings();
     const creep = Math.round(Math.sin(t / 90) * 1.5);
-    const ox = Math.round(pos.x - HW / 2), oy = Math.round(pos.y - HH) - Math.round(leap);
+    const ox = Math.round(pos.x - HW / 2 + wiggle), oy = Math.round(pos.y - (windingUp ? HH * stretchY : HH)) - Math.round(leap);
     const facingLeft = FORCED_STATE !== 'hunt' && (huntTarget || cursor).x < pos.x;
     if (pouncing && pounceFrom && pounceTarget) {
       const pe = clamp((t - pounceT0) / POUNCE_MS, 0, 1);
@@ -1344,13 +1355,14 @@ function draw(t) {
     }
     drawShadow(pos.x, pos.y, 0.18, 26);
     octx.clearRect(0, 0, oc.width, oc.height);
-    drawCat(octx, spriteHunt, t, palRGB, { bob: creep, blinking, look, eyeMode: 'open', dilate: pouncing ? 1.5 : 1.32 });
+    drawCat(octx, spriteHunt, t, palRGB, { bob: creep, blinking, look, eyeMode: 'open', dilate: pouncing ? 1.5 : (windingUp ? 1.32 + coil * 0.2 : 1.32) });
     ctx.save();
     if (facingLeft) { ctx.translate(ox + HW, oy); ctx.scale(-1, stretchY); ctx.drawImage(oc, 0, 0, HW, HH, 0, 0, HW, HH); }
     else { ctx.translate(ox, oy); ctx.scale(1, stretchY); ctx.drawImage(oc, 0, 0, HW, HH, 0, 0, HW, HH); }
     ctx.restore();
     sendHot(0, 0, 0, 0, false); // non-interactive while hunting -> clicks pass through
   } else {
+    if (windingUp) windingUp = false;   // hunt ended mid-wind-up -> drop the stale coil
     // ---- not hunting: keep mochi springs settling toward pos ---------------
     const restTop = { x: pos.x, y: pos.y - SH };
     if (FORCED_STATE === 'mochi') {
