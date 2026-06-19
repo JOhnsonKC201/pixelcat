@@ -23,6 +23,7 @@ const DEFAULTS = {
   onTop: true,         // keep the cat above all other windows
   roamOn: true,        // the cat autonomously wanders its play area
   floorLock: true,     // pin the cat to the taskbar/Dock line: it strolls left/right but never wanders up the screen
+  butterflyOn: true,   // a butterfly occasionally flits in and the cat plays with it; off = no visits
   volume: 100,         // master sound volume 0-100
   reducedMotion: false,// calm mode: no roaming/bouncing/screen-glow
   lowPower: false,     // fewer idle frames + slower cursor polling to spare CPU/GPU
@@ -74,6 +75,7 @@ function normalize(cfg) {
     onTop: c.onTop === undefined ? true : !!c.onTop,
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,
     floorLock: c.floorLock === undefined ? true : !!c.floorLock,
+    butterflyOn: c.butterflyOn === undefined ? true : !!c.butterflyOn,
     volume: clampInt(c.volume, 0, 100, 100),
     reducedMotion: !!c.reducedMotion,
     lowPower: !!c.lowPower,

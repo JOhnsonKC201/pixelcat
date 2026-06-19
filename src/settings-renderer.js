@@ -46,6 +46,7 @@ function render() {
   $('breakMinutes').value = String(cfg.breakMinutes || 0);
   $('followCursor').checked = !!cfg.followCursor;
   $('huntOn').checked = !!cfg.huntOn;
+  $('butterflyOn').checked = cfg.butterflyOn === undefined ? true : !!cfg.butterflyOn;
   $('moodOn').checked = cfg.moodOn === undefined ? true : !!cfg.moodOn;
   $('soundOn').checked = !!cfg.soundOn;
   $('notifyOn').checked = cfg.notifyOn === undefined ? true : !!cfg.notifyOn;
@@ -116,6 +117,7 @@ $('pattern').addEventListener('change', () => { save({ pattern: Number($('patter
 $('breakMinutes').addEventListener('change', () => save({ breakMinutes: Number($('breakMinutes').value) }));
 $('followCursor').addEventListener('change', () => save({ followCursor: $('followCursor').checked }));
 $('huntOn').addEventListener('change', () => save({ huntOn: $('huntOn').checked }));
+$('butterflyOn').addEventListener('change', () => save({ butterflyOn: $('butterflyOn').checked }));
 $('moodOn').addEventListener('change', () => save({ moodOn: $('moodOn').checked }));
 $('soundOn').addEventListener('change', () => save({ soundOn: $('soundOn').checked }));
 $('notifyOn').addEventListener('change', () => save({ notifyOn: $('notifyOn').checked }));

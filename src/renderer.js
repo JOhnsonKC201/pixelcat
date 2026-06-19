@@ -985,14 +985,14 @@ function startBflyVisit(t) {
 // Flight + cat reaction. f = { follow, grabbing, hunting, typing, petting, startleActive, calm }.
 function updateButterflyDesk(t, dt, step, f) {
   const force = SHOT && qp.get('bfly') === '1';
-  const allow = f.follow && !lowPower && !(config && config.reducedMotion) && !f.grabbing && !f.typing;
+  const allow = f.follow && !lowPower && !(config && config.reducedMotion) && !(config && config.butterflyOn === false) && !f.grabbing && !f.typing;
   if (!bfOn) {
     if (force) startBflyVisit(t);
     else if (allow && t > bfNextVisit && f.calm) startBflyVisit(t);
     if (!bfOn) return;
   }
   // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully
-  if (config && config.reducedMotion && bfMode !== 'out') bfMode = 'out';
+  if (config && (config.reducedMotion || config.butterflyOn === false) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
   wantHighFps = true;
   const dtf = Math.min(dt, 50) / 16.67;
   if (t > bfNextPal) { bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000; }
