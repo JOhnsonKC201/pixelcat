@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('cat', {
   onRemind: sub('remind', (d) => d),
   onBreak: sub('break'),
   onPomo: sub('pomo', (d) => d),
+  onGeom: sub('geom', (g) => g),
   onNotify: sub('notify', (d) => d),
   setHot: (o) => ipcRenderer.send('hot', o),
   openSettings: () => ipcRenderer.send('settings:open'),

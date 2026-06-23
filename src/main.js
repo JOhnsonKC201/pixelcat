@@ -148,7 +148,7 @@ function createWindow() {
 
   // Push current settings to the overlay as soon as (and every time) it loads,
   // so first paint already has the name / coat / sound+hunt flags.
-  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) { applyConfigToOverlay(); sendPomo(); } });
+  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) { applyConfigToOverlay(); sendPomo(); sendGeom(); } });
 
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
   // (Skipped for --shot previews - a screenshot has no need for a global hook,
@@ -275,6 +275,7 @@ function createWindow() {
     const d = screen.getPrimaryDisplay().bounds;
     origin = { x: d.x, y: d.y };
     win.setBounds({ x: d.x, y: d.y, width: d.width, height: d.height });
+    sendGeom();   // resolution/DPI change -> re-send the true floor inset so the cat re-pins
   };
   screen.on('display-metrics-changed', refit);
   screen.on('display-added', refit);
@@ -307,6 +308,17 @@ function applyConfigToOverlay() {
     win.webContents.send('config', cfg);
     broadcastPower();   // keep the derived low-power flag + cursor cadence in sync with config
   }
+}
+// Send the authoritative bottom work-area inset (taskbar height) from Electron's screen
+// API. The overlay's DOM window.screen is unreliable at non-100% DPI (it mixes physical
+// and logical pixels), which lands the cat mid-screen; this is in DIP, matching the
+// window's innerHeight, so the cat finds the true taskbar line.
+function sendGeom() {
+  if (!win || win.isDestroyed() || !win.webContents) return;
+  const d = screen.getPrimaryDisplay(), b = d.bounds, wa = d.workArea;
+  const bottomInset = Math.max(0, (b.y + b.height) - (wa.y + wa.height));   // 0 = no bottom taskbar (top/side/auto-hide) -> renderer rests at the true bottom
+  const topInset = Math.max(0, wa.y - b.y), leftInset = Math.max(0, wa.x - b.x), rightInset = Math.max(0, (b.x + b.width) - (wa.x + wa.width));
+  win.webContents.send('geom', { bottomInset, topInset, leftInset, rightInset });
 }
 function sendThemes() {
   if (win && !win.isDestroyed() && win.webContents) win.webContents.send('themes', themesCache);

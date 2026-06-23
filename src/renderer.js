@@ -9,11 +9,25 @@ const qp = new URLSearchParams(location.search);
 const SHOT = qp.get('shot') === '1';
 const SHEET = qp.get('sheet') === '1';   // contact-sheet QA mode (all poses x coats)
 const FORCED_STATE = qp.get('state');
+let viewW = 0, viewH = 0, viewDpr = 1;   // CSS-px layout dims, decoupled from the physical backing store
 function resize() {
   if (SHEET) return;   // the contact sheet sizes its own canvas
-  if (SHOT) { canvas.width = 260; canvas.height = 320; }
-  else { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-  ctx.imageSmoothingEnabled = false;
+  if (SHOT) {
+    viewW = 260; viewH = 320; viewDpr = 1;
+    canvas.width = 260; canvas.height = 320;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  } else {
+    // HiDPI crispness: size the backing store in PHYSICAL px (innerWidth*dpr) but keep the
+    // CSS box at innerWidth and scale the context by dpr - so every draw/layout coordinate
+    // stays in CSS px while pixels render at native device resolution (no compositor
+    // upscale-blur at non-100% scaling). All geometry reads use viewW/viewH, never canvas.*.
+    viewDpr = window.devicePixelRatio || 1;
+    viewW = window.innerWidth; viewH = window.innerHeight;
+    canvas.style.width = viewW + 'px'; canvas.style.height = viewH + 'px';
+    canvas.width = Math.round(viewW * viewDpr); canvas.height = Math.round(viewH * viewDpr);
+    ctx.setTransform(viewDpr, 0, 0, viewDpr, 0, 0);
+  }
+  ctx.imageSmoothingEnabled = false;   // keep the sprite blit nearest-neighbor
 }
 resize();
 if (!SHOT && !SHEET) window.addEventListener('resize', resize);
@@ -142,18 +156,23 @@ const TW = 24 * CELL, TH = 24 * CELL;            // front-facing kneading-cat di
 const SW = 24 * CELL, SH = 30 * CELL;            // sit dims (mochi uses these)
 const HW = spriteHunt.SW, HH = spriteHunt.SH;    // hunt dims
 let playArea = null;   // { x,y,w,h } fractions of the screen; the cat stays inside it
+let geomBottomInset = null;   // taskbar height (DIP) from main; authoritative floor inset (DPI-correct)
 // X margins from the cat's CENTER: the body is SW/2 wide each side, and the sit
 // tail sweeps a further ~55px to the RIGHT (see drawTail) - so the right margin
 // is bigger, ensuring a hard throw at the screen edge never clips the tail.
 const EDGE_L = SW / 2 + 8, EDGE_R = SW / 2 + 60;
+const HOME_MARGIN_R = SW / 2 + 80;   // default resting X sits this far in from the right edge (clears the system tray/clock)
+const FLOOR_GAP = 0;                 // px the feet rest ABOVE the taskbar line (tunable in one place; 0 = flush)
+const SMALL_MARGIN = 4;              // resting margin from the very screen bottom when there's NO bottom taskbar (top/side/auto-hide)
+function homeX() { return zoneClampX(viewW - HOME_MARGIN_R); }
 function zoneClampX(v) {
-  if (!playArea) return clamp(v, EDGE_L, canvas.width - EDGE_R);
-  const a = playArea.x * canvas.width + EDGE_L, b = (playArea.x + playArea.w) * canvas.width - EDGE_R;
+  if (!playArea) return clamp(v, EDGE_L, viewW - EDGE_R);
+  const a = playArea.x * viewW + EDGE_L, b = (playArea.x + playArea.w) * viewW - EDGE_R;
   return clamp(v, Math.min(a, b), Math.max(a, b));
 }
 function zoneClampY(v) {
-  if (!playArea) return clamp(v, SH + 10, canvas.height - 10);
-  const a = playArea.y * canvas.height + SH, b = (playArea.y + playArea.h) * canvas.height - 10;
+  if (!playArea) return clamp(v, SH + 10, viewH - 10);
+  const a = playArea.y * viewH + SH, b = (playArea.y + playArea.h) * viewH - 10;
   return clamp(v, Math.min(a, b), Math.max(a, b));
 }
 // The cat's resting foot line = the top edge of the taskbar/Dock. Derived from
@@ -161,10 +180,15 @@ function zoneClampY(v) {
 // (availTop > 0) and must not raise the cat; the Dock (if at the bottom) is the
 // remainder. Falls back to a small margin when there's no bottom inset.
 function groundBaselineY() {
+  // Prefer main's authoritative inset (Electron screen API, DPI-correct). The DOM
+  // window.screen below is unreliable at non-100% scaling and lands the cat mid-screen.
+  // Authoritative inset from main: a 0 here means NO bottom taskbar (top/side/auto-hide),
+  // so rest near the true screen bottom rather than the unknown-case 48px fallback.
+  if (geomBottomInset != null) return viewH - (geomBottomInset > 0 ? geomBottomInset + FLOOR_GAP : SMALL_MARGIN);
   const s = window.screen;
   const topInset = Math.max(0, s.availTop || 0);
   const bottomInset = Math.max(0, (s.height || 0) - (s.availHeight || 0) - topInset);
-  return canvas.height - (bottomInset > 0 ? bottomInset : 48);
+  return viewH - (bottomInset > 0 ? bottomInset + FLOOR_GAP : 48);
 }
 // Floor-lock: when on (the default), the cat rests on the ground line and only
 // strolls horizontally - it never autonomously wanders up the screen. Orthogonal
@@ -172,7 +196,7 @@ function groundBaselineY() {
 // onConfig, so an unset flag reads as "on".
 function floorLockOn() { return !(config && config.floorLock === false); }
 function restingY() {
-  return floorLockOn() ? clamp(groundBaselineY(), SH + 10, canvas.height - 10) : zoneClampY(groundBaselineY());
+  return floorLockOn() ? clamp(groundBaselineY(), SH + 10, viewH - 10) : zoneClampY(groundBaselineY());
 }
 
 // offscreen buffer big enough for either sprite
@@ -238,8 +262,11 @@ function drawCat(g, sp, t, palRGB, o) {
     if (ch === '.') continue;
     const base = ch === 'E' ? (closed ? palRGB.C : palRGB.E) : palRGB[ch];
     if (!base) continue;
-    const f = BODY.has(ch) || (ch === 'E' && closed) ? 1.12 - (r / ROWS) * 0.34 : 1;
-    g.globalAlpha = ch === 'H' ? HALO_ALPHA : 1;
+    const isOut = ch === 'O';
+    const f = BODY.has(ch) || (ch === 'E' && closed) ? Math.max(0.82, 1.12 - (r / ROWS) * 0.34)   // floor the body shade so dark coats don't sink into the outline
+      : isOut ? 1.16 - (r / ROWS) * 0.30                                                            // rim-light: outline lit at the top, darker below
+      : 1;
+    g.globalAlpha = ch === 'H' ? HALO_ALPHA * clamp(1.3 - (r / ROWS) * 0.7, 0.5, 1.4) : 1;          // halo glows from the top, fades along the bottom
     g.fillStyle = f === 1 ? rgbStr(base) : shadeStr(base, f);
     g.fillRect(c * CELL, r * CELL + bob, CELL, CELL);
   }
@@ -396,7 +423,7 @@ function drawTail(footX, footY, t, pal, flickT0, petting) {
   const REST = [1.30, 1.10, 0.85, 0.55, 0.28, 0.08, -0.05, -0.45, -0.85, -1.20];
   let flick = 0;
   if (flickT0 >= 0 && t - flickT0 < 650) { const e = (t - flickT0) / 650; flick = Math.sin(e * Math.PI * 3) * (1 - e) * 0.45; }
-  const wag = Math.sin(t / 540) * 0.12 + (petting ? Math.sin(t / 120) * 0.08 : 0);
+  const wag = Math.sin(t / 540) * ((config && config.reducedMotion) ? 0.07 : 0.12) + (petting ? Math.sin(t / 120) * 0.08 : 0);   // gentler resting sway in Calm mode
   const pts = [[baseX, baseY]];
   let x = baseX, y = baseY, dev = 0;
   for (let i = 0; i < REST.length; i++) {
@@ -517,19 +544,46 @@ let zoomiesT0 = -1, prevBand = '', spinUntil = 0;
 let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
 if (SHOT) pos = { x: 130, y: 250 };
-else if (!pos || typeof pos.x !== 'number') pos = { x: canvas.width - 300, y: canvas.height - 80 };
+else if (!pos || typeof pos.x !== 'number') pos = { x: homeX(), y: viewH - 80 };
 pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 // Start each launch resting on the taskbar line (keep the remembered X, snap Y to
 // the baseline) so the cat always begins the day on the same line, never mid-screen.
 if (!SHOT) pos.y = restingY();
 // Don't let the home spot jam against the clock: when there's no custom play area,
 // pull a far-right-parked cat in from the edge on launch (only ever moves it left).
-if (!SHOT && !playArea) pos.x = Math.min(pos.x, canvas.width - 300);
+if (!SHOT && !playArea) pos.x = Math.min(pos.x, homeX());
 let head = { x: pos.x, y: pos.y - SH, vx: 0, vy: 0 };
 let feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 };
 let grabbing = false;
 let settingArea = false, areaDragStart = null, areaRect = null;   // "set play area (drag)" mode
 let petBurstUntil = 0, downAt = 0, downX = 0, downY = 0;   // click-to-pet
+const SETTLE_MS = 240;   // eased "settle/land" when the floor line moves (resize / DPI / display change)
+let settleT0 = -1, settleFromY = 0, settleToY = 0, settleSquash = 0;
+
+// Re-pin to the floor (taskbar line) once the overlay reaches its true full-screen
+// size. The one-shot pin above runs at module load, where viewH / window.screen
+// can be briefly wrong on a multi-monitor / HiDPI launch - so the cat may pin against a
+// stale height and float mid-screen. resize() (top of file) only resizes the canvas;
+// this re-snaps the cat after the canvas settles. Main also calls win.setBounds() on
+// display changes (see main.js refit), which fires 'resize' too.
+function floorIdle() {
+  const t = performance.now();
+  const startled = startleT0 >= 0 && t < startleUntil;
+  return !grabbing && !pouncing && !startled && !(paperLen > 1) && !(roamUntil > t);
+}
+function repinFloor() {
+  if (SHOT || SHEET) return;
+  if (typeof pos === 'undefined' || !pos) return;   // resize can fire before pos exists
+  if (!floorLockOn()) { pos.x = zoneClampX(pos.x); restSprings(); persistPos(); resumeRaf(); return; }
+  if (!floorIdle()) return;                          // never yank the cat mid-interaction
+  pos.x = zoneClampX(pos.x);
+  const target = restingY();
+  if (Math.abs(target - pos.y) > 1) { settleFromY = pos.y; settleToY = target; settleT0 = performance.now(); }   // ease the drop, don't teleport
+  else { pos.y = target; settleT0 = -1; restSprings(); }
+  persistPos(); resumeRaf();
+}
+window.addEventListener('resize', repinFloor);
+requestAnimationFrame(repinFloor);   // self-correct once the first frame's geometry is known
 
 if (window.cat) {
   window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; resumeRaf(); });
@@ -580,6 +634,11 @@ if (window.cat) {
   if (window.cat.onNotify) window.cat.onNotify((d) => triggerNotify(d));
   if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
+  if (window.cat.onGeom) window.cat.onGeom((g) => {
+    if (g && Number.isFinite(g.bottomInset)) geomBottomInset = g.bottomInset;
+    if (typeof pos !== 'undefined' && pos && (pos.x < EDGE_L || pos.x > viewW - EDGE_R)) pos.x = homeX();   // a resolution/display change stranded the cat off-screen -> re-home
+    repinFloor();   // settle onto the now-correct floor line (guards idle/floor-lock internally)
+  });
 }
 
 // Replace {name} (and provide clean fallbacks when no name is set).
@@ -971,16 +1030,16 @@ function drawButterfly(g, bx, by, sc, st, flap, t, rot) {
   g.restore();
 }
 function startBflyVisit(t) {
-  if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) pos = { x: canvas.width / 2, y: canvas.height - 80 };
+  if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) pos = { x: viewW / 2, y: viewH - 80 };
   bfOn = true; bfMode = 'in'; bfUntil = t + 22000 + Math.random() * 8000;
   bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000;
   // enter from whichever side has more room (toward screen interior) so it never spawns
   // pinned into a corner.
-  const side = pos.x < canvas.width / 2 ? 1 : -1;
-  bfX = clamp(pos.x + side * 220, BF_EDGE, canvas.width - BF_EDGE); bfY = clamp(pos.y - SH - 40, BF_TOP, canvas.height - BF_EDGE);
+  const side = pos.x < viewW / 2 ? 1 : -1;
+  bfX = clamp(pos.x + side * 220, BF_EDGE, viewW - BF_EDGE); bfY = clamp(pos.y - SH - 40, BF_TOP, viewH - BF_EDGE);
   bfVx = -side * 4; bfVy = 0; bfWpX = pos.x; bfWpY = pos.y - SH * 0.8; bfNextDive = t + 3000; bfDiveUntil = 0; bfDodgeUntil = 0; bfTrail = [];
   // seed the air-current glider: a wandering figure-eight center, re-picked soon to ramble across the screen
-  bfDriftCx = clamp(bfX, 80, canvas.width - 80); bfDriftCy = clamp(pos.y - SH - 30, BF_TOP, canvas.height * 0.5);
+  bfDriftCx = clamp(bfX, 80, viewW - 80); bfDriftCy = clamp(pos.y - SH - 30, BF_TOP, viewH * 0.5);
   bfDriftTX = bfDriftCx; bfDriftTY = bfDriftCy; bfPhase = Math.random() * Math.PI * 2; bfNextDrift = t + 500;
 }
 // Flight + cat reaction. f = { follow, grabbing, hunting, typing, petting, startleActive, calm }.
@@ -1013,27 +1072,27 @@ function updateButterflyDesk(t, dt, step, f) {
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
   }
   let tx, ty, burst = false;
-  if (bfMode === 'out') { tx = bfX < headX ? -40 : canvas.width + 40; ty = bfY; }
+  if (bfMode === 'out') { tx = bfX < headX ? -40 : viewW + 40; ty = bfY; }
   else if (bfMode === 'dive') { tx = headX + Math.sin(t / 200) * 26; ty = headY - 6 + Math.cos(t / 170) * 12; }
   else if (bfMode === 'dodge') { tx = bfWpX; ty = bfWpY; }
   else {
     // air-current glider: a wandering center traces a lazy figure-eight across the whole screen,
     // with periodic flap-bursts to climb then glide back down (mirrors site/cat-live.js).
     bfPhase += DRIFT_PHASE_RATE * dtf;
-    const ax = Math.min(canvas.width * 0.30, 220), ay = Math.min(canvas.height * 0.16, 100);
+    const ax = Math.min(viewW * 0.30, 220), ay = Math.min(viewH * 0.16, 100);
     if (t > bfNextDrift) {
-      const de = Math.min(ax + 24, canvas.width * 0.42);
-      bfDriftTX = de + Math.random() * Math.max(0, canvas.width - 2 * de);
-      bfDriftTY = BF_TOP + Math.random() * Math.max(0, canvas.height * 0.5 - BF_TOP);
+      const de = Math.min(ax + 24, viewW * 0.42);
+      bfDriftTX = de + Math.random() * Math.max(0, viewW - 2 * de);
+      bfDriftTY = BF_TOP + Math.random() * Math.max(0, viewH * 0.5 - BF_TOP);
       bfNextDrift = t + DRIFT_REPICK_MS[0] + Math.random() * DRIFT_REPICK_MS[1];
     }
     bfDriftCx += (bfDriftTX - bfDriftCx) * DRIFT_EASE * dtf;
     bfDriftCy += (bfDriftTY - bfDriftCy) * DRIFT_EASE * dtf;
-    bfWpX = clamp(bfDriftCx + ax * Math.sin(bfPhase), BF_EDGE, canvas.width - BF_EDGE);
+    bfWpX = clamp(bfDriftCx + ax * Math.sin(bfPhase), BF_EDGE, viewW - BF_EDGE);
     let gy = bfDriftCy + ay * Math.sin(bfPhase * LISSA_RATIO + LISSA_DELTA);
     burst = Math.sin(bfPhase * BURST_RATIO) > BURST_GATE;
     if (burst) gy -= BURST_LIFT;                                      // flap-burst to gain height, then glide down
-    bfWpY = clamp(gy, BF_TOP, canvas.height - BF_EDGE);
+    bfWpY = clamp(gy, BF_TOP, viewH - BF_EDGE);
     tx = bfWpX; ty = bfWpY;
   }
   let accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : WANDER_ACCEL));
@@ -1049,17 +1108,17 @@ function updateButterflyDesk(t, dt, step, f) {
   bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
   // despawn once it has flown off-screen — or, as a failsafe, if it has been leaving too long
   // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
-  if (bfMode === 'out' && (bfX < -30 || bfX > canvas.width + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; return; }
+  if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; return; }
   // keep the sprite on-screen — but NOT while leaving, or the clamp pins it at the edge and it
   // can never reach the off-screen despawn threshold above (it would flutter there forever).
   if (bfMode !== 'out') {
     const m = 10;
-    if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > canvas.width - m) { bfX = canvas.width - m; bfVx = -Math.abs(bfVx); }
-    if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > canvas.height - m) { bfY = canvas.height - m; bfVy = -Math.abs(bfVy); }
+    if (bfX < m) { bfX = m; bfVx = Math.abs(bfVx); } if (bfX > viewW - m) { bfX = viewW - m; bfVx = -Math.abs(bfVx); }
+    if (bfY < m) { bfY = m; bfVy = Math.abs(bfVy); } if (bfY > viewH - m) { bfY = viewH - m; bfVy = -Math.abs(bfVy); }
   }
   // anti-stick safety net: if the butterfly lingers against ANY edge it has gotten trapped
   // (regardless of mode/cat position). Boot it back toward the cat's head.
-  const atEdge = bfX <= BF_EDGE || bfX >= canvas.width - BF_EDGE || bfY <= BF_TOP || bfY >= canvas.height - BF_EDGE;
+  const atEdge = bfX <= BF_EDGE || bfX >= viewW - BF_EDGE || bfY <= BF_TOP || bfY >= viewH - BF_EDGE;
   if (atEdge) { if (!bfEdgeSince) bfEdgeSince = t; } else bfEdgeSince = 0;
   if (bfEdgeSince && t - bfEdgeSince > 600 && bfMode !== 'out') {
     bfMode = 'wander'; bfDriftTX = headX; bfDriftTY = headY - 40; bfNextDrift = t + 1500; bfEdgeSince = 0;   // re-aim the glide center inward
@@ -1086,7 +1145,7 @@ function updateButterflyDesk(t, dt, step, f) {
     bfMode = 'dodge'; bfDodgeUntil = t + 460;
     const aw = Math.atan2(bfY - headY, bfX - headX) + (Math.random() - 0.5);
     bfVx = Math.cos(aw) * 10; bfVy = Math.sin(aw) * 10;
-    bfWpX = clamp(bfX + Math.cos(aw) * 90, 20, canvas.width - 20); bfWpY = clamp(bfY + Math.sin(aw) * 60, BF_TOP, canvas.height - 40);
+    bfWpX = clamp(bfX + Math.cos(aw) * 90, 20, viewW - 20); bfWpY = clamp(bfY + Math.sin(aw) * 60, BF_TOP, viewH - 40);
   }
 }
 
@@ -1101,7 +1160,16 @@ function draw(t) {
 
   const dt = Math.min(64, t - prevT); prevT = t;
   const step = Math.min(2.5, dt / 16);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // eased settle onto the floor line (armed by repinFloor on resize / DPI / display change)
+  if (settleT0 >= 0) {
+    const se = clamp((t - settleT0) / SETTLE_MS, 0, 1);
+    const k = 1 - Math.pow(1 - se, 3);                 // easeOutCubic
+    pos.y = settleFromY + (settleToY - settleFromY) * k;
+    settleSquash = (1 - k) * 0.03;                     // a whisper of squash that resolves on landing
+    if (se >= 1) { pos.y = settleToY; settleT0 = -1; settleSquash = 0; restSprings(); persistPos(); }
+    wantHighFps = true;
+  }
+  ctx.clearRect(0, 0, viewW, viewH);
   wantHighFps = true; // default high; the fully-idle calm path lowers it below
 
   // cursor velocity (px/ms, smoothed) + raw single-tick displacement (for startle)
@@ -1152,8 +1220,8 @@ function draw(t) {
     startleT0 = t; startleUntil = t + STARTLE_MS; startleCooldownUntil = t + 1500;
     startleMode = Math.random() < 0.5 ? 'bolt' : 'creep';
     startleFrom = { x: pos.x, y: pos.y };
-    const left = pos.x < canvas.width / 2;
-    startleTo = { x: left ? zoneClampX(60) : zoneClampX(canvas.width - 60), y: zoneClampY(pos.y) };
+    const left = pos.x < viewW / 2;
+    startleTo = { x: left ? zoneClampX(60) : zoneClampX(viewW - 60), y: zoneClampY(pos.y) };
     huntUntil = 0; pouncing = false; addEnergy(35);
     if (config && config.soundOn) playMrrp();
   }
@@ -1368,7 +1436,7 @@ function draw(t) {
     if (FORCED_STATE === 'mochi') {
       head.x = pos.x; head.y = pos.y - SH * 1.7; head.vx = head.vy = 0; feet.x = pos.x; feet.y = pos.y; feet.vx = feet.vy = 0;
     } else {
-      const ht = grabbing ? { x: clamp(cursor.x, 8, canvas.width - 8), y: clamp(cursor.y, 8, canvas.height - 8) } : restTop;
+      const ht = grabbing ? { x: clamp(cursor.x, EDGE_L, viewW - EDGE_R), y: clamp(cursor.y, 8, viewH - 8) } : restTop;   // keep body/tail on-screen while dragged to an edge
       const HK = grabbing ? 0.45 : 0.14, HD = grabbing ? 0.45 : 0.16;
       head.vx += ((ht.x - head.x) * HK - head.vx * HD) * step; head.vy += ((ht.y - head.y) * HK - head.vy * HD) * step;
       head.x += head.vx * step; head.y += head.vy * step;
@@ -1394,10 +1462,10 @@ function draw(t) {
       }
     } else if (roamIdle && roamUntil < t && t > nextRoam) {
       roamFrom = { x: pos.x, y: pos.y };
-      const rx = playArea ? (playArea.x + Math.random() * playArea.w) * canvas.width : Math.random() * canvas.width;
+      const rx = playArea ? (playArea.x + Math.random() * playArea.w) * viewW : Math.random() * viewW;
       // Floor-lock keeps strolls on the ground line (left/right only); otherwise pick
       // a vertical target inside the play area / lower screen.
-      const ry = floorLockOn() ? restingY() : (playArea ? (playArea.y + Math.random() * playArea.h) * canvas.height : canvas.height * 0.45 + Math.random() * canvas.height * 0.5);
+      const ry = floorLockOn() ? restingY() : (playArea ? (playArea.y + Math.random() * playArea.h) * viewH : viewH * 0.45 + Math.random() * viewH * 0.5);
       roamTo = { x: zoneClampX(rx), y: floorLockOn() ? ry : zoneClampY(ry) };
       roamDur = 1500; roamUntil = t + roamDur; nextRoam = t + 11000 + Math.random() * 13000; tailFlickT0 = t; loafUntil = 0;
     }
@@ -1439,15 +1507,15 @@ function draw(t) {
     // --- liveliness: eased gaze + periodic idle micro-actions ---------------
     const restIdle = calm && !petting && !bodyPet && !typing && !grabbing && !FORCED_STATE && roamUntil < t && agentState === 'idle';
     if (restIdle && !staring) {
-      const idleScale = 2 - intensity;   // zoomies -> more frequent darts, calm -> rarer
+      const idleScale = (2 - intensity) * (config && config.reducedMotion ? 2 : 1);   // zoomies -> frequent darts; calm -> rarer; Calm mode -> rarer still
       if (nextIdleAt === 0) nextIdleAt = t + (1600 + Math.random() * 2600) * idleScale;
       if (t > nextIdleAt && t >= playUntil && t >= yawnUntil) {   // don't start a new idle action mid-play/yawn
         nextIdleAt = t + (2000 + Math.random() * 3600) * idleScale;
         const roll = Math.random();
         const motionOK = !((config && config.reducedMotion) || lowPower);
         if (roll < 0.26) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
-        else if (roll < 0.42) { tailFlickT0 = t; }
-        else if (roll < 0.54) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.045; leanUntil = t + 700; }   // weight shift
+        else if (roll < 0.42 && !(config && config.reducedMotion)) { tailFlickT0 = t; }   // skip frequent tail-flicks in Calm mode (falls through to a gentle loaf/blink)
+        else if (roll < 0.54 && !(config && config.reducedMotion)) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.045; leanUntil = t + 700; }   // weight shift (skipped in Calm mode)
         else if (roll < 0.70 && band !== 'calm' && motionOK) { startPlay(t); }   // bat a drifting leaf with a paw (self-play; never grabs the cursor)
         else if (roll < 0.80) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else if (roll < 0.90 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (paw to muzzle)
@@ -1503,8 +1571,9 @@ function draw(t) {
         : (playing && mote) ? { x: clamp((mote.x - pos.x) / 70, -1, 1), y: clamp((mote.y - (pos.y - SH * 0.72)) / 70, -1, 1) }   // watch the leaf
         : smoothLook;   // look the way it climbs the rope
       const climbRaster = paperActive && !petting && !stretching && coatHasFrames(coatSlug(P.name));   // painted climb for THIS coat?
-      const breath = Math.sin(t / 1500);                              // gentle breathing
+      const breath = Math.sin(t / 2200);                              // gentle, slow breathing (calmer cadence)
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
+      if (settleSquash) { sy *= 1 - settleSquash; sx *= 1 + settleSquash * 0.5; }   // tiny squash as it lands on the floor
       if (stretching) {
         const se = FORCED_STATE === 'stretch' ? ((t % STRETCH_MS) / STRETCH_MS) : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
         // squash-and-stretch: a brief anticipation crouch, then a TALL + NARROW reach
@@ -1555,7 +1624,7 @@ function draw(t) {
       }
       ctx.save();
       const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
-      ctx.translate(pos.x + wig + climbSway + purrJit, pos.y - hop - climbBob - petPush);   // nuzzle push + purr buzz ride on the rest pose
+      ctx.translate(Math.round(pos.x + wig + climbSway + purrJit), Math.round(pos.y - hop - climbBob - petPush));   // round to whole CSS px for crisp pixels; nuzzle push + purr buzz ride on the rest pose
       if (lean || cursorLean) ctx.rotate(lean + cursorLean);   // idle lean + watch-the-cursor tilt
       if (spinUntil > t) ctx.rotate((1 - (spinUntil - t) / 650) * Math.PI * 2);   // tail-chase spin
       const faceLeft = roamUntil > t && roamFrom && roamTo && roamTo.x < roamFrom.x;   // face where it walks
@@ -1652,9 +1721,10 @@ function draw(t) {
 
   // natural blinking: varied timing with occasional slow/sleepy + double blinks
   if (t > nextBlink && t > blinkUntil) {
-    const sleepy = Math.random() < 0.22;
+    const calmB = !!(config && config.reducedMotion);
+    const sleepy = Math.random() < (calmB ? 0.5 : 0.22);   // slower, lingering "slow blink" in Calm mode
     blinkUntil = t + (sleepy ? 230 : 120);
-    nextBlink = (Math.random() < 0.18) ? t + 360 : t + 2000 + Math.random() * 2800;
+    nextBlink = (Math.random() < 0.18) ? t + 360 : t + (calmB ? 2600 : 2000) + Math.random() * (calmB ? 3400 : 2800);
   }
   if (settingArea) drawSetArea();
 }
@@ -1663,14 +1733,14 @@ function rectOf(a, b) { return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w
 function finishSetArea(cancel) {
   let area = null;
   if (!cancel && areaRect && areaRect.w > 40 && areaRect.h > 40) {
-    area = { x: areaRect.x / canvas.width, y: areaRect.y / canvas.height, w: areaRect.w / canvas.width, h: areaRect.h / canvas.height };
+    area = { x: areaRect.x / viewW, y: areaRect.y / viewH, w: areaRect.w / viewW, h: areaRect.h / viewH };
   }
   settingArea = false; areaDragStart = null; areaRect = null;
   if (window.cat && window.cat.setAreaDone) window.cat.setAreaDone(area);
 }
 function drawSetArea() {
   ctx.save();
-  ctx.fillStyle = 'rgba(10,12,18,0.30)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(10,12,18,0.30)'; ctx.fillRect(0, 0, viewW, viewH);
   if (areaRect && areaRect.w > 2 && areaRect.h > 2) {
     ctx.clearRect(areaRect.x, areaRect.y, areaRect.w, areaRect.h);
     ctx.strokeStyle = '#e8943c'; ctx.lineWidth = 2; ctx.setLineDash([8, 5]);
@@ -1678,7 +1748,7 @@ function drawSetArea() {
   }
   ctx.fillStyle = '#fff'; ctx.font = 'bold 16px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText("Drag to set the cat's play area  -  Esc or right-click to cancel", canvas.width / 2, 42);
+  ctx.fillText("Drag to set the cat's play area  -  Esc or right-click to cancel", viewW / 2, 42);
   ctx.restore();
   wantHighFps = true;
 }
