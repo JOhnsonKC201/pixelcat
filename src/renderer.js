@@ -995,6 +995,8 @@ const BF_PLAY_IDLE = 1800, BF_TOP = 46, BF_EDGE = 18, BF_SCALE = 1.25;
 // If you leave the machine alone (no cursor/keys) this long, a butterfly comes out so
 // the cat has something to play with - then keeps dropping by every so often while idle.
 const IDLE_BUTTERFLY_MS = 12000;
+// Come back after being away this long and the cat notices you: happy eyes, hearts, a chirp.
+const GREET_IDLE_MS = 90000;
 // "air currents & the chase" (mirrors site/cat-live.js): the butterfly glides a drifting
 // figure-eight across the screen; the cat creeps after it via the existing roam machinery.
 const DRIFT_PHASE_RATE = 0.012, DRIFT_EASE = 0.012, LISSA_RATIO = 2, LISSA_DELTA = Math.PI / 2;
@@ -1198,7 +1200,17 @@ function draw(t) {
   const cursorDx = cursor.x - prevCursor.x;
   velEMA = velEMA * 0.5 + inst * 0.5; prevCursor.x = cursor.x; prevCursor.y = cursor.y;   // mutate in place (no per-frame allocation)
   // any real cursor movement refreshes the idle timer and drops a stare instantly
-  if (moved > 0.5) { lastCursorMove = t; if (staringT0 >= 0) { staringT0 = -1; lookTarget = null; } }
+  if (moved > 0.5) {
+    const away = t - lastCursorMove;
+    lastCursorMove = t;
+    if (staringT0 >= 0) { staringT0 = -1; lookTarget = null; }
+    // welcome back: you were away a good while -> the cat perks up and greets you
+    // (happy eyes + hearts via petBurst, plus a friendly chirp). Same recipe as a tap.
+    if (away > GREET_IDLE_MS && !SHOT && !grabbing && t >= petBurstUntil && !(startleT0 >= 0 && t < startleUntil)) {
+      petBurstUntil = t + 1400; addEnergy(18);
+      if (config && config.soundOn) playChirp();
+    }
+  }
 
   // shake-wobble: while held, fast side-to-side shaking (direction flips) makes
   // the stretched body wobble like jello. Flips expire quickly so a slow waggle
