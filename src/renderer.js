@@ -192,8 +192,10 @@ function groundBaselineY() {
   // overlay covers the full display and the floor is the Dock line. When the floor is
   // the very window bottom (no bottom taskbar), lift a hair off the edge.
   if (geomBottomWorkY != null) {
-    const floor = Math.min(geomBottomWorkY, viewH);
-    return floor >= viewH - 2 ? viewH - SMALL_MARGIN : floor - FLOOR_GAP;
+    // Sit right ON the work-area bottom (taskbar/Dock top) - the shadow is drawn at
+    // pos.y, so this lands the cat's ground contact flush on the line. restingY() clamps
+    // it into the window (viewH - 2) when the OS kept the overlay off the taskbar.
+    return Math.min(geomBottomWorkY, viewH) - FLOOR_GAP;
   }
   // Legacy inset path (older main without bottomWorkY): only correct when the overlay
   // actually covers the taskbar region.
