@@ -8,7 +8,16 @@ let actx = null, master = null;
 function volNow() { return (config && typeof config.volume === 'number' ? config.volume : 100) / 100; }
 function audio() {
   try {
-    if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.connect(actx.destination); master.gain.value = volNow(); }
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      master = actx.createGain(); master.gain.value = volNow();
+      // Safety limiter on the very output: the Lobby Jam (many plucks + bass + reverb +
+      // rain) plus any meow/purr can sum past 1.0 and hard-clip the speaker into crackle.
+      // A fast, high-ratio compressor catches those peaks so nothing distorts.
+      const limiter = actx.createDynamicsCompressor();
+      limiter.threshold.value = -2; limiter.ratio.value = 20; limiter.attack.value = 0.003; limiter.release.value = 0.25;
+      master.connect(limiter); limiter.connect(actx.destination);
+    }
     if (actx.state === 'suspended') actx.resume();
   } catch (e) { actx = null; }
   return actx;
@@ -65,8 +74,8 @@ function playMeow() {
   lp.frequency.linearRampToValueAtTime(f(900), t0 + dur);
   // two vocal formants (a real cat's voice has ~F1 1.5k + ~F2 2.7k) so it reads as a
   // voice rather than a single-resonance bleep; a hair of jitter per call for realism
-  const fmt = ac.createBiquadFilter(); fmt.type = 'peaking'; fmt.frequency.value = f(1500); fmt.Q.value = 3; fmt.gain.value = 8; trash.push(fmt);
-  const fmt2 = ac.createBiquadFilter(); fmt2.type = 'peaking'; fmt2.frequency.value = f(2700); fmt2.Q.value = 4; fmt2.gain.value = 6; trash.push(fmt2);
+  const fmt = ac.createBiquadFilter(); fmt.type = 'peaking'; fmt.frequency.value = f(1500); fmt.Q.value = 2.5; fmt.gain.value = 6; trash.push(fmt);
+  const fmt2 = ac.createBiquadFilter(); fmt2.type = 'peaking'; fmt2.frequency.value = f(2700); fmt2.Q.value = 2.5; fmt2.gain.value = 4; trash.push(fmt2);
 
   // ---- amp envelope: quick attack, a tiny mid dip (the "me|ow" break), then release ----
   const amp = ac.createGain(); trash.push(amp);
@@ -95,21 +104,21 @@ function playMeow() {
   o.onended = () => { for (const n of trash) { try { n.disconnect(); } catch (e) { /* ignore */ } } };
 }
 let purrNodes = null;
-// A real purr is a low rumble (~26 Hz) that swells on the exhale and eases on the
-// inhale. We layer a sawtooth fundamental + a soft detuned overtone for warmth, a
-// tremolo at the purr rate for the rumble, and a slow "breathing" swell so it never
-// sits static - then fade in/out so it starts and stops without a click.
+// A purr = a low carrier you can actually hear on a laptop speaker, amplitude-fluttered
+// at the ~25 Hz purr rate (that flutter IS the purr, not the pitch). We layer a sawtooth
+// fundamental + a soft detuned overtone for warmth, the flutter tremolo, and a slow
+// "breathing" swell so it never sits static - then fade in/out so it doesn't click.
 function startPurr() {
   const ac = audio(); if (!ac || purrNodes) return;
   const v = voiceFor();
-  const base = 26 * v.pitch;                                   // purr fundamental per breed voice
-  const carrier = ac.createOscillator(); carrier.type = 'sawtooth'; carrier.frequency.value = base;
-  const over = ac.createOscillator(); over.type = 'triangle'; over.frequency.value = base * 2.01;   // warm overtone, slightly detuned
-  const overG = ac.createGain(); overG.gain.value = 0.4;
+  const purrHz = 48 * v.pitch;                                 // carrier: an audible low rumble (26 Hz was subsonic and buzzed on small speakers)
+  const carrier = ac.createOscillator(); carrier.type = 'sawtooth'; carrier.frequency.value = purrHz;
+  const over = ac.createOscillator(); over.type = 'triangle'; over.frequency.value = purrHz * 2;   // warm overtone
+  const overG = ac.createGain(); overG.gain.value = 0.35;
   const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220;
   const amp = ac.createGain(); amp.gain.setValueAtTime(0.0001, ac.currentTime);
   amp.gain.setTargetAtTime(0.045, ac.currentTime, 0.35);      // fade in (no click)
-  const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = base;   // the rumble tremolo
+  const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 25;   // the ~25 Hz purr flutter (amplitude tremolo)
   const lfoGain = ac.createGain(); lfoGain.gain.value = 0.03;
   lfo.connect(lfoGain); lfoGain.connect(amp.gain);
   const breath = ac.createOscillator(); breath.type = 'sine'; breath.frequency.value = 0.5;   // slow inhale/exhale swell
