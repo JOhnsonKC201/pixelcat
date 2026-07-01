@@ -41,7 +41,7 @@
   let ac = null, jamBus = null, busInput = null, wetGain = null, rainGain = null;
   let running = false, mood = MOODS.cozy, timer = null, stopTimer = null, graphNodes = [];
   let nextTime = 0, beat = 0, cur = 'Cmaj7', t0 = 0;
-  const LOOKAHEAD = 0.12, TICK = 25, RAIN_ON = 0.5;
+  const LOOKAHEAD = 0.12, TICK = 25, RAIN_ON = 0.34;   // rain bed level (trimmed for output headroom so the mix doesn't clip)
   const ksCache = new Map();
 
   function makeSatCurve(k) {
