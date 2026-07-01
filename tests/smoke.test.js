@@ -45,14 +45,14 @@ test('scripts/notify.js appends a valid JSON line and replies', () => {
 });
 
 test('config.normalize fills defaults and clamps', () => {
-  const { normalize, DEFAULTS } = require(path.join(ROOT, 'src', 'config.js'));
+  const { normalize } = require(path.join(ROOT, 'src', 'config.js'));
   const c = normalize({});
   assert.strictEqual(c.moodOn, true);
   assert.strictEqual(c.soundOn, true);
   const { PATTERN_NAMES } = require(path.join(ROOT, 'src', 'patterns.js'));
   assert.strictEqual(c.pattern, PATTERN_NAMES.indexOf('Tuxedo'));   // tuxedo is the default coat
   assert.ok(Array.isArray(c.reminders));
-  assert.strictEqual(normalize({ pattern: 999 }).pattern <= (DEFAULTS ? 11 : 11), true);
+  assert.strictEqual(normalize({ pattern: 999 }).pattern, PATTERN_NAMES.length - 1);   // out-of-range coat clamps to the last coat
   assert.strictEqual(normalize({ moodOn: false }).moodOn, false);
   assert.strictEqual(normalize({}).onTop, true);
   assert.strictEqual(normalize({ onTop: false }).onTop, false);
@@ -84,6 +84,33 @@ test('config.normalize fills defaults and clamps', () => {
   assert.strictEqual(normalize({}).lowPowerOnBattery, true);
   assert.strictEqual(normalize({ lowPowerOnBattery: false }).lowPowerOnBattery, false);
   assert.strictEqual(normalize({ lowPowerOnBattery: 0 }).lowPowerOnBattery, false);
+});
+
+test('coat tables stay in sync (PATTERNS / builds / tabby / names)', () => {
+  // The coat data lives in four parallel arrays that MUST line up by index:
+  //   cat-sprite.js: PATTERNS (palettes) · PATTERN_BUILD (silhouette) · TABBY (stripes)
+  //   patterns.js:   PATTERN_NAMES (labels shared with the tray + settings UI)
+  // A drift (add a coat to one, forget another) mis-renders the cat or mislabels the
+  // tray/clamp with no runtime error - so lock the invariants here.
+  const { PATTERNS, PATTERN_BUILD, TABBY, BUILDS } = require(path.join(ROOT, 'src', 'cat-sprite.js'));
+  const { PATTERN_NAMES } = require(path.join(ROOT, 'src', 'patterns.js'));
+  const n = PATTERNS.length;
+  assert.ok(n >= 12, 'the built-in coats are still present');
+  assert.strictEqual(PATTERN_BUILD.length, n, 'PATTERN_BUILD length matches PATTERNS');
+  assert.strictEqual(TABBY.length, n, 'TABBY length matches PATTERNS');
+  assert.strictEqual(PATTERN_NAMES.length, n, 'PATTERN_NAMES length matches PATTERNS');
+
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+  const ROLES = ['coat', 'mark', 'white', 'patch', 'eye', 'nose', 'inner', 'outline'];
+  const names = new Set();
+  PATTERNS.forEach((p, i) => {
+    assert.strictEqual(p.name, PATTERN_NAMES[i], `names line up at index ${i}`);
+    assert.ok(!names.has(p.name), `coat name is unique: ${p.name}`);
+    names.add(p.name);
+    ROLES.forEach((role) => assert.match(p[role], HEX, `${p.name}.${role} is a #rrggbb hex`));
+    assert.ok(Object.prototype.hasOwnProperty.call(BUILDS, PATTERN_BUILD[i]), `${p.name} uses a known build (${PATTERN_BUILD[i]})`);
+    assert.strictEqual(typeof TABBY[i], 'boolean', `${p.name} tabby flag is a boolean`);
+  });
 });
 
 test('reminder recurrence normalizes (back-compat + clamps)', () => {

@@ -15,7 +15,7 @@ Notable changes to **pixelcat**. All art and sound are original/procedural (no a
 ### Poses & art
 - Redesigned **sleep** (curled ball, tail wrapped over the face) and **typing** (sprawled "keyboard cat" on a laptop).
 - **Unique pixel-art logo** - the sit-cat sprite as crisp blocks on an indigo tile.
-- **12 built-in coats** + **custom coats** (color / build / tabby) with **import/export** and a **live preview** in Settings.
+- **13 built-in coats** (incl. **Chocolate** - a solid warm-brown Havana with green eyes) + **custom coats** (color / build / tabby) with **import/export** and a **live preview** in Settings.
 
 ### Sound
 - **Realistic synthesized meow** - a formant "mee-ow" glide with vibrato; **per-species voices** (pitch/length by breed). Plus purr, chirp, and a startled mrrp.

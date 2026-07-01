@@ -84,10 +84,11 @@ to your cursor, to your typing, and to its own internal mood.
 | 🍃 **Leave it be** | Left alone it keeps itself busy - **bats a drifting leaf with a paw**, washes its face, loafs, and its whiskers twitch - lively without ever getting in your way. |
 
 <details>
-<summary><b>🎨 Coats &amp; pixel art</b> - 12 built-in patterns, custom coats, polished sticker look</summary>
+<summary><b>🎨 Coats &amp; pixel art</b> - 13 built-in patterns, custom coats, polished sticker look</summary>
 
-- **12 coat patterns** - Orange / Mackerel / Brown tabby, Siamese, Tuxedo, Black,
-  Gray, White, Cream, Tortoiseshell, Calico, Slate. Ships as **Tuxedo** out of the
+- **13 coat patterns** - Orange / Mackerel / Brown tabby, Siamese, Tuxedo, Black,
+  Gray, White, Cream, Tortoiseshell, Calico, Slate, and Chocolate (a solid warm-brown
+  Havana with green eyes). Ships as **Tuxedo** out of the
   box; **right-click** the cat to cycle and your choice is remembered.
 - **Custom coats** - design your own (see [Custom coats](#custom-coats)).
 - **Polished pixel art** - white sticker outline (pops on any wallpaper), soft
@@ -291,7 +292,7 @@ ideas only; all code here is original to pixelcat.</sub>
 Design your own in **Settings → Custom coats → + Add a custom coat**: pick a name, a
 body build (standard / slender / stocky / fluffy), optional tabby stripes, and eight
 colours (coat, marks, white, patch, eyes, nose, inner ear, outline). Your coat shows
-up in the **Coat** dropdown and the tray menu next to the 12 built-ins.
+up in the **Coat** dropdown and the tray menu next to the 13 built-ins.
 
 Custom coats live in `themes.json` in your app-data folder
 (`%APPDATA%/pixelcat/themes.json`) and can be hand-edited too:
