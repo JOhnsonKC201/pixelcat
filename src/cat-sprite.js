@@ -130,6 +130,9 @@ const PATTERNS = [
   // gap left by the striped Brown Tabby. Solid coat (white/mark/patch == coat: no bib,
   // no dark ears, no stripes), like Black/Gray/Slate. Slightly warmer inner ear so it reads.
   { name: 'Chocolate', coat: '#6b4a34', mark: '#6b4a34', white: '#6b4a34', patch: '#6b4a34', eye: '#8bbf5a', nose: '#c98b85', inner: '#a5786e', outline: '#2c1d13' },
+  // Russian Blue: a cool, slightly darker blue-grey solid with the breed's signature
+  // vivid green eyes and a mauve nose - distinct from Gray (gold eyes) and Slate (white eyes).
+  { name: 'Russian Blue', coat: '#6f8196', mark: '#6f8196', white: '#6f8196', patch: '#6f8196', eye: '#8bbf5a', nose: '#b98d97', inner: '#cdb4c2', outline: '#2b323c' },
 ];
 
 // Body-build archetypes - different breeds get different silhouettes.
@@ -139,9 +142,9 @@ const BUILDS = {
   stocky: { bodyW: 1.16, headRx: 6.8, headRy: 6.0, earApexY: 1.4, earW: 2.7, earOut: 3.9, cheek: 1, eyeRx: 2.0, eyeRy: 2.2 },
   fluffy: { bodyW: 1.08, headRx: 6.4, headRy: 5.9, earApexY: 0.8, earW: 2.5, earOut: 4, fluff: true, eyeRx: 2.0, eyeRy: 2.3 },
 };
-//  Orange    Mackerel  Brown    Siamese   Tuxedo    Black     Gray     White    Cream    Tortie   Calico   Slate     Chocolate
-const PATTERN_BUILD = ['standard', 'slender', 'fluffy', 'slender', 'standard', 'slender', 'stocky', 'fluffy', 'stocky', 'fluffy', 'fluffy', 'slender', 'standard'];
-const TABBY = [true, true, true, false, false, false, false, false, false, false, false, false, false]; // only Orange/Mackerel/Brown get stripes
+//  Orange    Mackerel  Brown    Siamese   Tuxedo    Black     Gray     White    Cream    Tortie   Calico   Slate     Chocolate  Russian Blue
+const PATTERN_BUILD = ['standard', 'slender', 'fluffy', 'slender', 'standard', 'slender', 'stocky', 'fluffy', 'stocky', 'fluffy', 'fluffy', 'slender', 'standard', 'slender'];
+const TABBY = [true, true, true, false, false, false, false, false, false, false, false, false, false, false]; // only Orange/Mackerel/Brown get stripes
 
 // ---- colour helpers ---------------------------------------------------------
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
