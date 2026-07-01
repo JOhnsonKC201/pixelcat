@@ -1,4 +1,4 @@
-// ===== Desktop pixel cat: 13 patterns, mochi-drag, typing, hunt, purr ========
+// ===== Desktop pixel cat: 14 patterns, mochi-drag, typing, hunt, purr ========
 // Role-coded sprites recolored per pattern, on a full-screen click-through overlay.
 // Roles:  . transparent  O outline  H white halo  C coat  K markings  W white
 //         X patch (tortie/calico)   E eye   N nose   I inner-ear
