@@ -23,8 +23,10 @@ Notable changes to **pixelcat**. All art and sound are original/procedural (no a
 - **14 built-in coats** (incl. **Chocolate** - a solid warm-brown Havana with green eyes - and **Russian Blue** - cool blue-grey with green eyes) + **custom coats** (color / build / tabby) with **import/export** and a **live preview** in Settings.
 
 ### Sound
-- **Realistic synthesized meow** - a **two-formant** "mee-ow" glide with vibrato; **per-species voices** (pitch/length by breed). Plus chirp and a startled mrrp.
+- **Realistic synthesized meow** - **gliding two-formant** "me-ow" (the vowel opens then rounds, like a real cat) with vibrato; **per-species voices** (pitch/length by breed). Plus chirp and a startled mrrp.
+- **Optional real meow** - drop `assets/meow.(ogg|mp3|wav)` and it replaces the synth meow (played through the same Volume + limiter). Still 100% synth by default.
 - **Warmer purr** - layered fundamental + soft overtone, a rumble tremolo, and a slow inhale/exhale swell; fades in/out so it never clicks.
+- **Output safety limiter** - a compressor + tanh soft-clip on the master so the mix (Lobby Jam + rain + meow/purr) can never clip/distort the speaker.
 
 ### Overlay & windows
 - **Always on top** - re-asserts top-most (over fullscreen apps too).

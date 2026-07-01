@@ -347,7 +347,9 @@ edge (not the menu bar), tray menu works in the menu bar, login launch works.
   3-band stretch that keeps the head and feet rigid.
 - Break timers and reminders are scheduled in the **main process** (the renderer
   throttles/pauses when idle), which pushes fire-events to the cat over IPC. Sound is
-  **Web Audio** synthesized in the renderer - no audio assets to ship.
+  **Web Audio** synthesized in the renderer - no audio assets to ship. *(Optional: drop
+  `assets/meow.ogg` / `.mp3` / `.wav` - your own recording or a clip you have rights to -
+  and it replaces the synth meow.)*
 
 ### Project layout
 
