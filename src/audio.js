@@ -63,7 +63,10 @@ function playMeow() {
   lp.frequency.setValueAtTime(f(700), t0);
   lp.frequency.linearRampToValueAtTime(f(2800), t0 + dur * 0.30);
   lp.frequency.linearRampToValueAtTime(f(900), t0 + dur);
+  // two vocal formants (a real cat's voice has ~F1 1.5k + ~F2 2.7k) so it reads as a
+  // voice rather than a single-resonance bleep; a hair of jitter per call for realism
   const fmt = ac.createBiquadFilter(); fmt.type = 'peaking'; fmt.frequency.value = f(1500); fmt.Q.value = 3; fmt.gain.value = 8; trash.push(fmt);
+  const fmt2 = ac.createBiquadFilter(); fmt2.type = 'peaking'; fmt2.frequency.value = f(2700); fmt2.Q.value = 4; fmt2.gain.value = 6; trash.push(fmt2);
 
   // ---- amp envelope: quick attack, a tiny mid dip (the "me|ow" break), then release ----
   const amp = ac.createGain(); trash.push(amp);
@@ -76,7 +79,7 @@ function playMeow() {
   amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.07);
 
   o.connect(fmt); subG.connect(fmt); sub.connect(subG);
-  fmt.connect(lp); lp.connect(amp); amp.connect(master);
+  fmt.connect(fmt2); fmt2.connect(lp); lp.connect(amp); amp.connect(master);
 
   // ---- a soft breath of air on the onset (the inhale before the cry) ----
   const blen = Math.max(1, (ac.sampleRate * 0.05) | 0), bbuf = ac.createBuffer(1, blen, ac.sampleRate), bd = bbuf.getChannelData(0);
@@ -92,25 +95,45 @@ function playMeow() {
   o.onended = () => { for (const n of trash) { try { n.disconnect(); } catch (e) { /* ignore */ } } };
 }
 let purrNodes = null;
+// A real purr is a low rumble (~26 Hz) that swells on the exhale and eases on the
+// inhale. We layer a sawtooth fundamental + a soft detuned overtone for warmth, a
+// tremolo at the purr rate for the rumble, and a slow "breathing" swell so it never
+// sits static - then fade in/out so it starts and stops without a click.
 function startPurr() {
   const ac = audio(); if (!ac || purrNodes) return;
-  const carrier = ac.createOscillator(); carrier.type = 'sawtooth'; carrier.frequency.value = 50;
-  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 200;
-  const amp = ac.createGain(); amp.gain.value = 0.04;
-  const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 22;
+  const v = voiceFor();
+  const base = 26 * v.pitch;                                   // purr fundamental per breed voice
+  const carrier = ac.createOscillator(); carrier.type = 'sawtooth'; carrier.frequency.value = base;
+  const over = ac.createOscillator(); over.type = 'triangle'; over.frequency.value = base * 2.01;   // warm overtone, slightly detuned
+  const overG = ac.createGain(); overG.gain.value = 0.4;
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220;
+  const amp = ac.createGain(); amp.gain.setValueAtTime(0.0001, ac.currentTime);
+  amp.gain.setTargetAtTime(0.045, ac.currentTime, 0.35);      // fade in (no click)
+  const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = base;   // the rumble tremolo
   const lfoGain = ac.createGain(); lfoGain.gain.value = 0.03;
   lfo.connect(lfoGain); lfoGain.connect(amp.gain);
-  carrier.connect(lp); lp.connect(amp); amp.connect(master);
-  carrier.start(); lfo.start();
-  purrNodes = { carrier, lfo, amp, lfoGain };
+  const breath = ac.createOscillator(); breath.type = 'sine'; breath.frequency.value = 0.5;   // slow inhale/exhale swell
+  const breathGain = ac.createGain(); breathGain.gain.value = 0.012;
+  breath.connect(breathGain); breathGain.connect(amp.gain);
+  carrier.connect(lp); over.connect(overG); overG.connect(lp); lp.connect(amp); amp.connect(master);
+  carrier.start(); over.start(); lfo.start(); breath.start();
+  purrNodes = { carrier, over, overG, lp, amp, lfo, lfoGain, breath, breathGain };
 }
 function stopPurr() {
   if (!purrNodes) return;
+  const p = purrNodes; purrNodes = null;
   try {
-    purrNodes.carrier.stop(); purrNodes.lfo.stop();
-    purrNodes.lfoGain.disconnect(); purrNodes.amp.disconnect();
+    const now = actx ? actx.currentTime : 0;
+    p.amp.gain.cancelScheduledValues(now);
+    p.amp.gain.setTargetAtTime(0.0001, now, 0.12);            // short release
+    const stopAt = now + 0.4;
+    p.carrier.stop(stopAt); p.over.stop(stopAt); p.lfo.stop(stopAt); p.breath.stop(stopAt);
+    p.carrier.onended = () => {
+      for (const n of [p.carrier, p.over, p.overG, p.lp, p.amp, p.lfo, p.lfoGain, p.breath, p.breathGain]) {
+        try { n.disconnect(); } catch (e) { /* ignore */ }
+      }
+    };
   } catch (e) { /* ignore */ }
-  purrNodes = null;
 }
 // A happy cat "chirrup"/trill (tap, body-pet, playful beat, agent done): a short
 // rising note with the fast rolled "r" flutter cats make — friendlier than a meow.
