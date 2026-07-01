@@ -530,6 +530,7 @@ let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
 let nextIdleAt = 0, leanTarget = 0, lean = 0, cursorLean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0, groomUntil = 0;
 let playUntil = 0, playT0 = -1, mote = null;   // idle paw-play: the cat bats a drifting leaf with a front paw
+let treat = null;   // a dropped treat (tray "Give a treat"): the cat trots over and noms it
 let yawnUntil = 0;   // occasional sleepy yawn (open mouth + squint)
 let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null, roamDur = 1500;   // autonomous wandering
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
@@ -548,6 +549,7 @@ let zoomiesT0 = -1, prevBand = '', spinUntil = 0;
 let pos;
 try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ }
 if (SHOT) pos = { x: 130, y: 250 };
+if (SHOT && qp.get('treat') === '1') treat = { x: 210, y: 250, phase: 'nom', nomUntil: Infinity };   // preview render: npx electron . --shot --treat=1
 else if (!pos || typeof pos.x !== 'number') pos = { x: homeX(), y: viewH - 80 };
 pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 // Start each launch resting on the taskbar line (keep the remembered X, snap Y to
@@ -645,6 +647,7 @@ if (window.cat) {
   if (window.cat.onRemind) window.cat.onRemind((d) => triggerReminder(d && d.message));
   if (window.cat.onNotify) window.cat.onNotify((d) => triggerNotify(d));
   if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
+  if (window.cat.onTreat) window.cat.onTreat(() => dropTreat());
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
   if (window.cat.onGeom) window.cat.onGeom((g) => {
     if (g && Number.isFinite(g.bottomInset)) geomBottomInset = g.bottomInset;
@@ -683,6 +686,50 @@ function triggerBreak() {
   stretchT0 = performance.now();
   if (config && config.soundOn) playMeow();
   resumeRaf();
+}
+// --- Treat: tray "Give a treat" drops a little fish nearby; the cat trots over and
+//     noms it (look down, hearts, a happy chirp, an energy bump). Uses the roam
+//     machinery to walk, re-aiming each time the walk expires until it arrives.
+const TREAT_STANDOFF = 26;   // how far beside the treat the cat stands to eat
+function treatApproachX() { return zoneClampX(treat.x - Math.sign(treat.x - pos.x || 1) * TREAT_STANDOFF); }
+function dropTreat() {
+  if (SHOT || typeof pos === 'undefined' || !pos) return;
+  const side = pos.x < viewW / 2 ? 1 : -1;                    // drop toward the roomier side
+  const tx = clamp(pos.x + side * (130 + Math.random() * 90), EDGE_L, viewW - EDGE_R);
+  treat = { x: tx, y: restingY(), phase: 'walk', nomUntil: 0 };
+  addEnergy(8);                                               // a treat is exciting
+  resumeRaf();
+}
+function updateTreat(t, f) {
+  if (!treat) return;
+  if (f.grabbing || f.hunting || f.startleActive || f.typing || paperLen > 1) return;   // interactions pause the trek
+  if (treat.phase === 'nom') { if (t > treat.nomUntil) { addEnergy(12); treat = null; } return; }
+  const approach = treatApproachX();
+  const dist = Math.abs(pos.x - approach);
+  if (roamUntil <= t) {
+    if (dist > 10) {                                          // still walking -> (re)aim at the treat
+      roamFrom = { x: pos.x, y: pos.y };
+      roamTo = { x: approach, y: floorLockOn() ? restingY() : pos.y };
+      roamDur = clamp(dist * 3, 400, 1800); roamUntil = t + roamDur; nextRoam = t + 20000;
+    } else {                                                  // arrived -> nom it
+      treat.phase = 'nom'; treat.nomUntil = t + 1100;
+      lookTarget = { x: treat.x, y: treat.y }; lookTargetUntil = t + 1100;
+      popLove(t, pos.x, (pos.y - SH) - 4, 1.6, 12);
+      if (config && config.soundOn) playChirp();
+    }
+  }
+}
+function drawTreat() {
+  if (!treat) return;
+  const x = treat.x, y = treat.y - 5;                         // rest on the floor line, beside the feet
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#5a3514'; ctx.lineWidth = 2; ctx.fillStyle = '#e8943c';
+  ctx.beginPath(); ctx.ellipse(x, y, 10, 5.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();   // body
+  ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x + 16, y - 6); ctx.lineTo(x + 16, y + 6); ctx.closePath(); ctx.fill(); ctx.stroke();   // tail
+  ctx.fillStyle = '#f7f1e6'; ctx.beginPath(); ctx.arc(x - 4, y - 1.5, 1.6, 0, Math.PI * 2); ctx.fill();   // eye white
+  ctx.fillStyle = '#3a2f26'; ctx.beginPath(); ctx.arc(x - 4, y - 1.5, 0.8, 0, Math.PI * 2); ctx.fill();   // pupil
+  ctx.restore();
 }
 
 // ---- procedural sound lives in audio.js (loaded before this script) --------
@@ -1566,6 +1613,7 @@ function draw(t) {
     if (t > leanUntil) leanTarget = 0;
     lean += (leanTarget - lean) * 0.09 * step;
     updateButterflyDesk(t, dt, step, { follow, grabbing, hunting, typing, petting, startleActive, calm });
+    updateTreat(t, { grabbing, hunting, typing, startleActive });
     const gaze = lookTarget || look;
     smoothLook.x += (gaze.x - smoothLook.x) * 0.18 * step;   // snappier cursor tracking
     smoothLook.y += (gaze.y - smoothLook.y) * 0.18 * step;
@@ -1725,6 +1773,7 @@ function draw(t) {
     ctx.globalAlpha = 1;
     drawButterfly(ctx, bfX, bfY, BF_SCALE, BFLY_STYLES[bfPal], bfFlap, t, clamp(bfVx / 44, -0.22, 0.22));
   }
+  drawTreat();   // the fish sits on the floor line, under the hearts
   // floating hearts (update + draw; persist after petting ends)
   if (hearts.length) hearts = hearts.filter((h) => t - h.t0 < (h.life || 1100));
   for (const h of hearts) {
