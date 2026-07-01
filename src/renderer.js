@@ -486,7 +486,7 @@ let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let windingUp = false, windupT0 = 0;   // butterfly pounce: a brief anticipation coil before the spring
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
-let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0;
+let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0, bfIdleNextVisit = 0;
 // a short fading sparkle trail behind the butterfly
 let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
@@ -992,6 +992,9 @@ const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUN
 // long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge;
 // BF_EDGE is the screen-edge keep-out for the whole sprite (covers the wingspan).
 const BF_PLAY_IDLE = 1800, BF_TOP = 46, BF_EDGE = 18, BF_SCALE = 1.25;
+// If you leave the machine alone (no cursor/keys) this long, a butterfly comes out so
+// the cat has something to play with - then keeps dropping by every so often while idle.
+const IDLE_BUTTERFLY_MS = 12000;
 // "air currents & the chase" (mirrors site/cat-live.js): the butterfly glides a drifting
 // figure-eight across the screen; the cat creeps after it via the existing roam machinery.
 const DRIFT_PHASE_RATE = 0.012, DRIFT_EASE = 0.012, LISSA_RATIO = 2, LISSA_DELTA = Math.PI / 2;
@@ -1059,8 +1062,13 @@ function updateButterflyDesk(t, dt, step, f) {
   const force = SHOT && qp.get('bfly') === '1';
   const allow = f.follow && !lowPower && !(config && config.reducedMotion) && !(config && config.butterflyOn === false) && !f.grabbing && !f.typing;
   if (!bfOn) {
+    // "do nothing -> the cat plays": once the cursor + keyboard have been idle a while,
+    // summon a butterfly early (and keep them coming while you're away), instead of only
+    // on the slow ~50-100s periodic timer.
+    const idleMs = t - Math.max(lastCursorMove, lastKeyAt);
+    const idleWants = idleMs > IDLE_BUTTERFLY_MS && t > bfIdleNextVisit;
     if (force) startBflyVisit(t);
-    else if (allow && t > bfNextVisit && f.calm) startBflyVisit(t);
+    else if (allow && f.calm && (t > bfNextVisit || idleWants)) startBflyVisit(t);
     if (!bfOn) return;
   }
   // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully
@@ -1120,7 +1128,7 @@ function updateButterflyDesk(t, dt, step, f) {
   bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
   // despawn once it has flown off-screen — or, as a failsafe, if it has been leaving too long
   // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
-  if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; return; }
+  if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; bfIdleNextVisit = t + 18000 + Math.random() * 12000; return; }
   // keep the sprite on-screen — but NOT while leaving, or the clamp pins it at the edge and it
   // can never reach the off-screen despawn threshold above (it would flutter there forever).
   if (bfMode !== 'out') {
