@@ -161,10 +161,14 @@ let geomBottomInset = null;   // taskbar height (DIP) from main; authoritative f
 // tail sweeps a further ~55px to the RIGHT (see drawTail) - so the right margin
 // is bigger, ensuring a hard throw at the screen edge never clips the tail.
 const EDGE_L = SW / 2 + 8, EDGE_R = SW / 2 + 60;
-const HOME_MARGIN_R = SW / 2 + 80;   // default resting X sits this far in from the right edge (clears the system tray/clock)
+const HOME_MARGIN_R = SW / 2 + 80;   // right home sits this far in from the right edge (clears the system tray/clock)
+const HOME_MARGIN_L = SW / 2 + 20;   // left home sits this far in from the left edge
 const FLOOR_GAP = 0;                 // px the feet rest ABOVE the taskbar line (tunable in one place; 0 = flush)
 const SMALL_MARGIN = 4;              // resting margin from the very screen bottom when there's NO bottom taskbar (top/side/auto-hide)
-function homeX() { return zoneClampX(viewW - HOME_MARGIN_R); }
+// Home corner: which bottom side the cat spawns at and drifts back to. Defaults to
+// the right (clears the tray/clock); set restSide:'left' to keep it bottom-left.
+function restSideLeft() { return !!(config && config.restSide === 'left'); }
+function homeX() { return zoneClampX(restSideLeft() ? HOME_MARGIN_L : viewW - HOME_MARGIN_R); }
 function zoneClampX(v) {
   if (!playArea) return clamp(v, EDGE_L, viewW - EDGE_R);
   const a = playArea.x * viewW + EDGE_L, b = (playArea.x + playArea.w) * viewW - EDGE_R;
@@ -551,7 +555,7 @@ pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 if (!SHOT) pos.y = restingY();
 // Don't let the home spot jam against the clock: when there's no custom play area,
 // pull a far-right-parked cat in from the edge on launch (only ever moves it left).
-if (!SHOT && !playArea) pos.x = Math.min(pos.x, homeX());
+if (!SHOT && !playArea) pos.x = restSideLeft() ? Math.max(pos.x, homeX()) : Math.min(pos.x, homeX());
 let head = { x: pos.x, y: pos.y - SH, vx: 0, vy: 0 };
 let feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 };
 let grabbing = false;
@@ -617,7 +621,15 @@ if (window.cat) {
   if (window.cat.onSetArea) window.cat.onSetArea(() => { settingArea = true; areaDragStart = null; areaRect = null; resumeRaf(); });
   if (window.cat.onConfig) window.cat.onConfig((c) => {
     if (!c) return;
+    const prevSide = config ? config.restSide : null;
     config = c;
+    // Rest-side toggled live -> stroll over to the newly chosen home corner.
+    if (prevSide !== null && prevSide !== c.restSide && !SHOT && !grabbing) {
+      const now = performance.now();
+      roamFrom = { x: pos.x, y: pos.y };
+      roamTo = { x: homeX(), y: floorLockOn() ? restingY() : pos.y };
+      roamDur = 1400; roamUntil = now + roamDur; nextRoam = now + 12000;
+    }
     if (master) master.gain.value = volNow();
     // reconcile the Lobby Jam audio with the new config (covers settings, tray, auto-resume)
     const lj = (c.lobbyJam && typeof c.lobbyJam === 'object') ? c.lobbyJam : { on: false, mood: 'cozy' };
@@ -1462,7 +1474,11 @@ function draw(t) {
       }
     } else if (roamIdle && roamUntil < t && t > nextRoam) {
       roamFrom = { x: pos.x, y: pos.y };
-      const rx = playArea ? (playArea.x + Math.random() * playArea.w) * viewW : Math.random() * viewW;
+      // Bias the wander target toward the home corner (restSide): r*r clusters near 0,
+      // so the cat tends to hang out on its preferred side while still roaming widely.
+      const skew = Math.random() * Math.random();
+      const frac = restSideLeft() ? skew : 1 - skew;
+      const rx = playArea ? (playArea.x + frac * playArea.w) * viewW : frac * viewW;
       // Floor-lock keeps strolls on the ground line (left/right only); otherwise pick
       // a vertical target inside the play area / lower screen.
       const ry = floorLockOn() ? restingY() : (playArea ? (playArea.y + Math.random() * playArea.h) * viewH : viewH * 0.45 + Math.random() * viewH * 0.5);

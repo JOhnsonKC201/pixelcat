@@ -57,6 +57,9 @@ test('config.normalize fills defaults and clamps', () => {
   assert.strictEqual(normalize({}).onTop, true);
   assert.strictEqual(normalize({ onTop: false }).onTop, false);
   assert.strictEqual(normalize({}).roamOn, true);
+  assert.strictEqual(normalize({}).restSide, 'right');                 // default home corner
+  assert.strictEqual(normalize({ restSide: 'left' }).restSide, 'left');
+  assert.strictEqual(normalize({ restSide: 'garbage' }).restSide, 'right');   // unknown -> right
   assert.strictEqual(normalize({}).floorLock, true);            // pinned to the bottom line by default
   assert.strictEqual(normalize({ floorLock: false }).floorLock, false);
   assert.strictEqual(normalize({ floorLock: 1 }).floorLock, true);

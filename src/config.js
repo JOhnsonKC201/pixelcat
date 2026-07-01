@@ -22,6 +22,7 @@ const DEFAULTS = {
   playArea: null,      // { x,y,w,h } fractions of the screen the cat stays in; null = whole screen
   onTop: true,         // keep the cat above all other windows
   roamOn: true,        // the cat autonomously wanders its play area
+  restSide: 'right',   // which bottom corner is home (spawn + where roaming drifts back to): 'left' | 'right'
   floorLock: true,     // pin the cat to the taskbar/Dock line: it strolls left/right but never wanders up the screen
   butterflyOn: true,   // a butterfly occasionally flits in and the cat plays with it; off = no visits
   volume: 100,         // master sound volume 0-100
@@ -74,6 +75,7 @@ function normalize(cfg) {
     playArea: normArea(c.playArea),
     onTop: c.onTop === undefined ? true : !!c.onTop,
     roamOn: c.roamOn === undefined ? true : !!c.roamOn,
+    restSide: c.restSide === 'left' ? 'left' : 'right',
     floorLock: c.floorLock === undefined ? true : !!c.floorLock,
     butterflyOn: c.butterflyOn === undefined ? true : !!c.butterflyOn,
     volume: clampInt(c.volume, 0, 100, 100),
