@@ -1,4 +1,4 @@
-// ===== Desktop pixel cat: 12 patterns, mochi-drag, typing, hunt, purr ========
+// ===== Desktop pixel cat: 13 patterns, mochi-drag, typing, hunt, purr ========
 // Role-coded sprites recolored per pattern, on a full-screen click-through overlay.
 // Roles:  . transparent  O outline  H white halo  C coat  K markings  W white
 //         X patch (tortie/calico)   E eye   N nose   I inner-ear
@@ -220,7 +220,7 @@ const forcedPattern = qp.get('pattern');
 if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
 
 // Custom coats: layer user-defined palettes (from themes.json, sent by main over
-// IPC) on top of the 12 built-ins, building each one's sit + type sprites at
+// IPC) on top of the built-in coats, building each one's sit + type sprites at
 // runtime. Re-applied wholesale on every update so add/delete just work.
 // Cached "cold" (non-overheat) palette, rebuilt only when the coat changes - avoids
 // recomputing ~12 colour conversions every single frame. Invalidated in applyThemes().

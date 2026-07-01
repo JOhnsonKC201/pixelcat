@@ -6,6 +6,7 @@ const PATTERN_NAMES = [
   'Orange Tabby', 'Mackerel Tabby', 'Brown Tabby', 'Siamese',
   'Tuxedo', 'Black', 'Gray', 'White',
   'Cream', 'Tortoiseshell', 'Calico', 'Slate',
+  'Chocolate',
 ];
 
 // Usable from both the main process (require) and a renderer (window global).

@@ -126,6 +126,10 @@ const PATTERNS = [
   { name: 'Tortoiseshell', coat: '#2b2d33', mark: '#1f2024', white: '#2b2d33', patch: '#c9762a', eye: '#c9a23c', nose: '#b06b72', inner: '#7a5560', outline: '#141519' },
   { name: 'Calico', coat: '#f3f1ec', mark: '#2b2d33', white: '#ffffff', patch: '#d6802f', eye: '#c9a23c', nose: '#d98f95', inner: '#f0cccc', outline: '#6f6a62' },
   { name: 'Slate', coat: '#8d97ac', mark: '#6f7892', white: '#8d97ac', patch: '#8d97ac', eye: '#ffffff', nose: '#ff9aa2', inner: '#ff9aa2', outline: '#2e323d' },
+  // Chocolate (Havana Brown): a solid warm-brown coat with vivid green eyes - fills the
+  // gap left by the striped Brown Tabby. Solid coat (white/mark/patch == coat: no bib,
+  // no dark ears, no stripes), like Black/Gray/Slate. Slightly warmer inner ear so it reads.
+  { name: 'Chocolate', coat: '#6b4a34', mark: '#6b4a34', white: '#6b4a34', patch: '#6b4a34', eye: '#8bbf5a', nose: '#c98b85', inner: '#a5786e', outline: '#2c1d13' },
 ];
 
 // Body-build archetypes - different breeds get different silhouettes.
@@ -135,9 +139,9 @@ const BUILDS = {
   stocky: { bodyW: 1.16, headRx: 6.8, headRy: 6.0, earApexY: 1.4, earW: 2.7, earOut: 3.9, cheek: 1, eyeRx: 2.0, eyeRy: 2.2 },
   fluffy: { bodyW: 1.08, headRx: 6.4, headRy: 5.9, earApexY: 0.8, earW: 2.5, earOut: 4, fluff: true, eyeRx: 2.0, eyeRy: 2.3 },
 };
-//  Orange    Mackerel  Brown    Siamese   Tuxedo    Black     Gray     White    Cream    Tortie   Calico   Slate
-const PATTERN_BUILD = ['standard', 'slender', 'fluffy', 'slender', 'standard', 'slender', 'stocky', 'fluffy', 'stocky', 'fluffy', 'fluffy', 'slender'];
-const TABBY = [true, true, true, false, false, false, false, false, false, false, false, false]; // only Orange/Mackerel/Brown get stripes
+//  Orange    Mackerel  Brown    Siamese   Tuxedo    Black     Gray     White    Cream    Tortie   Calico   Slate     Chocolate
+const PATTERN_BUILD = ['standard', 'slender', 'fluffy', 'slender', 'standard', 'slender', 'stocky', 'fluffy', 'stocky', 'fluffy', 'fluffy', 'slender', 'standard'];
+const TABBY = [true, true, true, false, false, false, false, false, false, false, false, false, false]; // only Orange/Mackerel/Brown get stripes
 
 // ---- colour helpers ---------------------------------------------------------
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
