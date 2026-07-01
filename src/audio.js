@@ -6,17 +6,27 @@
 /* exported playMeow, startPurr, stopPurr, playChirp, playMrrp */
 let actx = null, master = null;
 function volNow() { return (config && typeof config.volume === 'number' ? config.volume : 100) / 100; }
+// Soft-clip (tanh) curve for the master safety stage: ~unity slope near zero (quiet
+// sounds pass untouched) and a smooth ceiling below 1.0, so NO input - however hot the
+// mix stacks - can ever exceed the range and hard-clip the speaker into crackle.
+function makeMasterClip() {
+  const n = 2048, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(x); }
+  return c;
+}
 function audio() {
   try {
     if (!actx) {
       actx = new (window.AudioContext || window.webkitAudioContext)();
       master = actx.createGain(); master.gain.value = volNow();
-      // Safety limiter on the very output: the Lobby Jam (many plucks + bass + reverb +
-      // rain) plus any meow/purr can sum past 1.0 and hard-clip the speaker into crackle.
-      // A fast, high-ratio compressor catches those peaks so nothing distorts.
+      // Output safety chain: the Lobby Jam (many plucks + bass + reverb + rain) plus any
+      // meow/purr can sum past 1.0. A compressor rides the sustained level down, then a
+      // tanh soft-clipper is a hard guarantee the signal can never leave [-1,1] (a
+      // DynamicsCompressor alone is NOT a brickwall - measured peaks still clipped).
       const limiter = actx.createDynamicsCompressor();
-      limiter.threshold.value = -2; limiter.ratio.value = 20; limiter.attack.value = 0.003; limiter.release.value = 0.25;
-      master.connect(limiter); limiter.connect(actx.destination);
+      limiter.threshold.value = -6; limiter.ratio.value = 12; limiter.attack.value = 0.003; limiter.release.value = 0.25;
+      const clip = actx.createWaveShaper(); clip.curve = makeMasterClip(); clip.oversample = '2x';
+      master.connect(limiter); limiter.connect(clip); clip.connect(actx.destination);
     }
     if (actx.state === 'suspended') actx.resume();
   } catch (e) { actx = null; }
