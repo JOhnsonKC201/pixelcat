@@ -1,4 +1,6 @@
-// Procedural sound (WebAudio; no asset files). Loaded as a classic <script> before
+// Procedural sound (WebAudio). Everything here is synthesized in code; the ONE optional
+// asset is assets/meow.(ogg|mp3|wav) - drop one in and it replaces the synth meow (see
+// loadMeowSample). Loaded as a classic <script> before
 // renderer.js, sharing the overlay's global scope: it reads `config` (volume/soundOn)
 // and `patternIndex`/`PATTERN_BUILD` (per-breed voice) and exposes audio()/playMeow()/
 // startPurr()/stopPurr()/playChirp()/playMrrp() that renderer.js calls. Extracted from
@@ -30,7 +32,41 @@ function audio() {
     }
     if (actx.state === 'suspended') actx.resume();
   } catch (e) { actx = null; }
+  if (actx) loadMeowSample(actx);
   return actx;
+}
+// Optional REAL meow: if a recording exists at assets/meow.(ogg|mp3|wav) it REPLACES the
+// synth meow. Loaded once via XHR - the overlay runs from file://, where fetch() is
+// blocked but XHR can read a local file. If it's absent or won't decode, the synth plays.
+// (This is the ONLY optional asset; everything else stays 100% synthesized.)
+let meowBuf = null, meowTried = false;
+function loadMeowSample(ac) {
+  if (meowTried || typeof XMLHttpRequest === 'undefined') return;
+  meowTried = true;
+  const files = ['../assets/meow.ogg', '../assets/meow.mp3', '../assets/meow.wav'];
+  (function tryNext(i) {
+    if (i >= files.length) return;
+    let xhr;
+    try { xhr = new XMLHttpRequest(); xhr.open('GET', files[i], true); xhr.responseType = 'arraybuffer'; }
+    catch (e) { return tryNext(i + 1); }
+    xhr.onload = () => {
+      if ((xhr.status && xhr.status >= 400) || !xhr.response) return tryNext(i + 1);
+      try { ac.decodeAudioData(xhr.response.slice(0), (buf) => { meowBuf = buf; }, () => tryNext(i + 1)); }
+      catch (e) { tryNext(i + 1); }
+    };
+    xhr.onerror = () => tryNext(i + 1);
+    try { xhr.send(); } catch (e) { tryNext(i + 1); }
+  })(0);
+}
+// Play the real recording (per-breed pitch + a little per-call variation), through the
+// shared master so Volume + the limiter apply just like the synth.
+function playMeowSample(ac) {
+  const v = voiceFor();
+  const s = ac.createBufferSource(); s.buffer = meowBuf;
+  s.playbackRate.value = v.pitch * (0.94 + Math.random() * 0.12);
+  const g = ac.createGain(); g.gain.value = 0.9 * (v.gain || 1);
+  s.connect(g).connect(master); s.start();
+  s.onended = () => { try { s.disconnect(); g.disconnect(); } catch (e) { /* ignore */ } };
 }
 function voiceFor() {
   const build = (typeof PATTERN_BUILD !== 'undefined' && PATTERN_BUILD[patternIndex]) || 'standard';
@@ -51,6 +87,7 @@ function playMeow() {
   // "meeow" — and detunes a hair — so repeated meows vary like a real cat.
   // Still 100% synthesized; voiceFor() keeps each breed's own pitch/length.
   const ac = audio(); if (!ac) return;
+  if (meowBuf) { playMeowSample(ac); return; }   // a real recording, if provided, replaces the synth
   const v = voiceFor();
   const t0 = ac.currentTime;
   const r = Math.random();
@@ -82,10 +119,18 @@ function playMeow() {
   lp.frequency.setValueAtTime(f(700), t0);
   lp.frequency.linearRampToValueAtTime(f(2800), t0 + dur * 0.30);
   lp.frequency.linearRampToValueAtTime(f(900), t0 + dur);
-  // two vocal formants (a real cat's voice has ~F1 1.5k + ~F2 2.7k) so it reads as a
-  // voice rather than a single-resonance bleep; a hair of jitter per call for realism
-  const fmt = ac.createBiquadFilter(); fmt.type = 'peaking'; fmt.frequency.value = f(1500); fmt.Q.value = 2.5; fmt.gain.value = 6; trash.push(fmt);
-  const fmt2 = ac.createBiquadFilter(); fmt2.type = 'peaking'; fmt2.frequency.value = f(2700); fmt2.Q.value = 2.5; fmt2.gain.value = 4; trash.push(fmt2);
+  // Two vocal formants that GLIDE - this is what makes it read as "me-ow" rather than a
+  // bleep: the mouth opens on a bright vowel (F2 high) then rounds/closes on the "ow" (F2
+  // sweeps way down). F1 rises into the open "a" then settles. Modelled on real cat-meow
+  // formant motion; the glide, not just fixed peaks, is the difference.
+  const fmt = ac.createBiquadFilter(); fmt.type = 'peaking'; fmt.Q.value = 2.6; fmt.gain.value = 7; trash.push(fmt);
+  fmt.frequency.setValueAtTime(f(650), t0);
+  fmt.frequency.linearRampToValueAtTime(f(1050), t0 + dur * 0.30);   // open "a"
+  fmt.frequency.linearRampToValueAtTime(f(600), t0 + dur);           // round down on "ow"
+  const fmt2 = ac.createBiquadFilter(); fmt2.type = 'peaking'; fmt2.Q.value = 2.6; fmt2.gain.value = 6; trash.push(fmt2);
+  fmt2.frequency.setValueAtTime(f(2450), t0);
+  fmt2.frequency.linearRampToValueAtTime(f(2650), t0 + dur * 0.28);  // bright open vowel
+  fmt2.frequency.linearRampToValueAtTime(f(950), t0 + dur);          // sweep down into the closing "ow"
 
   // ---- amp envelope: quick attack, a tiny mid dip (the "me|ow" break), then release ----
   const amp = ac.createGain(); trash.push(amp);
