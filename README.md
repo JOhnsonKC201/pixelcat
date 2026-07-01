@@ -83,6 +83,8 @@ to your cursor, to your typing, and to its own internal mood.
 | 🦋 **Wait for a visitor** | Once in a while a butterfly flutters in. The cat tracks it, swats at it, and now and then **pounces and catches it** between its paws - then it flutters off again. **Step away** and a butterfly comes out on its own so the cat always has something to play with. |
 | 🍃 **Leave it be** | Left alone it keeps itself busy - **bats a drifting leaf with a paw**, washes its face, loafs, and its whiskers twitch - lively without ever getting in your way. |
 | 👋 **Come back** | Return after being away and the cat **notices you** - happy eyes, a little heart, and a friendly chirp hello. |
+| 🐟 **Give it a treat** | Tray → **Give a treat** drops a little fish; the cat **trots over and noms it** with hearts and a happy chirp. |
+| 🌙 **Late at night** | After 23:00 the cat **winds down** - it settles to calm faster and loafs or dozes more (a nudge still rouses it). |
 
 <details>
 <summary><b>🎨 Coats &amp; pixel art</b> - 14 built-in patterns, custom coats, polished sticker look</summary>
