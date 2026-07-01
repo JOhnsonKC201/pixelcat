@@ -1056,6 +1056,15 @@ const BUG_INTEREST_MIN = 90, BUG_STANDOFF = 70, BUG_RETARGET_DIST = 60, BUG_CREE
 const ENERGY_DECAY = 0.0007;   // slower drift back to calm -> the cat stays lively/playful longer
 const CALM_MAX = 50, PLAYFUL_MAX = 80;
 const STARTLE_VEL = 3.5, STARTLE_JUMP = 320, STARTLE_MS = 820, ZOOMIES_MS = 2500;
+// Night-time sleepiness: late at night the cat winds down toward calm faster, so it
+// loafs and dozes more (a big stimulus can still rouse it). Cached to once a minute
+// so we're not allocating a Date every frame.
+const NIGHT_DECAY_MULT = 2.4;
+let _nightAt = 0, _nightCached = false;
+function isNight(t) {
+  if (t - _nightAt > 60000) { const h = new Date().getHours(); _nightCached = h >= 23 || h < 6; _nightAt = t; }
+  return _nightCached;
+}
 const STARTLE_RANGE = 160;   // only flinch when the cursor lunges NEAR the cat - not on every fast move across the screen
 function bandOf(e) { return e <= CALM_MAX ? 'calm' : e <= PLAYFUL_MAX ? 'playful' : 'zoomies'; }
 function addEnergy(n) { energy = clamp(energy + n, 0, 100); }
@@ -1280,7 +1289,7 @@ function draw(t) {
   // is off, behave exactly like before (band 'playful', intensity 1).
   const moodOn = !(config && config.moodOn === false);
   const startleOn = !(config && config.startleOn === false);   // flinch when the cursor lunges at it
-  if (moodOn) energy = clamp(energy - dt * ENERGY_DECAY, 0, 100);
+  if (moodOn) energy = clamp(energy - dt * ENERGY_DECAY * (isNight(t) ? NIGHT_DECAY_MULT : 1), 0, 100);
   const band = moodOn ? bandOf(energy) : 'playful';
   const intensity = !moodOn ? 1 : band === 'calm' ? 0.6 : band === 'zoomies' ? 1.5 : 1;
   if (moodOn) {

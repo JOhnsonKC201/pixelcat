@@ -14,6 +14,8 @@ Notable changes to **pixelcat**. All art and sound are original/procedural (no a
 - **Idle butterfly play** - step away and a butterfly comes out on its own so the cat always has something to play with (tray/Settings **Butterfly visits**).
 - **Welcome-back greeting** - return after being away and the cat perks up with happy eyes, a heart, and a friendly chirp.
 - **Rest corner** - pick whether the cat calls bottom-**left** or bottom-**right** home (tray → **Rest corner**, or Settings); it drifts back to that side.
+- **Give a treat** - tray → **Give a treat 🐟** drops a little fish; the cat trots over and noms it with hearts and a happy chirp.
+- **Night-time sleepiness** - late at night (23:00-06:00) the cat winds down to calm faster, so it loafs and dozes more.
 
 ### Poses & art
 - Redesigned **sleep** (curled ball, tail wrapped over the face) and **typing** (sprawled "keyboard cat" on a laptop).
