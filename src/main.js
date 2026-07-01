@@ -319,7 +319,14 @@ function sendGeom() {
   const d = screen.getPrimaryDisplay(), b = d.bounds, wa = d.workArea;
   const bottomInset = Math.max(0, (b.y + b.height) - (wa.y + wa.height));   // 0 = no bottom taskbar (top/side/auto-hide) -> renderer rests at the true bottom
   const topInset = Math.max(0, wa.y - b.y), leftInset = Math.max(0, wa.x - b.x), rightInset = Math.max(0, (b.x + b.width) - (wa.x + wa.width));
-  win.webContents.send('geom', { bottomInset, topInset, leftInset, rightInset });
+  // The floor line = the work-area bottom (top edge of the taskbar/Dock) measured from
+  // the window's TOP edge (the overlay is pinned to the display's top-left). This is the
+  // authoritative floor whether or not the OS lets the overlay cover the taskbar region:
+  // on Windows the overlay is clamped to the work area, so its own innerHeight already
+  // excludes the taskbar - subtracting bottomInset again would float the cat. Sending an
+  // absolute floor line avoids that double-count.
+  const bottomWorkY = (wa.y + wa.height) - b.y;
+  win.webContents.send('geom', { bottomInset, topInset, leftInset, rightInset, bottomWorkY });
 }
 function sendThemes() {
   if (win && !win.isDestroyed() && win.webContents) win.webContents.send('themes', themesCache);

@@ -156,7 +156,8 @@ const TW = 24 * CELL, TH = 24 * CELL;            // front-facing kneading-cat di
 const SW = 24 * CELL, SH = 30 * CELL;            // sit dims (mochi uses these)
 const HW = spriteHunt.SW, HH = spriteHunt.SH;    // hunt dims
 let playArea = null;   // { x,y,w,h } fractions of the screen; the cat stays inside it
-let geomBottomInset = null;   // taskbar height (DIP) from main; authoritative floor inset (DPI-correct)
+let geomBottomInset = null;   // taskbar height (DIP) from main; legacy floor inset
+let geomBottomWorkY = null;   // work-area bottom (taskbar/Dock top) measured from the window's top edge; authoritative floor line (DPI-correct, clamp-agnostic)
 // X margins from the cat's CENTER: the body is SW/2 wide each side, and the sit
 // tail sweeps a further ~55px to the RIGHT (see drawTail) - so the right margin
 // is bigger, ensuring a hard throw at the screen edge never clips the tail.
@@ -184,10 +185,18 @@ function zoneClampY(v) {
 // (availTop > 0) and must not raise the cat; the Dock (if at the bottom) is the
 // remainder. Falls back to a small margin when there's no bottom inset.
 function groundBaselineY() {
-  // Prefer main's authoritative inset (Electron screen API, DPI-correct). The DOM
-  // window.screen below is unreliable at non-100% scaling and lands the cat mid-screen.
-  // Authoritative inset from main: a 0 here means NO bottom taskbar (top/side/auto-hide),
-  // so rest near the true screen bottom rather than the unknown-case 48px fallback.
+  // Preferred: main's absolute floor line = the work-area bottom (taskbar/Dock top)
+  // measured from the window top. Clamp to viewH so the cat never lands below the
+  // visible window: on Windows the overlay is clamped to the work area (viewH already
+  // excludes the taskbar), so the floor is simply the window bottom; on macOS the
+  // overlay covers the full display and the floor is the Dock line. When the floor is
+  // the very window bottom (no bottom taskbar), lift a hair off the edge.
+  if (geomBottomWorkY != null) {
+    const floor = Math.min(geomBottomWorkY, viewH);
+    return floor >= viewH - 2 ? viewH - SMALL_MARGIN : floor - FLOOR_GAP;
+  }
+  // Legacy inset path (older main without bottomWorkY): only correct when the overlay
+  // actually covers the taskbar region.
   if (geomBottomInset != null) return viewH - (geomBottomInset > 0 ? geomBottomInset + FLOOR_GAP : SMALL_MARGIN);
   const s = window.screen;
   const topInset = Math.max(0, s.availTop || 0);
@@ -200,7 +209,7 @@ function groundBaselineY() {
 // onConfig, so an unset flag reads as "on".
 function floorLockOn() { return !(config && config.floorLock === false); }
 function restingY() {
-  return floorLockOn() ? clamp(groundBaselineY(), SH + 10, viewH - 10) : zoneClampY(groundBaselineY());
+  return floorLockOn() ? clamp(groundBaselineY(), SH + 10, viewH - 2) : zoneClampY(groundBaselineY());
 }
 
 // offscreen buffer big enough for either sprite
@@ -651,6 +660,7 @@ if (window.cat) {
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
   if (window.cat.onGeom) window.cat.onGeom((g) => {
     if (g && Number.isFinite(g.bottomInset)) geomBottomInset = g.bottomInset;
+    if (g && Number.isFinite(g.bottomWorkY)) geomBottomWorkY = g.bottomWorkY;
     if (typeof pos !== 'undefined' && pos && (pos.x < EDGE_L || pos.x > viewW - EDGE_R)) pos.x = homeX();   // a resolution/display change stranded the cat off-screen -> re-home
     repinFloor();   // settle onto the now-correct floor line (guards idle/floor-lock internally)
   });
