@@ -132,6 +132,7 @@ function createWindow() {
   if (patternArg) params.push(`pattern=${patternArg}`);
   if (dirArg) params.push(`dir=${dirArg}`);
   if (process.argv.includes('--bfly')) params.push('bfly=1');   // force the butterfly visitor (QA shots)
+  if (process.argv.includes('--treat')) params.push('treat=1'); // force a dropped treat (QA shots)
   if (SHOT) params.push('shot=1');
   if (SHEET) params.push('sheet=1');
   win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });
@@ -380,6 +381,7 @@ function rebuildTrayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Settings…', click: openSettings },
     { label: 'Start break now', click: triggerBreak },
+    { label: 'Give a treat 🐟', click: giveTreat },
     { label: 'Recent notifications', submenu: recentItems },
     { label: 'Snooze last reminder', submenu: [
       { label: '5 minutes', click: () => snoozeLast(5) },
@@ -459,6 +461,9 @@ function triggerBreak() {
   if (win && !win.isDestroyed()) win.webContents.send('break');
   notify('Break time! Stretch with me~', { source: 'break', bubble: false, sound: false });
   breakAnchor = Date.now();
+}
+function giveTreat() {
+  if (win && !win.isDestroyed()) win.webContents.send('treat');
 }
 
 // ---- Pomodoro: focus/break loops. Main owns the phase clock (the renderer may
