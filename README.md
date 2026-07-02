@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo-mark.png" alt="pixelcat logo" width="120" />
+<img src="assets/logo-mark.png" alt="pixelcat logo" width="112" />
 
 # PixelCat
 
@@ -14,14 +14,17 @@ procedural**.
 <br />
 
 [![CI](https://img.shields.io/github/actions/workflow/status/JOhnsonKC201/pixelcat/ci.yml?style=flat-square&labelColor=15161d&label=CI)](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml)
+&nbsp;[![release](https://img.shields.io/github/v/release/JOhnsonKC201/pixelcat?style=flat-square&labelColor=15161d&color=E8930C)](https://github.com/JOhnsonKC201/pixelcat/releases/latest)
 &nbsp;![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20(beta)-4C566A?style=flat-square&labelColor=15161d)
 &nbsp;![built with Electron](https://img.shields.io/badge/built%20with-Electron-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=15161d)
 &nbsp;![art and sound 100% original](https://img.shields.io/badge/art%20%26%20sound-100%25%20original-A78BFA?style=flat-square&labelColor=15161d)
-&nbsp;![license MIT](https://img.shields.io/badge/license-MIT-22C55E?style=flat-square&labelColor=15161d)
+&nbsp;[![license](https://img.shields.io/github/license/JOhnsonKC201/pixelcat?style=flat-square&labelColor=15161d&color=22C55E)](LICENSE)
 
 <br />
 
-<img src="assets/pixelcat-demo.gif" alt="pixelcat on the desktop — sitting, kneading, and stretching" width="480" />
+<img src="assets/hero-banner.gif" alt="pixelcat on your desktop — it sits and watches your cursor, kneads the keyboard when you type, and purrs when you pet it" width="880" />
+
+<sub>▶ <a href="assets/hero-banner.mp4">Watch the MP4</a> — every frame is rendered from code, no screen capture.</sub>
 
 <br />
 <br />
@@ -34,7 +37,22 @@ procedural**.
 
 </div>
 
-<br />
+## See it in action
+
+<table align="center">
+<tr>
+<td align="center"><img src="assets/gallery/type.gif" width="240" alt="the cat kneads the keyboard when you type" /><br /><sub><b>⌨️ Kneads when you type</b></sub></td>
+<td align="center"><img src="assets/gallery/hunt.gif" width="240" alt="the cat crouches and pounces to hunt the cursor" /><br /><sub><b>🐾 Pounces to hunt</b></sub></td>
+<td align="center"><img src="assets/gallery/pet.gif" width="240" alt="the cat purrs and floats hearts when you pet it" /><br /><sub><b>💜 Purrs when you pet it</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="assets/gallery/mochi.gif" width="240" alt="the cat stretches like mochi when you drag it" /><br /><sub><b>🫧 Stretches like mochi</b></sub></td>
+<td align="center"><img src="assets/gallery/nap.gif" width="240" alt="the cat curls up and naps when idle" /><br /><sub><b>🌙 Naps when idle</b></sub></td>
+<td align="center"><img src="assets/coat-carousel.gif" width="172" alt="all 14 coats cycling on one sitting cat" /><br /><sub><b>🎨 14 coats + custom</b></sub></td>
+</tr>
+</table>
+
+<sub align="center">Every clip above is generated headlessly from the same sprite the app draws — one command, no recording.</sub>
 
 ## Highlights
 
@@ -87,7 +105,13 @@ A transparent, click-through overlay that stays on top — the cat is the only t
 </tr>
 </table>
 
-![pixelcat — poses across the coat library](assets/showcase.png)
+<div align="center">
+
+<img src="assets/showcase.png" alt="all 14 coats across the sit, typing, hunt, and loaf poses" width="100%" />
+
+<sub><b>Fourteen breeds, one shape.</b> Every pose across every coat — recolored from a single role-coded sprite at draw time.</sub>
+
+</div>
 
 ## Quick start
 
@@ -428,9 +452,9 @@ pixelcat/
 │  ├─ themes.js            # custom-coat load/validate
 │  ├─ settings*.{html,js}  # settings window + its IPC bridge
 │  └─ preload.js           # safe IPC bridge for the overlay
-├─ scripts/                # icon generators, notify.js, install-hook.js, bootcheck
+├─ scripts/                # icon + demo/GIF generators, notify.js, install-hook.js
 ├─ integrations/           # ready-made agent hook configs (5 agents)
-└─ assets/                 # generated icons (tray, app, .ico)
+└─ assets/                 # generated icons, showcase, hero + gallery clips
 ```
 
 ## Development
@@ -439,6 +463,7 @@ pixelcat/
 npm start                 # run the cat
 npm test                  # smoke tests (node --test)
 npm run sheet             # render previews/contact-sheet.png (every pose x coat)
+npm run demo:all          # regenerate the README media (hero, gallery, carousel)
 npm run hook -- cursor    # print a path-filled agent hook config
 npm run icon              # regenerate the tray + app-tile icons
 ```
@@ -447,6 +472,12 @@ npm run icon              # regenerate the tray + app-tile icons
 screenshots can't capture it), poses are reviewed with a one-command contact sheet:
 it renders every pose across all coats (built-in + custom) into one labeled image, so
 a redesign can be checked on light *and* dark coats at once (`npm run sheet`).
+
+**README media.** The hero banner, the *See it in action* gallery, and the coat
+carousel are all rendered from the same sprite geometry by `scripts/make-demo-gif.js`
+— pure Node, no browser or GPU. Regenerate any one with
+`node scripts/make-demo-gif.js <hero|gallery|carousel> [mp4]`, or all of them with
+`npm run demo:all`.
 
 Single poses preview via
 `npx electron . --shot --state=<sit|typing|hunt|loaf|groom|paper|overheat|pet|startle|work> --pattern=<coat>`.
@@ -467,6 +498,6 @@ Made for fun. **All art, code, and sound are original** — the meow/purr are
 synthesized in code, no audio files. Inspired by, **not copied from**, Comnyang:
 no Comnyang assets, sprites, audio, or branding are used.
 
-**MIT** © [JOhnsonKC201](https://github.com/JOhnsonKC201)
+[**MIT**](LICENSE) © [JOhnsonKC201](https://github.com/JOhnsonKC201)
 
 </div>
