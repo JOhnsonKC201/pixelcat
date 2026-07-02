@@ -157,20 +157,21 @@ function paletteFor(P) {
 let PAL = paletteFor(S.PATTERNS[0]);    // Orange Tabby - the default "my cat"
 const BODY = new Set(['C', 'K', 'W', 'X', 'I']);
 
-// pre-build the four pose sprites (orange tabby is a "standard" tabby build)
-const B = { tabby: true };
-const SP = {
-  sit: buildSprite(24, 30, () => composeSit(B)),
-  sleep: buildSprite(24, 20, composeSleepCurl),
-  hunt: buildSprite(30, 20, composeHunt),
-  type: buildSprite(34, 18, () => composeTypeSprawl(B)),
-};
-// build a sitting sprite for any coat index - the build archetype + tabby flag
-// come from cat-sprite, so each breed keeps its own silhouette in the carousel.
-function sitFor(i) {
-  const Bi = Object.assign({}, S.BUILDS[S.PATTERN_BUILD[i]], { tabby: S.TABBY[i] });
-  return buildSprite(24, 30, () => composeSit(Bi));
+// build the four pose sprites for a coat index (build archetype + tabby flag come
+// from cat-sprite) so hero/gallery can wear any coat and the carousel can cycle them.
+function buildFor(i) { return Object.assign({}, S.BUILDS[S.PATTERN_BUILD[i]], { tabby: S.TABBY[i] }); }
+function buildPoses(i) {
+  const Bi = buildFor(i);
+  return {
+    sit: buildSprite(24, 30, () => composeSit(Bi)),
+    sleep: buildSprite(24, 20, composeSleepCurl),
+    hunt: buildSprite(30, 20, composeHunt),
+    type: buildSprite(34, 18, () => composeTypeSprawl(Bi)),
+  };
 }
+function sitFor(i) { return buildSprite(24, 30, () => composeSit(buildFor(i))); }
+let SP = buildPoses(0);   // default: Orange Tabby (the demo recipe)
+const TUX = Math.max(0, S.PATTERNS.findIndex((p) => p.name === 'Tuxedo'));   // the "Black Tuxedo" hero/gallery coat
 
 // ---- canvas + raster helpers ------------------------------------------------
 let W = 480, H = 340, PX = 6;            // output size (mutable per recipe); PX = output px per grid cell
@@ -381,6 +382,166 @@ function sceneMochi(frames, o = {}) {
   }
 }
 
+// ---- painted raster climb (the app's own hand-painted per-coat frames) ------
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+// Tiny PNG decoder (zlib inflate + un-filter) so this pure-Node script can blit
+// the painterly climb frames that the app itself uses for the scroll rope-climb.
+function decodePng(file) {
+  const zlib = require('zlib');
+  const b = fs.readFileSync(file);
+  let p = 8, w = 0, h = 0, colorType = 6; const idat = [];
+  while (p < b.length) {
+    const len = b.readUInt32BE(p), type = b.toString('ascii', p + 4, p + 8), data = b.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') { w = data.readUInt32BE(0); h = data.readUInt32BE(4); colorType = data[9]; }
+    else if (type === 'IDAT') idat.push(data);
+    else if (type === 'IEND') break;
+    p += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const ch = colorType === 6 ? 4 : colorType === 2 ? 3 : 1, stride = w * ch;
+  const out = new Uint8ClampedArray(w * h * 4);
+  let cur = Buffer.alloc(stride), prev = Buffer.alloc(stride), rp = 0;
+  for (let y = 0; y < h; y++) {
+    const f = raw[rp++];
+    for (let x = 0; x < stride; x++) {
+      const rb = raw[rp++], a = x >= ch ? cur[x - ch] : 0, bb = prev[x], c = x >= ch ? prev[x - ch] : 0;
+      let v;
+      if (f === 1) v = rb + a; else if (f === 2) v = rb + bb; else if (f === 3) v = rb + ((a + bb) >> 1);
+      else if (f === 4) { const pp = a + bb - c, pa = Math.abs(pp - a), pb = Math.abs(pp - bb), pc = Math.abs(pp - c); v = rb + (pa <= pb && pa <= pc ? a : pb <= pc ? bb : c); }
+      else v = rb;
+      cur[x] = v & 255;
+    }
+    for (let x = 0; x < w; x++) {
+      const si = x * ch, di = (y * w + x) * 4;
+      out[di] = cur[si]; out[di + 1] = ch >= 3 ? cur[si + 1] : cur[si]; out[di + 2] = ch >= 3 ? cur[si + 2] : cur[si]; out[di + 3] = ch === 4 ? cur[si + 3] : 255;
+    }
+    const tmp = prev; prev = cur; cur = tmp;
+  }
+  return { width: w, height: h, data: out };
+}
+function blitImage(buf, img, dx, dy, dw, dh) {
+  for (let y = 0; y < dh; y++) {
+    const sy = Math.min(img.height - 1, (y * img.height / dh) | 0);
+    for (let x = 0; x < dw; x++) {
+      const sx = Math.min(img.width - 1, (x * img.width / dw) | 0), si = (sy * img.width + sx) * 4, a = img.data[si + 3] / 255;
+      if (a > 0.004) blend(buf, dx + x, dy + y, [img.data[si], img.data[si + 1], img.data[si + 2]], a);
+    }
+  }
+}
+let _climb = null;
+function climbFrames() {
+  if (_climb) return _climb;
+  const dir = path.join(__dirname, '..', 'assets', 'climb', 'tuxedo');
+  _climb = {};
+  for (const n of ['idle', 'up1', 'up2', 'down1', 'down2']) _climb[n] = decodePng(path.join(dir, `${n}.png`));
+  return _climb;
+}
+
+// ---- extra interaction scenes (climb / butterfly / eat / sing) --------------
+// pixel-buffer triangle fill (fish tail)
+function fillTri(buf, ax, ay, bx, by, cx, cy, col, a) {
+  const minx = Math.floor(Math.min(ax, bx, cx)), maxx = Math.ceil(Math.max(ax, bx, cx));
+  const miny = Math.floor(Math.min(ay, by, cy)), maxy = Math.ceil(Math.max(ay, by, cy));
+  const s = (px, py, qx, qy, rx, ry) => (px - rx) * (qy - ry) - (qx - rx) * (py - ry);
+  for (let y = miny; y <= maxy; y++) for (let x = minx; x <= maxx; x++) {
+    const d1 = s(x, y, ax, ay, bx, by), d2 = s(x, y, bx, by, cx, cy), d3 = s(x, y, cx, cy, ax, ay);
+    if (!((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))) blend(buf, x, y, col, a);
+  }
+}
+// a little fish treat (ported from renderer.drawTreat)
+function drawFish(buf, x, y) {
+  const OUT = [90, 53, 20], BODY = [232, 148, 60], EW = [247, 241, 230], PUP = [58, 47, 38];
+  fillTri(buf, x + 7, y, x + 16, y - 6, x + 16, y + 6, OUT, 1);
+  fillTri(buf, x + 7, y, x + 15, y - 4.5, x + 15, y + 4.5, BODY, 1);
+  fillEllipse(buf, x, y, 11, 6.5, OUT, 1);
+  fillEllipse(buf, x, y, 9.6, 5.3, BODY, 1);
+  fillEllipse(buf, x - 4, y - 1.5, 1.7, 1.7, EW, 1);
+  fillEllipse(buf, x - 4, y - 1.5, 0.9, 0.9, PUP, 1);
+}
+// monarch butterfly (ported from renderer.drawButterfly; upright, no ctx transform)
+function drawButterfly(buf, bx, by, sc, flap) {
+  const open = 0.30 + 0.70 * Math.abs(Math.cos(flap));
+  const main = [232, 148, 60], core = [181, 100, 29], halo = [255, 230, 204], body = [28, 20, 12], dots = [255, 246, 232];
+  fillEllipse(buf, bx, by - sc, (12 * open + 4) * sc, 11 * sc, halo, 0.14);
+  for (const side of [-1, 1]) {
+    const ux = bx + side * 7 * open * sc, lx = bx + side * 5.5 * open * sc;
+    fillEllipse(buf, ux, by - 3 * sc, (6.2 * open + 1) * sc, 6.6 * sc, halo, 0.55);
+    fillEllipse(buf, ux, by - 3 * sc, 6.0 * open * sc, 6.2 * sc, main, 1);
+    fillEllipse(buf, ux, by - 3.6 * sc, 4.0 * open * sc, 4.4 * sc, core, 1);
+    fillEllipse(buf, lx, by + 5 * sc, 4.4 * open * sc, 4.6 * sc, main, 1);
+    fillEllipse(buf, lx, by + 5 * sc, 2.8 * open * sc, 3.0 * sc, core, 1);
+    fillEllipse(buf, bx + side * 9 * open * sc, by - 6 * sc, 0.9 * sc, 0.9 * sc, dots, 1);
+  }
+  fillEllipse(buf, bx, by, 1.5 * sc, 8 * sc, body, 1);
+  fillEllipse(buf, bx, by - 7 * sc, 1.7 * sc, 1.9 * sc, body, 1);
+  for (const s2 of [-1, 1]) for (let k = 0; k <= 5; k++) blend(buf, bx + s2 * k * 0.55 * sc, by - (8 + k) * sc, body, 0.85);
+}
+// a rising, fading music note (head + stem + flag)
+function drawNote(buf, x, y, col, a) {
+  fillEllipse(buf, x, y, 2.8, 2.1, col, a);
+  fillRect(buf, x + 2, y - 10, 1.8, 10, col, a);
+  fillRect(buf, x + 2, y - 10, 4.5, 2, col, a);
+}
+
+// scroll rope-climb: cycle the painterly per-coat frames (hang -> up x3 -> down x3)
+function sceneClimb(frames, o = {}) {
+  const F = climbFrames();
+  const order = ['idle', 'idle'];
+  for (let k = 0; k < 3; k++) order.push('up1', 'up2');
+  order.push('idle', 'idle');
+  for (let k = 0; k < 3; k++) order.push('down1', 'down2');
+  const scale = (H - 22) / F.idle.height;
+  for (const name of order) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const img = F[name], dw = Math.round(img.width * scale), dh = Math.round(img.height * scale);
+    blitImage(buf, img, Math.round((W - dw) / 2), Math.round(H - dh - 8), dw, dh);
+    push(frames, buf, 150);
+  }
+}
+// plays with a butterfly: it loops overhead, the cat's eyes track it
+function sceneButterfly(frames, o = {}) {
+  const n = o.n || 34;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const t = i / n;
+    const bx = W / 2 + Math.sin(t * Math.PI * 2) * 92, by = BASE_Y - 150 + Math.sin(t * Math.PI * 4) * 20;
+    const look = clamp(Math.round((bx - W / 2) / 18), -3, 3);
+    shadowAndPlace(buf, SP.sit, BASE_Y, 0, 0, { eyeFill: true, eyeMode: blinkAt(i, 15, 'open'), look });
+    drawButterfly(buf, bx, by, 1.7, i * 0.7);
+    push(frames, buf, 80);
+  }
+}
+// noms a treat: a fish beside it, the cat leans down, happy eyes + hearts
+function sceneEat(frames, o = {}) {
+  const n = o.n || 30;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const t = i / n, dip = Math.round(Math.sin(clamp(t * 1.5, 0, 1) * Math.PI) * 5), happy = t > 0.30;
+    const p = shadowAndPlace(buf, SP.sit, BASE_Y, 0, dip, { eyeFill: !happy, eyeMode: happy ? 'happy' : 'open', look: 2 });
+    drawFish(buf, W / 2 + 48, BASE_Y - 3);
+    if (happy) for (let k = 0; k < 2; k++) { const ph = ((t - 0.30) / 0.70 + k / 2) % 1; drawHeart(buf, W / 2 + 24 + k * 14, p.oy - 2 - ph * 32, 4, [255, 110, 140], 1 - ph * 0.85); }
+    push(frames, buf, 95);
+  }
+}
+// sings: an open mouth on a rhythm with music notes rising and fading
+function sceneSing(frames, o = {}) {
+  const n = o.n || 28, cols = [[139, 191, 90], [255, 215, 107], [127, 214, 255]];
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const bob = Math.round(Math.sin(i / 3) * 2);
+    const p = shadowAndPlace(buf, SP.sit, BASE_Y, 0, bob, { eyeFill: true, eyeMode: blinkAt(i, 16, 'open') });
+    const openA = 0.5 + 0.5 * Math.abs(Math.sin(i / 2.2)), mx = W / 2, my = p.oy + p.h * 0.40;
+    fillEllipse(buf, mx, my, 3.0, 1.8 + openA * 2.4, [34, 22, 28], 0.96);
+    fillEllipse(buf, mx, my + openA * 1.6, 1.9, 1.1, [214, 122, 138], 0.9);
+    for (let k = 0; k < 3; k++) { const ph = (i / n + k / 3) % 1; drawNote(buf, mx + 22 + k * 15, p.oy + 6 - ph * 42, cols[k], 1 - ph * 0.85); }
+    push(frames, buf, 90);
+  }
+}
+
 // ---- encoders ---------------------------------------------------------------
 const ROOT = path.join(__dirname, '..');
 const A = (...segs) => path.join(ROOT, 'assets', ...segs);
@@ -438,7 +599,7 @@ function setCanvas(w, h, px, baseY) { W = w; H = h; PX = px; BASE_Y = baseY; }
 
 // the original 5-scene desktop demo (480x340) -> assets/pixelcat-demo.{gif,mp4}
 function recipeDemo(wantMp4) {
-  setCanvas(480, 340, 6, 250); PAL = paletteFor(S.PATTERNS[0]);
+  setCanvas(480, 340, 6, 250); SP = buildPoses(0); PAL = paletteFor(S.PATTERNS[0]);
   const frames = [];
   sceneIntro(frames, { title: true, titleScale: 5, caption: 'A CAT THAT LIVES ON YOUR DESKTOP', capScale: 2 });
   sceneNap(frames, { caption: 'NAPS WHEN IDLE' });
@@ -452,7 +613,7 @@ function recipeDemo(wantMp4) {
 
 // wide cinematic banner (960x360) -> assets/hero-banner.{gif,mp4}
 function recipeHero(wantMp4) {
-  setCanvas(960, 360, 8, 316); PAL = paletteFor(S.PATTERNS[0]);
+  setCanvas(960, 360, 8, 316); SP = buildPoses(TUX); PAL = paletteFor(S.PATTERNS[TUX]);
   const frames = [];
   sceneIntro(frames, { title: true, titleScale: 9, caption: 'A CAT THAT LIVES ON YOUR DESKTOP', capScale: 3, n: 30 });
   sceneType(frames, { n: 22 });
@@ -465,14 +626,17 @@ function recipeHero(wantMp4) {
 // six looping micro-GIFs (340x260) -> assets/gallery/<name>.gif
 function recipeGallery() {
   const items = [
+    ['climb', (f) => sceneClimb(f)],
     ['type', (f) => sceneType(f, { n: 24 })],
-    ['hunt', (f) => sceneHunt(f, { n: 24 })],
+    ['butterfly', (f) => sceneButterfly(f, { n: 34 })],
+    ['eat', (f) => sceneEat(f, { n: 30 })],
+    ['sing', (f) => sceneSing(f, { n: 28 })],
     ['pet', (f) => scenePet(f, { n: 26 })],
-    ['nap', (f) => sceneNap(f, { n: 24 })],
     ['mochi', (f) => sceneMochi(f, { n: 30 })],
+    ['hunt', (f) => sceneHunt(f, { n: 24 })],
   ];
   for (const [name, build] of items) {
-    setCanvas(340, 260, 6, 214); PAL = paletteFor(S.PATTERNS[0]);
+    setCanvas(340, 260, 6, 214); SP = buildPoses(TUX); PAL = paletteFor(S.PATTERNS[TUX]);
     const frames = [];
     build(frames);
     maybeDump(frames, name);
