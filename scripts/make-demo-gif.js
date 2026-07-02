@@ -148,11 +148,13 @@ function composeSleepCurl() {
   ellipse(15, 11.5, 2.6, 2.4, 'X', ['C']);
 }
 
-// ---- palette ----------------------------------------------------------------
-const P = S.PATTERNS[0];                // Orange Tabby - the default "my cat"
+// ---- palette (swappable per coat, so the carousel can cycle all 14) ----------
 const rgb = (h) => S.hexToRgb(h);
-const PAL = { O: rgb(P.outline), C: rgb(P.coat), K: rgb(P.mark), W: rgb(P.white),
-  X: rgb(P.patch), I: rgb(P.inner), N: rgb(P.nose), E: rgb(P.eye), H: rgb(S.HALO) };
+function paletteFor(P) {
+  return { O: rgb(P.outline), C: rgb(P.coat), K: rgb(P.mark), W: rgb(P.white),
+    X: rgb(P.patch), I: rgb(P.inner), N: rgb(P.nose), E: rgb(P.eye), H: rgb(S.HALO) };
+}
+let PAL = paletteFor(S.PATTERNS[0]);    // Orange Tabby - the default "my cat"
 const BODY = new Set(['C', 'K', 'W', 'X', 'I']);
 
 // pre-build the four pose sprites (orange tabby is a "standard" tabby build)
@@ -163,9 +165,15 @@ const SP = {
   hunt: buildSprite(30, 20, composeHunt),
   type: buildSprite(34, 18, () => composeTypeSprawl(B)),
 };
+// build a sitting sprite for any coat index - the build archetype + tabby flag
+// come from cat-sprite, so each breed keeps its own silhouette in the carousel.
+function sitFor(i) {
+  const Bi = Object.assign({}, S.BUILDS[S.PATTERN_BUILD[i]], { tabby: S.TABBY[i] });
+  return buildSprite(24, 30, () => composeSit(Bi));
+}
 
 // ---- canvas + raster helpers ------------------------------------------------
-const W = 480, H = 340, PX = 6;          // output size; PX = output px per grid cell
+let W = 480, H = 340, PX = 6;            // output size (mutable per recipe); PX = output px per grid cell
 const BG_TOP = [34, 37, 48], BG_BOT = [22, 24, 32];
 function newFrame() {
   const buf = new Uint8ClampedArray(W * H * 4);
@@ -266,101 +274,243 @@ function drawHeart(buf, x, y, s, col, a) {
   }
 }
 
-// ---- timeline ---------------------------------------------------------------
-const BASE_Y = 250;          // ground line
-const frames = [];
-const push = (buf, delay) => frames.push({ buf, delay });
+// ---- timeline scenes --------------------------------------------------------
+// Each scene pushes a self-contained LOOPING run of frames into `frames`, so a
+// scene can stand alone as a micro-GIF or be strung together into the demo/hero.
+let BASE_Y = 250;            // ground line (mutable per recipe)
+const CAP = [150, 156, 170]; // caption grey
+const push = (frames, buf, delay) => frames.push({ buf, delay });
 function blinkAt(i, period, openMode) { return (i % period) < 2 ? 'blink' : openMode; }
+function caption(buf, text, scale) { if (text) drawText(buf, text, H - 40, scale, CAP); }
 
-// 1) intro - sits and watches you (pupils sweep to "follow the cursor")
-for (let i = 0; i < 26; i++) {
-  const buf = newFrame();
-  drawText(buf, 'PIXELCAT', 40, 5, [255, 196, 92]);
-  drawText(buf, 'A CAT THAT LIVES ON YOUR DESKTOP', 300, 2, [150, 156, 170]);
-  const bob = Math.round(Math.sin(i / 4) * 2);
-  const look = Math.round(Math.sin(i / 5) * 3);
-  shadowAndPlace(buf, SP.sit, BASE_Y, 0, bob, { eyeFill: true, eyeMode: blinkAt(i, 13, 'open'), look });
-  push(buf, 95);
+// sits and watches you (pupils sweep to "follow the cursor"); optional big title
+function sceneIntro(frames, o = {}) {
+  const n = o.n || 26;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    if (o.title) drawText(buf, 'PIXELCAT', Math.round(H * 0.115), o.titleScale || 5, [255, 196, 92]);
+    caption(buf, o.caption, o.capScale || 2);
+    const bob = Math.round(Math.sin(i / 4) * 2);
+    const look = Math.round(Math.sin(i / 5) * 3);
+    shadowAndPlace(buf, SP.sit, BASE_Y, 0, bob, { eyeFill: true, eyeMode: blinkAt(i, 13, 'open'), look });
+    push(frames, buf, 95);
+  }
 }
-// 2) naps when idle
-for (let i = 0; i < 24; i++) {
-  const buf = newFrame();
-  drawText(buf, 'NAPS WHEN IDLE', 300, 3, [150, 156, 170]);
-  const bob = Math.round(Math.sin(i / 6) * 1.5);
-  const p = shadowAndPlace(buf, SP.sleep, BASE_Y, 0, bob, { eyeFill: false, eyeMode: 'happy' });
-  for (let k = 0; k < 3; k++) { const ph = (i / 24 + k / 3) % 1; drawZ(buf, p.ox + p.w - 8 + k * 9, p.oy - 6 - ph * 34, 4 + k, [220, 224, 235], 1 - ph * 0.8); }
-  push(buf, 110);
+// naps when idle (floating z's)
+function sceneNap(frames, o = {}) {
+  const n = o.n || 24;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 3);
+    const bob = Math.round(Math.sin(i / 6) * 1.5);
+    const p = shadowAndPlace(buf, SP.sleep, BASE_Y, 0, bob, { eyeFill: false, eyeMode: 'happy' });
+    for (let k = 0; k < 3; k++) { const ph = (i / n + k / 3) % 1; drawZ(buf, p.ox + p.w - 8 + k * 9, p.oy - 6 - ph * 34, 4 + k, [220, 224, 235], 1 - ph * 0.8); }
+    push(frames, buf, 110);
+  }
 }
-// 3) reacts when you type (paws tap; little key presses)
-for (let i = 0; i < 24; i++) {
-  const buf = newFrame();
-  drawText(buf, 'TAPS ITS PAWS WHEN YOU TYPE', 300, 2, [150, 156, 170]);
-  const p = shadowAndPlace(buf, SP.type, BASE_Y, 0, 0, { eyeFill: true, eyeMode: blinkAt(i, 17, 'open') });
-  // alternating paw-tap dots under the two forepaws
-  const lit = (i % 2 === 0);
-  fillEllipse(buf, p.ox + 13 * PX, BASE_Y + 2, 6, 3, lit ? [120, 200, 255] : [70, 80, 100], 0.9);
-  fillEllipse(buf, p.ox + 21 * PX, BASE_Y + 2, 6, 3, !lit ? [120, 200, 255] : [70, 80, 100], 0.9);
-  push(buf, 90);
+// kneads the keyboard when you type (alternating paw-tap key presses)
+function sceneType(frames, o = {}) {
+  const n = o.n || 24;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const p = shadowAndPlace(buf, SP.type, BASE_Y, 0, 0, { eyeFill: true, eyeMode: blinkAt(i, 17, 'open') });
+    const lit = (i % 2 === 0);
+    fillEllipse(buf, p.ox + 13 * PX, BASE_Y + 2, 6, 3, lit ? [120, 200, 255] : [70, 80, 100], 0.9);
+    fillEllipse(buf, p.ox + 21 * PX, BASE_Y + 2, 6, 3, !lit ? [120, 200, 255] : [70, 80, 100], 0.9);
+    push(frames, buf, 90);
+  }
 }
-// 4) pounces to hunt the cursor
-for (let i = 0; i < 24; i++) {
-  const buf = newFrame();
-  drawText(buf, 'POUNCES TO HUNT', 300, 3, [150, 156, 170]);
-  const wig = Math.round(Math.sin(i / 2) * 3);            // crouch-wiggle, then lunge
-  const lunge = (i % 12) >= 9 ? (i % 12 - 8) * 6 : 0;
-  const p = shadowAndPlace(buf, SP.hunt, BASE_Y, wig + lunge, 0, { eyeFill: true, eyeMode: 'open', look: 2 });
-  fillEllipse(buf, p.ox + p.w + 16 + lunge, BASE_Y - 6, 3, 3, [120, 200, 255], 0.9); // the "cursor" target
-  push(buf, 85);
+// pounces to hunt the cursor (crouch-wiggle, then lunge)
+function sceneHunt(frames, o = {}) {
+  const n = o.n || 24;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 3);
+    const wig = Math.round(Math.sin(i / 2) * 3);
+    const lunge = (i % 12) >= 9 ? (i % 12 - 8) * 6 : 0;
+    const p = shadowAndPlace(buf, SP.hunt, BASE_Y, wig + lunge, 0, { eyeFill: true, eyeMode: 'open', look: 2 });
+    fillEllipse(buf, p.ox + p.w + 16 + lunge, BASE_Y - 6, 3, 3, [120, 200, 255], 0.9); // the "cursor" target
+    push(frames, buf, 85);
+  }
 }
-// 5) purrs when you pet it
-for (let i = 0; i < 26; i++) {
-  const buf = newFrame();
-  drawText(buf, 'PURRS WHEN YOU PET IT', 300, 2, [150, 156, 170]);
-  const bob = Math.round(Math.sin(i / 3) * 2);
-  const p = shadowAndPlace(buf, SP.sit, BASE_Y, 0, bob, { eyeFill: false, eyeMode: 'happy' });
-  for (let k = 0; k < 3; k++) { const ph = (i / 26 + k / 3) % 1; drawHeart(buf, p.ox + p.w * 0.5 - 10 + k * 14, p.oy - 4 - ph * 40, 4, [255, 110, 140], 1 - ph * 0.85); }
-  push(buf, 95);
+// purrs when you pet it (happy eyes + floating hearts)
+function scenePet(frames, o = {}) {
+  const n = o.n || 26;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const bob = Math.round(Math.sin(i / 3) * 2);
+    const p = shadowAndPlace(buf, SP.sit, BASE_Y, 0, bob, { eyeFill: false, eyeMode: 'happy' });
+    for (let k = 0; k < 3; k++) { const ph = (i / n + k / 3) % 1; drawHeart(buf, p.ox + p.w * 0.5 - 10 + k * 14, p.oy - 4 - ph * 40, 4, [255, 110, 140], 1 - ph * 0.85); }
+    push(frames, buf, 95);
+  }
+}
+// stretches like mochi when you drag it: a squash-and-stretch of the sit sprite,
+// feet anchored on the ground, thinning as it lengthens (volume-ish preserved).
+function drawScaledSprite(buf, sp, baseY, sx, sy) {
+  fillEllipse(buf, W / 2, baseY + 4, sp.COLS * PX * 0.42 * Math.max(sx, 1), 7, [0, 0, 0], 0.22);
+  const cxCell = sp.COLS / 2;
+  for (let r = 0; r < sp.ROWS; r++) for (let c = 0; c < sp.COLS; c++) {
+    const ch = sp.grid[r][c]; if (ch === '.') continue;
+    const base = PAL[ch]; if (!base) continue;
+    const col = BODY.has(ch) ? shade(base, 1.12 - (r / sp.ROWS) * 0.34) : base;
+    const ox = Math.round(W / 2 + (c - cxCell) * PX * sx);
+    const oy = Math.round(baseY - (sp.ROWS - r) * PX * sy);
+    fillRect(buf, ox, oy, Math.ceil(PX * sx) + 1, Math.ceil(PX * sy) + 1, col);
+  }
+}
+function sceneMochi(frames, o = {}) {
+  const n = o.n || 30;
+  for (let i = 0; i < n; i++) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const t = i / n;
+    let sy;
+    if (t < 0.40) sy = 1 + 0.55 * Math.sin((t / 0.40) * Math.PI / 2);          // grab & stretch up to 1.55
+    else if (t < 0.55) sy = 1.55 - ((t - 0.40) / 0.15) * 0.75;                 // release, squash to 0.80
+    else sy = 1 - 0.20 * Math.exp(-(t - 0.55) * 7) * Math.cos((t - 0.55) * 26); // damped bounce back to 1
+    const sx = Math.pow(sy, -0.6);
+    const sp = SP.sit;
+    drawScaledSprite(buf, sp, BASE_Y, sx, sy);
+    if (t < 0.40) { // the "hand" that's lifting it
+      const headY = Math.round(BASE_Y - sp.ROWS * PX * sy) - 8;
+      fillEllipse(buf, W / 2, headY, 3, 3, [120, 200, 255], 0.9);
+    }
+    push(frames, buf, 80);
+  }
 }
 
-// ---- encode -----------------------------------------------------------------
-const gif = GIFEncoder();
-frames.forEach((f, idx) => {
-  const palette = quantize(f.buf, 256);
-  const index = applyPalette(f.buf, palette);
-  gif.writeFrame(index, W, H, { palette, delay: f.delay, repeat: 0, first: idx === 0 });
-});
-gif.finish();
-if (process.env.DUMP) {
-  const zlib = require('zlib');
-  const crc = (b) => { let c = ~0; for (let i = 0; i < b.length; i++) { c ^= b[i]; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1)); } return ~c >>> 0; };
-  const chunk = (t, d) => { const l = Buffer.alloc(4); l.writeUInt32BE(d.length, 0); const b = Buffer.concat([Buffer.from(t), d]); const cc = Buffer.alloc(4); cc.writeUInt32BE(crc(b), 0); return Buffer.concat([l, b, cc]); };
-  const png = (rgba) => { const ih = Buffer.alloc(13); ih.writeUInt32BE(W, 0); ih.writeUInt32BE(H, 4); ih[8] = 8; ih[9] = 6; const raw = Buffer.alloc(H * (W * 4 + 1)); for (let y = 0; y < H; y++) { raw[y * (W * 4 + 1)] = 0; for (let x = 0; x < W * 4; x++) raw[y * (W * 4 + 1) + 1 + x] = rgba[y * W * 4 + x]; } return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ih), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]); };
-  [0, 30, 55, 80, 105].forEach((i) => fs.writeFileSync(`/tmp/f${i}.png`, png(frames[i].buf)));
-  console.log('dumped frames to /tmp');
-}
-const out = path.join(__dirname, '..', 'assets', 'pixelcat-demo.gif');
-fs.writeFileSync(out, Buffer.from(gif.bytes()));
-console.log(`wrote ${path.relative(path.join(__dirname, '..'), out)} - ${frames.length} frames, ${(gif.bytes().length / 1024).toFixed(0)} KB`);
+// ---- encoders ---------------------------------------------------------------
+const ROOT = path.join(__dirname, '..');
+const A = (...segs) => path.join(ROOT, 'assets', ...segs);
+const rel = (p) => path.relative(ROOT, p);
 
-// ---- optional MP4 (H.264) for phones - `node scripts/make-demo-gif.js mp4` ---
-// Re-times the clip to a constant ~12fps (each GIF frame's delay -> repeated
-// frames) and pipes raw RGB to a bundled static ffmpeg. yuv420p + even dims so
-// it plays everywhere (iOS/Android galleries, Quicktime).
-if (process.argv.includes('mp4')) {
+function encodeGif(frames, outAbs) {
+  const gif = GIFEncoder();
+  frames.forEach((f, idx) => {
+    const palette = quantize(f.buf, 256);
+    const index = applyPalette(f.buf, palette);
+    gif.writeFrame(index, W, H, { palette, delay: f.delay, repeat: 0, first: idx === 0 });
+  });
+  gif.finish();
+  fs.mkdirSync(path.dirname(outAbs), { recursive: true });
+  fs.writeFileSync(outAbs, Buffer.from(gif.bytes()));
+  console.log(`wrote ${rel(outAbs)} - ${W}x${H}, ${frames.length} frames, ${(gif.bytes().length / 1024).toFixed(0)} KB`);
+}
+
+// H.264 MP4 (phones / inline players): re-times to a constant ~12fps and pipes
+// raw RGB to the bundled static ffmpeg. yuv420p + even dims so it plays anywhere.
+function encodeMp4(frames, outAbs) {
   const { spawnSync } = require('child_process');
   const ffmpeg = require('@ffmpeg-installer/ffmpeg').path;
-  const FPS = 12, mp4 = path.join(__dirname, '..', 'assets', 'pixelcat-demo.mp4');
-  const chunks = [];
+  const FPS = 12, chunks = [];
   for (const f of frames) {
-    const reps = Math.max(1, Math.round((f.delay / 1000) * FPS));   // hold each frame for its delay
+    const reps = Math.max(1, Math.round((f.delay / 1000) * FPS));
     const rgb = Buffer.alloc(W * H * 3);
     for (let p = 0, q = 0; p < f.buf.length; p += 4, q += 3) { rgb[q] = f.buf[p]; rgb[q + 1] = f.buf[p + 1]; rgb[q + 2] = f.buf[p + 2]; }
     for (let k = 0; k < reps; k++) chunks.push(rgb);
   }
-  const raw = Buffer.concat(chunks);
   const r = spawnSync(ffmpeg, ['-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', `${W}x${H}`, '-r', String(FPS),
-    '-i', 'pipe:0', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-crf', '20', mp4],
-    { input: raw, stdio: ['pipe', 'ignore', 'inherit'] });
-  if (r.status === 0) console.log(`wrote ${path.relative(path.join(__dirname, '..'), mp4)} - ${(fs.statSync(mp4).size / 1024).toFixed(0)} KB`);
+    '-i', 'pipe:0', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-crf', '20', outAbs],
+    { input: Buffer.concat(chunks), stdio: ['pipe', 'ignore', 'inherit'] });
+  if (r.status === 0) console.log(`wrote ${rel(outAbs)} - ${(fs.statSync(outAbs).size / 1024).toFixed(0)} KB`);
   else console.error('ffmpeg failed', r.status);
 }
+
+// DUMP=<dir> writes a handful of individual frames as PNG so a GIF's motion can
+// be spot-checked (the Read tool only renders a GIF's first frame).
+function maybeDump(frames, tag) {
+  if (!process.env.DUMP) return;
+  const dir = process.env.DUMP;
+  fs.mkdirSync(dir, { recursive: true });
+  const zlib = require('zlib');
+  const crc = (b) => { let c = ~0; for (let i = 0; i < b.length; i++) { c ^= b[i]; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1)); } return ~c >>> 0; };
+  const chunk = (ty, d) => { const l = Buffer.alloc(4); l.writeUInt32BE(d.length, 0); const b = Buffer.concat([Buffer.from(ty), d]); const cc = Buffer.alloc(4); cc.writeUInt32BE(crc(b), 0); return Buffer.concat([l, b, cc]); };
+  const png = (rgba) => { const ih = Buffer.alloc(13); ih.writeUInt32BE(W, 0); ih.writeUInt32BE(H, 4); ih[8] = 8; ih[9] = 6; const raw = Buffer.alloc(H * (W * 4 + 1)); for (let y = 0; y < H; y++) { raw[y * (W * 4 + 1)] = 0; for (let x = 0; x < W * 4; x++) raw[y * (W * 4 + 1) + 1 + x] = rgba[y * W * 4 + x]; } return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ih), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]); };
+  const N = frames.length;
+  [...new Set([0, Math.floor(N * 0.35), Math.floor(N * 0.6), N - 1])].forEach((i) => fs.writeFileSync(path.join(dir, `${tag}-${i}.png`), png(frames[i].buf)));
+  console.log(`dumped frames of ${tag} to ${dir}`);
+}
+
+// ---- recipes ----------------------------------------------------------------
+function setCanvas(w, h, px, baseY) { W = w; H = h; PX = px; BASE_Y = baseY; }
+
+// the original 5-scene desktop demo (480x340) -> assets/pixelcat-demo.{gif,mp4}
+function recipeDemo(wantMp4) {
+  setCanvas(480, 340, 6, 250); PAL = paletteFor(S.PATTERNS[0]);
+  const frames = [];
+  sceneIntro(frames, { title: true, titleScale: 5, caption: 'A CAT THAT LIVES ON YOUR DESKTOP', capScale: 2 });
+  sceneNap(frames, { caption: 'NAPS WHEN IDLE' });
+  sceneType(frames, { caption: 'TAPS ITS PAWS WHEN YOU TYPE' });
+  sceneHunt(frames, { caption: 'POUNCES TO HUNT' });
+  scenePet(frames, { caption: 'PURRS WHEN YOU PET IT' });
+  maybeDump(frames, 'demo');
+  encodeGif(frames, A('pixelcat-demo.gif'));
+  if (wantMp4) encodeMp4(frames, A('pixelcat-demo.mp4'));
+}
+
+// wide cinematic banner (960x360) -> assets/hero-banner.{gif,mp4}
+function recipeHero(wantMp4) {
+  setCanvas(960, 360, 8, 316); PAL = paletteFor(S.PATTERNS[0]);
+  const frames = [];
+  sceneIntro(frames, { title: true, titleScale: 9, caption: 'A CAT THAT LIVES ON YOUR DESKTOP', capScale: 3, n: 30 });
+  sceneType(frames, { n: 22 });
+  scenePet(frames, { n: 26 });
+  maybeDump(frames, 'hero');
+  encodeGif(frames, A('hero-banner.gif'));
+  if (wantMp4) encodeMp4(frames, A('hero-banner.mp4'));
+}
+
+// six looping micro-GIFs (340x260) -> assets/gallery/<name>.gif
+function recipeGallery() {
+  const items = [
+    ['type', (f) => sceneType(f, { n: 24 })],
+    ['hunt', (f) => sceneHunt(f, { n: 24 })],
+    ['pet', (f) => scenePet(f, { n: 26 })],
+    ['nap', (f) => sceneNap(f, { n: 24 })],
+    ['mochi', (f) => sceneMochi(f, { n: 30 })],
+  ];
+  for (const [name, build] of items) {
+    setCanvas(340, 260, 6, 214); PAL = paletteFor(S.PATTERNS[0]);
+    const frames = [];
+    build(frames);
+    maybeDump(frames, name);
+    encodeGif(frames, A('gallery', `${name}.gif`));
+  }
+}
+
+// all 14 coats cycling on one sitting cat (320x340) -> assets/coat-carousel.gif
+function recipeCarousel() {
+  setCanvas(320, 340, 8, 300);
+  const frames = [];
+  for (let ci = 0; ci < S.PATTERNS.length; ci++) {
+    PAL = paletteFor(S.PATTERNS[ci]);
+    const sp = sitFor(ci);
+    for (let f = 0; f < 6; f++) {
+      const buf = newFrame();
+      drawText(buf, S.PATTERNS[ci].name, H - 34, 3, [206, 212, 226]);
+      const bob = Math.round(Math.sin(f / 2.5) * 1.5);
+      const look = Math.round(Math.sin(f / 3) * 2);
+      shadowAndPlace(buf, sp, BASE_Y, 0, bob, { eyeFill: true, eyeMode: 'open', look });
+      push(frames, buf, f === 0 ? 520 : 100);
+    }
+  }
+  maybeDump(frames, 'carousel');
+  encodeGif(frames, A('coat-carousel.gif'));
+}
+
+// ---- dispatch ---------------------------------------------------------------
+//   node scripts/make-demo-gif.js [demo|hero|gallery|carousel|all] [mp4]
+const arg = process.argv[2];
+const recipe = (arg && arg !== 'mp4') ? arg : 'demo';
+const wantMp4 = process.argv.includes('mp4');
+const RECIPES = {
+  demo: () => recipeDemo(wantMp4),
+  hero: () => recipeHero(wantMp4),
+  gallery: () => recipeGallery(),
+  carousel: () => recipeCarousel(),
+  all: () => { recipeDemo(wantMp4); recipeHero(wantMp4); recipeGallery(); recipeCarousel(); },
+};
+if (!RECIPES[recipe]) { console.error(`unknown recipe: ${recipe} (expected demo|hero|gallery|carousel|all)`); process.exit(1); }
+RECIPES[recipe]();
