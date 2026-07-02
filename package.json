@@ -22,7 +22,11 @@
     "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
     "hook": "node scripts/install-hook.js",
     "test:boot": "node scripts/bootcheck.js",
-    "demo": "node scripts/make-demo-gif.js mp4"
+    "demo": "node scripts/make-demo-gif.js mp4",
+    "demo:hero": "node scripts/make-demo-gif.js hero mp4",
+    "demo:gallery": "node scripts/make-demo-gif.js gallery",
+    "demo:carousel": "node scripts/make-demo-gif.js carousel",
+    "demo:all": "node scripts/make-demo-gif.js all mp4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
