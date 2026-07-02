@@ -41,18 +41,23 @@ procedural**.
 
 <table align="center">
 <tr>
+<td align="center"><img src="assets/gallery/climb.gif" width="240" alt="the Tuxedo cat climbs a yarn rope when you scroll" /><br /><sub><b>🧶 Climbs when you scroll</b></sub></td>
 <td align="center"><img src="assets/gallery/type.gif" width="240" alt="the cat kneads the keyboard when you type" /><br /><sub><b>⌨️ Kneads when you type</b></sub></td>
-<td align="center"><img src="assets/gallery/hunt.gif" width="240" alt="the cat crouches and pounces to hunt the cursor" /><br /><sub><b>🐾 Pounces to hunt</b></sub></td>
+<td align="center"><img src="assets/gallery/butterfly.gif" width="240" alt="the cat tracks and plays with a butterfly" /><br /><sub><b>🦋 Plays with a butterfly</b></sub></td>
+</tr>
+<tr>
+<td align="center"><img src="assets/gallery/eat.gif" width="240" alt="the cat noms a fish treat with hearts" /><br /><sub><b>🐟 Noms a treat</b></sub></td>
+<td align="center"><img src="assets/gallery/sing.gif" width="240" alt="the cat sings, with floating music notes" /><br /><sub><b>🎵 Sings &amp; meows</b></sub></td>
 <td align="center"><img src="assets/gallery/pet.gif" width="240" alt="the cat purrs and floats hearts when you pet it" /><br /><sub><b>💜 Purrs when you pet it</b></sub></td>
 </tr>
 <tr>
 <td align="center"><img src="assets/gallery/mochi.gif" width="240" alt="the cat stretches like mochi when you drag it" /><br /><sub><b>🫧 Stretches like mochi</b></sub></td>
-<td align="center"><img src="assets/gallery/nap.gif" width="240" alt="the cat curls up and naps when idle" /><br /><sub><b>🌙 Naps when idle</b></sub></td>
+<td align="center"><img src="assets/gallery/hunt.gif" width="240" alt="the cat crouches and pounces to hunt the cursor" /><br /><sub><b>🐾 Pounces to hunt</b></sub></td>
 <td align="center"><img src="assets/coat-carousel.gif" width="172" alt="all 14 coats cycling on one sitting cat" /><br /><sub><b>🎨 14 coats + custom</b></sub></td>
 </tr>
 </table>
 
-<sub align="center">Every clip above is generated headlessly from the same sprite the app draws — one command, no recording.</sub>
+<sub align="center">The scroll-climb blits the app's own hand-painted Tuxedo art; the rest are rendered from the same sprite the cat draws — all generated headlessly by one script, no screen recording.</sub>
 
 ## Highlights
 
