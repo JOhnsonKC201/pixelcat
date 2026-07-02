@@ -391,18 +391,25 @@ function scenePet(frames, o = {}) {
     push(frames, buf, 95);
   }
 }
-// stretches like mochi when you drag it: a squash-and-stretch of the sit sprite,
-// feet anchored on the ground, thinning as it lengthens (volume-ish preserved).
-function drawScaledSprite(buf, sp, baseY, sx, sy) {
-  fillEllipse(buf, W / 2, baseY + 4, sp.COLS * PX * 0.42 * Math.max(sx, 1), 7, [0, 0, 0], 0.22);
-  const cxCell = sp.COLS / 2;
-  for (let r = 0; r < sp.ROWS; r++) for (let c = 0; c < sp.COLS; c++) {
-    const ch = sp.grid[r][c]; if (ch === '.') continue;
-    const base = PAL[ch]; if (!base) continue;
-    const col = BODY.has(ch) ? shade(base, 1.12 - (r / sp.ROWS) * 0.34) : base;
-    const ox = Math.round(W / 2 + (c - cxCell) * PX * sx);
-    const oy = Math.round(baseY - (sp.ROWS - r) * PX * sy);
-    fillRect(buf, ox, oy, Math.ceil(PX * sx) + 1, Math.ceil(PX * sy) + 1, col);
+// stretches like mochi when you drag it: a 3-band taffy stretch that matches the
+// app - the head and feet stay solid while ONLY the middle elongates and thins.
+function drawMochi(buf, sp, baseY, lift, thin) {
+  const HEAD_END = 10, FEET_START = 22, COLS = sp.COLS, ROWS = sp.ROWS, cxCell = COLS / 2;
+  const naturalTop = baseY - ROWS * PX, headTopY = naturalTop - lift;
+  const headBottomY = headTopY + HEAD_END * PX, feetTopY = baseY - (ROWS - FEET_START) * PX;
+  const midRows = FEET_START - HEAD_END, rowH = Math.ceil((feetTopY - headBottomY) / midRows) + 1;
+  fillEllipse(buf, W / 2, baseY + 4, COLS * PX * 0.42 * (1 - thin * 0.8), 7, [0, 0, 0], 0.22);   // shadow widens on squash
+  for (let r = 0; r < ROWS; r++) {
+    let oy, xs, hh;
+    if (r < HEAD_END) { oy = headTopY + r * PX; xs = 1; hh = PX + 1; }                            // rigid head (rides up)
+    else if (r >= FEET_START) { oy = baseY - (ROWS - r) * PX; xs = 1; hh = PX + 1; }              // rigid feet (planted)
+    else { const u = (r - HEAD_END) / midRows; oy = headBottomY + u * (feetTopY - headBottomY); xs = 1 - thin * Math.sin(u * Math.PI); hh = rowH; }   // middle: stretch + thin
+    for (let c = 0; c < COLS; c++) {
+      const ch = sp.grid[r][c]; if (ch === '.') continue;
+      const base = PAL[ch]; if (!base) continue;
+      const col = BODY.has(ch) ? shade(base, 1.12 - (r / ROWS) * 0.34) : base;
+      fillRect(buf, Math.round(W / 2 + (c - cxCell) * PX * xs), Math.round(oy), Math.ceil(PX * xs) + 1, hh, col);
+    }
   }
 }
 function sceneMochi(frames, o = {}) {
@@ -412,16 +419,12 @@ function sceneMochi(frames, o = {}) {
     caption(buf, o.caption, 2);
     const t = i / n;
     let sy;
-    if (t < 0.40) sy = 1 + 0.55 * Math.sin((t / 0.40) * Math.PI / 2);          // grab & stretch up to 1.55
-    else if (t < 0.55) sy = 1.55 - ((t - 0.40) / 0.15) * 0.75;                 // release, squash to 0.80
-    else sy = 1 - 0.20 * Math.exp(-(t - 0.55) * 7) * Math.cos((t - 0.55) * 26); // damped bounce back to 1
-    const sx = Math.pow(sy, -0.6);
-    const sp = SP.sit;
-    drawScaledSprite(buf, sp, BASE_Y, sx, sy);
-    if (t < 0.40) { // the "hand" that's lifting it
-      const headY = Math.round(BASE_Y - sp.ROWS * PX * sy) - 8;
-      fillEllipse(buf, W / 2, headY, 3, 3, [120, 200, 255], 0.9);
-    }
+    if (t < 0.40) sy = 1 + 0.55 * Math.sin((t / 0.40) * Math.PI / 2);          // grab & stretch up
+    else if (t < 0.55) sy = 1.55 - ((t - 0.40) / 0.15) * 0.75;                 // release, squash
+    else sy = 1 - 0.20 * Math.exp(-(t - 0.55) * 7) * Math.cos((t - 0.55) * 26); // damped bounce back
+    const lift = (sy - 1) * 73, thin = (sy - 1) * 0.85;   // stretch pulls the head up + thins the middle
+    drawMochi(buf, SP.sit, BASE_Y, lift, thin);
+    if (lift > 6) fillEllipse(buf, W / 2, Math.round(BASE_Y - SP.sit.ROWS * PX - lift) - 8, 3, 3, [120, 200, 255], 0.9);   // the "hand" lifting it
     push(frames, buf, 80);
   }
 }
