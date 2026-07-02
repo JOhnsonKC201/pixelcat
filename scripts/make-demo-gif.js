@@ -112,26 +112,31 @@ function composeHunt() {
   for (let r = 10; r < 16; r += 2) for (let c = 4; c < GC; c++) if (G[r][c] === 'C' && c % 2 === 0) G[r][c] = 'K';
   ellipse(9, 12, 2.4, 2.4, 'X', ['C', 'K']); ellipse(21, 13, 2.2, 2.2, 'X', ['C', 'K']);
 }
-function composeTypeSprawl(B) {
+// front-facing "keyboard kneading" (the app's real typing pose): faces the viewer
+// and leans over two keycaps. Forelegs are NOT baked - drawn live pressing the keys.
+function composeTypeFront(B) {
   B = B || {};
-  const fluff = !!B.fluff;
-  ellipse(17, 12.8, 12.5, 4.4, 'C');
-  ellipse(8.5, 12, 3.6, 3.8, 'C'); ellipse(25.5, 12, 3.6, 3.8, 'C');
-  ellipse(17, 7.2, 6, 5.4, 'C');
-  triangle(12.5, 0.6, 10, 5.6, 15, 5.2, 'K'); triangle(21.5, 0.6, 19, 5.2, 24, 5.6, 'K');
-  triangle(12.6, 2.4, 11, 5.4, 14, 5.2, 'I'); triangle(21.4, 2.4, 20, 5.2, 23, 5.4, 'I');
-  if (fluff) { ellipse(11, 5, 0.9, 1.4, 'W', ['C', 'K']); ellipse(23, 5, 0.9, 1.4, 'W', ['C', 'K']); }
-  ellipse(14.5, 7.4, 2, 2.2, 'E'); ellipse(19.5, 7.4, 2, 2.2, 'E');
-  ellipse(17, 10.2, 2.3, 1.6, 'W', ['C']); setCell(17, 10, 'N'); setCell(16, 10, 'N');
-  ellipse(17, 13, 2.6, 2.4, 'W', ['C']);
-  ellipse(13, 15.6, 2.3, 1.7, 'W', ['C']); ellipse(21, 15.6, 2.3, 1.7, 'W', ['C']);
-  [[29, 10.5], [31, 8.5], [30.5, 6]].forEach(([c, r]) => ellipse(c, r, 1.4, 1.4, 'C'));
-  ellipse(30.5, 6, 1.0, 1.0, 'W', ['C']);
+  const CX = 12, fluff = !!B.fluff;
+  [[20.5, 20.4], [22.2, 20.9], [23.2, 21.8], [22.6, 22.8]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+  ellipse(21.8, 23.2, 1.0, 1.0, 'W', ['C']);               // tail tip
+  ellipse(CX, 16, 6.0, 5.4, 'C');                          // shoulders / chest
+  ellipse(6.6, 20.2, 3.4, 3.2, 'C'); ellipse(17.4, 20.2, 3.4, 3.2, 'C');   // haunches
+  ellipse(CX, 8.5, 6.3, 5.6, 'C');                         // head (forward lean)
+  if (fluff) { ellipse(5.6, 10.8, 1.9, 2.3, 'C'); ellipse(18.4, 10.8, 1.9, 2.3, 'C'); }
+  triangle(CX - 4.5, 1.2, CX - 6.4, 6.8, CX - 1.8, 5.6, 'K');
+  triangle(CX + 4.5, 1.2, CX + 6.4, 6.8, CX + 1.8, 5.6, 'K');
+  triangle(CX - 4.3, 3.0, CX - 5.4, 6.3, CX - 2.8, 5.6, 'I');
+  triangle(CX + 4.3, 3.0, CX + 5.4, 6.3, CX + 2.8, 5.6, 'I');
+  if (fluff) { ellipse(CX - 4.5, 5.6, 0.9, 1.3, 'W', ['C', 'K']); ellipse(CX + 4.5, 5.6, 0.9, 1.3, 'W', ['C', 'K']); }
+  ellipse(9, 8.7, 2.0, 2.4, 'E'); ellipse(15, 8.7, 2.0, 2.4, 'E');   // eyes look down at the keys
+  ellipse(CX, 12.2, 3, 2, 'W', ['C']);
+  setCell(12, 11, 'N'); setCell(11, 11, 'N');
+  ellipse(CX, 17.8, 2.1, 3.2, 'W', ['C']);                 // narrow chest bib
   if (B.tabby) {
-    [[15, 2.8], [17, 2.4], [19, 2.8]].forEach(([c, r]) => { const rr = Math.round(r), cc = Math.round(c); if (G[rr] && G[rr][cc] === 'C') setCell(cc, rr, 'K'); });
-    for (let r = 11; r < 15; r += 2) for (let c = 6; c < 29; c++) if (G[r] && G[r][c] === 'C' && c % 2 === 0) setCell(c, r, 'K');
+    [[11, 5], [12, 6], [13, 5]].forEach(([c, r]) => { if (G[r] && G[r][c] === 'C') setCell(c, r, 'K'); });
+    for (let r = 13; r < 22; r += 2) for (let c = 3; c < 21; c++) if (G[r] && G[r][c] === 'C' && c % 2 === 0) setCell(c, r, 'K');
   }
-  ellipse(11, 13, 2.2, 2.0, 'X', ['C', 'K']); ellipse(23, 13, 2.2, 2.0, 'X', ['C', 'K']);
+  ellipse(7.5, 17.5, 2.2, 2.6, 'X', ['C', 'K']); ellipse(16.5, 20, 2.0, 2.0, 'X', ['C', 'K']);
 }
 function composeSleepCurl() {
   ellipse(13, 11, 9.6, 8, 'C');
@@ -166,7 +171,7 @@ function buildPoses(i) {
     sit: buildSprite(24, 30, () => composeSit(Bi)),
     sleep: buildSprite(24, 20, composeSleepCurl),
     hunt: buildSprite(30, 20, composeHunt),
-    type: buildSprite(34, 18, () => composeTypeSprawl(Bi)),
+    typeFront: buildSprite(24, 24, () => composeTypeFront(Bi)),
   };
 }
 function sitFor(i) { return buildSprite(24, 30, () => composeSit(buildFor(i))); }
@@ -309,17 +314,56 @@ function sceneNap(frames, o = {}) {
     push(frames, buf, 110);
   }
 }
-// kneads the keyboard when you type (alternating paw-tap key presses)
+// a big keyboard key the cat presses (ported from renderer.drawKey; `lit` = pressed)
+function drawKeyR(buf, cx, topY, w, h, lit) {
+  const x0 = Math.round(cx - w / 2), y = Math.round(topY);
+  fillEllipse(buf, cx, y + h + 4, w / 2 + 2, 4, [0, 0, 0], 0.18);
+  fillRect(buf, x0, y + h - 3, w, 7, [86, 92, 106], 1);
+  fillRect(buf, x0, y, w, h - 2, lit ? [242, 244, 248] : [207, 211, 218], 1);
+  fillRect(buf, x0 + 2, y, w - 4, 3, lit ? [255, 255, 255] : [231, 234, 239], 1);
+  fillRect(buf, x0 - 1, y, 1, h + 4, [58, 63, 72], 1);
+  fillRect(buf, x0 + w, y, 1, h + 4, [58, 63, 72], 1);
+  fillRect(buf, x0, y - 1, w, 1, [58, 63, 72], 1);
+}
+// the two forelegs kneading the keys, drawn live (ported from renderer.drawKneadPaws)
+function drawKneadPawsR(buf, lcx, rcx, keyTop, lp, rp, shY, s) {
+  const O = PAL.O, C = PAL.C, Wc = PAL.W, BEAN = [255, 143, 163];
+  const rect = (x, y, w, h, col) => fillRect(buf, Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)), col, 1);
+  const paw = (kx, side, press) => {
+    const lift = Math.round((1 - press) * 2) * 2.5 * s;
+    const cx = kx + (lift >= 2 * s ? side * 2 * s : 0);
+    const capTop = keyTop + Math.round(press * 3 * s);
+    const pwW = 13 * s, pwH = 7 * s, pY = capTop - pwH + 2 * s - lift, pX = cx - pwW / 2;
+    const ax = cx - side * 2 * s - 6 * s, aw = 11 * s, top = Math.round(shY), aH = pY - top + 3 * s;
+    rect(ax, top, aw, aH, O);                       // leg outline slab
+    rect(ax + 2.5 * s, top, aw - 5 * s, aH, C);     // leg coat core
+    rect(pX - 2 * s, pY - 2 * s, pwW + 4 * s, pwH + 4 * s, O);   // paw outline
+    rect(pX, pY, pwW, pwH, Wc);                     // white mitt
+    if (lift >= 2 * s) {                            // lifted: pink toe beans
+      rect(cx - 3 * s, pY + 3.5 * s, 6 * s, 3 * s, BEAN);
+      rect(cx - 6.5 * s, pY + 0.5 * s, 3 * s, 3 * s, BEAN); rect(cx - 1.5 * s, pY, 3 * s, 3 * s, BEAN); rect(cx + 3.5 * s, pY + 0.5 * s, 3 * s, 3 * s, BEAN);
+    } else {
+      rect(cx - 1 * s, pY + 2 * s, 2 * s, pwH - 2 * s, O);   // planted: toe split
+    }
+  };
+  paw(lcx, -1, lp); paw(rcx, 1, rp);
+}
+// kneads the keyboard when you type: front-facing, leaning over two keycaps, its
+// forelegs pressing them alternately (ported from renderer.renderTypeFront).
 function sceneType(frames, o = {}) {
-  const n = o.n || 24;
+  const n = o.n || 16, s = PX / S.CELL, T = Math.PI * 2 * 60;   // one full knead period (sin(t/60))
   for (let i = 0; i < n; i++) {
     const buf = newFrame();
     caption(buf, o.caption, 2);
-    const p = shadowAndPlace(buf, SP.type, BASE_Y, 0, 0, { eyeFill: true, eyeMode: blinkAt(i, 17, 'open') });
-    const lit = (i % 2 === 0);
-    fillEllipse(buf, p.ox + 13 * PX, BASE_Y + 2, 6, 3, lit ? [120, 200, 255] : [70, 80, 100], 0.9);
-    fillEllipse(buf, p.ox + 21 * PX, BASE_Y + 2, 6, 3, !lit ? [120, 200, 255] : [70, 80, 100], 0.9);
-    push(frames, buf, 90);
+    const t = i * (T / n), wave = Math.sin(t / 60), snap = (v) => Math.pow(Math.max(0, v), 0.6);
+    const lp = snap(wave), rp = snap(-wave), dip = (lp + rp) * 1.6 * s;
+    const look = Math.round((rp - lp) * 1.4);
+    shadowAndPlace(buf, SP.typeFront, BASE_Y, 0, Math.round(dip), { eyeFill: true, eyeMode: blinkAt(i, 22, 'open'), look });
+    const cxc = W / 2, lcx = cxc - 15 * s, rcx = cxc + 15 * s, keyTop = BASE_Y - 12 * s;
+    drawKeyR(buf, lcx, keyTop + Math.round(lp * 3 * s), 24 * s, 11 * s, lp > 0.6);
+    drawKeyR(buf, rcx, keyTop + Math.round(rp * 3 * s), 24 * s, 11 * s, rp > 0.6);
+    drawKneadPawsR(buf, lcx, rcx, keyTop, lp, rp, BASE_Y - 29 * s + dip, s);
+    push(frames, buf, 75);
   }
 }
 // pounces to hunt the cursor (crouch-wiggle, then lunge)
@@ -347,18 +391,25 @@ function scenePet(frames, o = {}) {
     push(frames, buf, 95);
   }
 }
-// stretches like mochi when you drag it: a squash-and-stretch of the sit sprite,
-// feet anchored on the ground, thinning as it lengthens (volume-ish preserved).
-function drawScaledSprite(buf, sp, baseY, sx, sy) {
-  fillEllipse(buf, W / 2, baseY + 4, sp.COLS * PX * 0.42 * Math.max(sx, 1), 7, [0, 0, 0], 0.22);
-  const cxCell = sp.COLS / 2;
-  for (let r = 0; r < sp.ROWS; r++) for (let c = 0; c < sp.COLS; c++) {
-    const ch = sp.grid[r][c]; if (ch === '.') continue;
-    const base = PAL[ch]; if (!base) continue;
-    const col = BODY.has(ch) ? shade(base, 1.12 - (r / sp.ROWS) * 0.34) : base;
-    const ox = Math.round(W / 2 + (c - cxCell) * PX * sx);
-    const oy = Math.round(baseY - (sp.ROWS - r) * PX * sy);
-    fillRect(buf, ox, oy, Math.ceil(PX * sx) + 1, Math.ceil(PX * sy) + 1, col);
+// stretches like mochi when you drag it: a 3-band taffy stretch that matches the
+// app - the head and feet stay solid while ONLY the middle elongates and thins.
+function drawMochi(buf, sp, baseY, lift, thin) {
+  const HEAD_END = 10, FEET_START = 22, COLS = sp.COLS, ROWS = sp.ROWS, cxCell = COLS / 2;
+  const naturalTop = baseY - ROWS * PX, headTopY = naturalTop - lift;
+  const headBottomY = headTopY + HEAD_END * PX, feetTopY = baseY - (ROWS - FEET_START) * PX;
+  const midRows = FEET_START - HEAD_END, rowH = Math.ceil((feetTopY - headBottomY) / midRows) + 1;
+  fillEllipse(buf, W / 2, baseY + 4, COLS * PX * 0.42 * (1 - thin * 0.8), 7, [0, 0, 0], 0.22);   // shadow widens on squash
+  for (let r = 0; r < ROWS; r++) {
+    let oy, xs, hh;
+    if (r < HEAD_END) { oy = headTopY + r * PX; xs = 1; hh = PX + 1; }                            // rigid head (rides up)
+    else if (r >= FEET_START) { oy = baseY - (ROWS - r) * PX; xs = 1; hh = PX + 1; }              // rigid feet (planted)
+    else { const u = (r - HEAD_END) / midRows; oy = headBottomY + u * (feetTopY - headBottomY); xs = 1 - thin * Math.sin(u * Math.PI); hh = rowH; }   // middle: stretch + thin
+    for (let c = 0; c < COLS; c++) {
+      const ch = sp.grid[r][c]; if (ch === '.') continue;
+      const base = PAL[ch]; if (!base) continue;
+      const col = BODY.has(ch) ? shade(base, 1.12 - (r / ROWS) * 0.34) : base;
+      fillRect(buf, Math.round(W / 2 + (c - cxCell) * PX * xs), Math.round(oy), Math.ceil(PX * xs) + 1, hh, col);
+    }
   }
 }
 function sceneMochi(frames, o = {}) {
@@ -368,16 +419,12 @@ function sceneMochi(frames, o = {}) {
     caption(buf, o.caption, 2);
     const t = i / n;
     let sy;
-    if (t < 0.40) sy = 1 + 0.55 * Math.sin((t / 0.40) * Math.PI / 2);          // grab & stretch up to 1.55
-    else if (t < 0.55) sy = 1.55 - ((t - 0.40) / 0.15) * 0.75;                 // release, squash to 0.80
-    else sy = 1 - 0.20 * Math.exp(-(t - 0.55) * 7) * Math.cos((t - 0.55) * 26); // damped bounce back to 1
-    const sx = Math.pow(sy, -0.6);
-    const sp = SP.sit;
-    drawScaledSprite(buf, sp, BASE_Y, sx, sy);
-    if (t < 0.40) { // the "hand" that's lifting it
-      const headY = Math.round(BASE_Y - sp.ROWS * PX * sy) - 8;
-      fillEllipse(buf, W / 2, headY, 3, 3, [120, 200, 255], 0.9);
-    }
+    if (t < 0.40) sy = 1 + 0.55 * Math.sin((t / 0.40) * Math.PI / 2);          // grab & stretch up
+    else if (t < 0.55) sy = 1.55 - ((t - 0.40) / 0.15) * 0.75;                 // release, squash
+    else sy = 1 - 0.20 * Math.exp(-(t - 0.55) * 7) * Math.cos((t - 0.55) * 26); // damped bounce back
+    const lift = (sy - 1) * 73, thin = (sy - 1) * 0.85;   // stretch pulls the head up + thins the middle
+    drawMochi(buf, SP.sit, BASE_Y, lift, thin);
+    if (lift > 6) fillEllipse(buf, W / 2, Math.round(BASE_Y - SP.sit.ROWS * PX - lift) - 8, 3, 3, [120, 200, 255], 0.9);   // the "hand" lifting it
     push(frames, buf, 80);
   }
 }
