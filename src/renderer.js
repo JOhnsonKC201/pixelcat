@@ -148,6 +148,49 @@ function composeLoaf(B) {
   ellipse(7.5, 24, 2.3, 2.8, 'X', ['C', 'K']); ellipse(16, 26, 2.2, 2.2, 'X', ['C', 'K']);
 }
 
+// --- rear-up "bat the butterfly": the cat sits up TALL on its haunches, reaching
+//     for a butterfly overhead. Front legs are NOT baked - they're drawn live as
+//     reaching/swiping paws in renderRearBat. Grid 24x30 (matches the sit sprite).
+function composeRearUp(B) {
+  B = B || {};
+  const CX = 12, fluff = !!B.fluff, cheek = B.cheek || 0;
+  const headRx = B.headRx || 6.3, headRy = B.headRy || 5.8;
+  const earY = B.earApexY == null ? 1 : B.earApexY, ew = B.earW || 2.4, eo = B.earOut || 4;
+  const eRx = B.eyeRx || 2, eRy = B.eyeRy || 2.4;
+  // tail curling behind for balance (drawn first, behind the body)
+  [[18.5, 27], [20.5, 26], [22, 24], [22.2, 22]].forEach(([c, r]) => ellipse(c, r, 1.6, 1.6, 'C'));
+  ellipse(22.2, 22, 1.0, 1.0, 'W', ['C']);                 // pale tail tip
+  // wide planted rear/haunches at the base
+  ellipse(CX, 27, 7.6, 4.0, 'C');
+  ellipse(8.4, 26, 3.0, 2.7, 'C'); ellipse(15.6, 26, 3.0, 2.7, 'C');
+  // upright torso column rising from the base
+  ellipse(CX, 18.5, 4.8, 7.4, 'C');
+  // head up top
+  ellipse(CX, 8, headRx, headRy, 'C');
+  if (cheek) { ellipse(CX - headRx * 0.7, 9.6, 1.7, 2.2, 'C'); ellipse(CX + headRx * 0.7, 9.6, 1.7, 2.2, 'C'); }
+  if (fluff) { ellipse(5.4, 10.4, 1.9, 2.4, 'C'); ellipse(18.6, 10.4, 1.9, 2.4, 'C'); }
+  // ears up
+  triangle(CX - eo - 0.5, earY, CX - eo - ew, 7.6, CX - eo + ew, 6.4, 'K');
+  triangle(CX + eo + 0.5, earY, CX + eo + ew, 7.6, CX + eo - ew, 6.4, 'K');
+  const iw = ew * 0.55;
+  triangle(CX - eo - 0.3, earY + 2, CX - eo - iw, 7.2, CX - eo + iw, 6.6, 'I');
+  triangle(CX + eo + 0.3, earY + 2, CX + eo + iw, 7.2, CX + eo - iw, 6.6, 'I');
+  if (fluff) { ellipse(CX - eo, 6.0, 0.9, 1.4, 'W', ['C', 'K']); ellipse(CX + eo, 6.0, 0.9, 1.4, 'W', ['C', 'K']); }
+  // exposed white throat + belly down the upright front
+  ellipse(CX, 12.5, 3.0, 2.2, 'W', ['C']);
+  ellipse(CX, 19.5, 3.2, 7.2, 'W', ['C']);
+  // two little hind paws peeking at the base
+  ellipse(9.4, 29, 2.0, 1.3, 'W', ['C']); ellipse(14.6, 29, 2.0, 1.3, 'W', ['C']);
+  // eyes + nose (looking up)
+  ellipse(9, 8.2, eRx, eRy, 'E'); ellipse(15, 8.2, eRx, eRy, 'E');
+  setCell(12, 11, 'N'); setCell(11, 11, 'N');
+  if (B.tabby) {
+    [[11, 6], [12, 7], [13, 6]].forEach(([c, r]) => { if (G[r] && G[r][c] === 'C') setCell(c, r, 'K'); });
+    for (let r = 14; r < 26; r += 2) for (let c = 6; c < 19; c++) if (G[r] && G[r][c] === 'C' && c % 2 === 0) setCell(c, r, 'K');
+  }
+  ellipse(8, 20, 2.2, 2.8, 'X', ['C', 'K']); ellipse(16, 24, 2.0, 2.2, 'X', ['C', 'K']);
+}
+
 const spriteHunt = buildSprite(30, 20, composeHunt);
 const TW = 24 * CELL, TH = 24 * CELL;            // front-facing kneading-cat dims (per-coat sprites built below)
 // Sit grid is always 24x30, so SW/SH and the mochi bands stay constant across the
@@ -227,6 +270,8 @@ const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeSit
 const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 24, () => composeTypeFront({ tabby: TABBY[i], fluff: BUILDS[b].fluff })));
 // and a dedicated loaf (resting) body per coat - same 24x30 size as the sit sprite
 const loafSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeLoaf({ ...BUILDS[b], tabby: TABBY[i] })));
+// and a rear-up "bat the butterfly" body per coat - same 24x30 size as the sit sprite
+const rearSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeRearUp({ ...BUILDS[b], tabby: TABBY[i] })));
 const DEFAULT_PATTERN = Math.max(0, PATTERNS.findIndex((p) => p.name === 'Tuxedo'));   // tuxedo is the out-of-box coat
 const storedPattern = localStorage.getItem('pattern');
 let patternIndex = storedPattern != null ? Number(storedPattern) : DEFAULT_PATTERN;
@@ -244,7 +289,7 @@ const BASE_PATTERNS = PATTERNS.length;
 function applyThemes(list) {
   _palKey = -1;   // coat palettes changed -> force a cold-palette rebuild next frame
   PATTERNS.length = BASE_PATTERNS; PATTERN_BUILD.length = BASE_PATTERNS; TABBY.length = BASE_PATTERNS;
-  sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS; loafSprites.length = BASE_PATTERNS;
+  sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS; loafSprites.length = BASE_PATTERNS; rearSprites.length = BASE_PATTERNS;
   for (const th of (Array.isArray(list) ? list : [])) {
     if (!th || !th.name || !th.coat) continue;
     const build = BUILDS[th.build] ? th.build : 'standard';
@@ -256,6 +301,7 @@ function applyThemes(list) {
     sprites.push(buildSprite(24, 30, () => composeSit({ ...BUILDS[build], tabby: !!th.tabby })));
     typeSprites.push(buildSprite(24, 24, () => composeTypeFront({ tabby: !!th.tabby, fluff: BUILDS[build].fluff })));
     loafSprites.push(buildSprite(24, 30, () => composeLoaf({ ...BUILDS[build], tabby: !!th.tabby })));
+    rearSprites.push(buildSprite(24, 30, () => composeRearUp({ ...BUILDS[build], tabby: !!th.tabby })));
   }
   if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
   if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
@@ -427,6 +473,56 @@ function renderTypeFront(t, palRGB, pal, overheat, blinking, look) {
   drawKneadPaws(palRGB, lcx, rcx, keyTop, lp, rp, pos.y - 29 + dip);
   if (overheat) drawSteam(t, pos.x, oy + 2 * CELL);
 }
+// One front paw reaching toward a point: a SHORT two-tone forearm + white mitt with
+// toe-beans. Proportional (short reach), so it reads as a paw, not a stretchy arm.
+function drawReachPaw(palRGB, sx, sy, px, py) {
+  const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
+  const adx = px - sx, ady = py - sy, aLen = Math.hypot(adx, ady) || 1, aAng = Math.atan2(ady, adx);
+  ctx.save(); ctx.translate(sx, sy); ctx.rotate(aAng);
+  ctx.fillStyle = O; ctx.fillRect(-1, -4, aLen, 8);              // outline forearm
+  ctx.fillStyle = C; ctx.fillRect(-1, -2.5, aLen, 5);           // coat core
+  ctx.restore();
+  const pwW = 8, pwH = 6, pX = Math.round(px - pwW / 2), pY = Math.round(py - pwH / 2);
+  ctx.fillStyle = O; ctx.fillRect(pX - 2, pY - 2, pwW + 4, pwH + 4);   // paw outline
+  ctx.fillStyle = W; ctx.fillRect(pX, pY, pwW, pwH);                    // white mitt
+  ctx.fillStyle = '#ff8fa3'; ctx.fillRect(Math.round(px - 3), Math.round(py + 1), 6, 2); ctx.fillRect(Math.round(px - 1), Math.round(py - 2), 2, 2);   // toe beans
+}
+// Rear up on the haunches and BAT at the butterfly overhead with both front paws.
+// The reared body brings the chest up near the bug, so the live paws only reach a
+// short, natural distance (no rubber-arm). A near-miss sends the butterfly darting.
+function renderRearBat(t, palRGB, blinking) {
+  const sp = rearSprites[patternIndex] || sprites[patternIndex];
+  const oy = Math.round(pos.y - SH);
+  const hasBug = bfOn && bfMode !== 'out';
+  const tgtX = hasBug ? bfX : pos.x;   // horizontal aim (or straight up in a --shot)
+  drawShadow(pos.x, pos.y, 0.2, 34);
+  octx.clearRect(0, 0, oc.width, oc.height);
+  drawCat(octx, sp, t, palRGB, { bob: 0, blinking, look: { x: clamp((tgtX - pos.x) / 160, -1, 1), y: -0.75 } });   // eyes tip up at the bug
+  ctx.save();
+  ctx.translate(pos.x, pos.y);
+  ctx.rotate(clamp((tgtX - pos.x) / 520, -0.08, 0.08));         // lean toward the bug
+  ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
+  ctx.restore();
+  // two front paws BOXING up at the bug: they alternate (one strikes up while the other
+  // loads), reaching just outside the head so the arms never cross the face
+  const swing = (t - bfSwatT0) / 130;                // quick swipe tempo
+  const shY = pos.y - SH * 0.60;
+  let topPh = 0;
+  for (const side of [-1, 1]) {
+    const ph = Math.max(0, Math.sin(swing + (side < 0 ? 0 : Math.PI)));   // alternate up / load
+    topPh = Math.max(topPh, ph);
+    const restX = pos.x + side * 12, restY = shY - 4;
+    const upX = pos.x + side * 21 + (tgtX - pos.x) * 0.14, upY = oy - 2;
+    const pawX = restX + (upX - restX) * ph, pawY = restY + (upY - restY) * ph;
+    drawReachPaw(palRGB, pos.x + side * 13, shY, pawX, pawY);
+  }
+  // near-miss: when a paw strikes up near the bug it startles and darts off (hit-cooldown)
+  if (hasBug && topPh > 0.7 && Math.hypot(bfX - pos.x, bfY - (oy - 2)) < 50 && t > bfBatHit && bfMode !== 'dodge') {
+    bfBatHit = t + 220; bfMode = 'dodge'; bfDodgeUntil = t + 360;
+    const aw = Math.atan2(bfY - pos.y, bfX - pos.x) + (Math.random() - 0.5); bfVx = Math.cos(aw) * 9; bfVy = Math.sin(aw) * 9;
+    if (!lowPower) idleSparkles.push({ x: bfX, y: bfY, t0: t });
+  }
+}
 // Animated tail: rests low behind the haunch, lies along the ground sweeping
 // right, then the last segments curl gently up. Tapers from a thick base to a
 // pale rounded tip; flicks on idle actions and wags faster while petted.
@@ -498,6 +594,8 @@ let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarg
 let windingUp = false, windupT0 = 0;   // butterfly pounce: a brief anticipation coil before the spring
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
 let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0, bfIdleNextVisit = 0;
+// paw-swat at the butterfly (a gentle reach that doesn't need a full pounce)
+let bfSwatT0 = 0, bfSwatUntil = 0, bfBatHit = 0;
 // a short fading sparkle trail behind the butterfly
 let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
@@ -1053,7 +1151,7 @@ const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUN
 const BF_PLAY_IDLE = 1800, BF_TOP = 46, BF_EDGE = 18, BF_SCALE = 1.25;
 // If you leave the machine alone (no cursor/keys) this long, a butterfly comes out so
 // the cat has something to play with - then keeps dropping by every so often while idle.
-const IDLE_BUTTERFLY_MS = 12000;
+const IDLE_BUTTERFLY_MS = 7500;
 // Come back after being away this long and the cat notices you: happy eyes, hearts, a chirp.
 const GREET_IDLE_MS = 90000;
 // "air currents & the chase" (mirrors site/cat-live.js): the butterfly glides a drifting
@@ -1062,6 +1160,13 @@ const DRIFT_PHASE_RATE = 0.012, DRIFT_EASE = 0.012, LISSA_RATIO = 2, LISSA_DELTA
 const DRIFT_REPICK_MS = [4200, 3000], WANDER_ACCEL = 0.022;
 const BURST_RATIO = 3.0, BURST_GATE = 0.7, BURST_LIFT = 26, FLAP_BURST_MULT = 2.2;
 const BUG_INTEREST_MIN = 90, BUG_STANDOFF = 70, BUG_RETARGET_DIST = 60, BUG_CREEP_MS = 1400, BUG_POUNCE_TRIGGER = POUNCE_RANGE * 1.9;
+// Keep the butterfly playing in a zone AROUND the cat's head (the zone follows the cat)
+// instead of roaming the whole screen. The figure-eight swing stays < the zone half-extents.
+// All tunable: widen BF_ZONE_X for more room, shrink for a cozier play space.
+const BF_ZONE_X = 150, BF_ZONE_TOP = 130, BF_ZONE_BOT = 40;
+const BF_LISSA_AX = 70, BF_LISSA_AY = 44;
+// Gentle paw-swat at a butterfly that's near the head but just out of full-pounce range.
+const BF_SWAT_RANGE = 150, BF_SWAT_MS = 600;
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
@@ -1123,8 +1228,8 @@ function startBflyVisit(t) {
   const side = pos.x < viewW / 2 ? 1 : -1;
   bfX = clamp(pos.x + side * 220, BF_EDGE, viewW - BF_EDGE); bfY = clamp(pos.y - SH - 40, BF_TOP, viewH - BF_EDGE);
   bfVx = -side * 4; bfVy = 0; bfWpX = pos.x; bfWpY = pos.y - SH * 0.8; bfNextDive = t + 3000; bfDiveUntil = 0; bfDodgeUntil = 0; bfTrail = [];
-  // seed the air-current glider: a wandering figure-eight center, re-picked soon to ramble across the screen
-  bfDriftCx = clamp(bfX, 80, viewW - 80); bfDriftCy = clamp(pos.y - SH - 30, BF_TOP, viewH * 0.5);
+  // seed the glider CENTER on the cat so it flies in from the side and settles into the zone
+  bfDriftCx = pos.x; bfDriftCy = clamp(pos.y - SH - 30, BF_TOP, viewH - BF_EDGE);
   bfDriftTX = bfDriftCx; bfDriftTY = bfDriftCy; bfPhase = Math.random() * Math.PI * 2; bfNextDrift = t + 500;
 }
 // Flight + cat reaction. f = { follow, grabbing, hunting, typing, petting, startleActive, calm }.
@@ -1166,23 +1271,29 @@ function updateButterflyDesk(t, dt, step, f) {
   else if (bfMode === 'dive') { tx = headX + Math.sin(t / 200) * 26; ty = headY - 6 + Math.cos(t / 170) * 12; }
   else if (bfMode === 'dodge') { tx = bfWpX; ty = bfWpY; }
   else {
-    // air-current glider: a wandering center traces a lazy figure-eight across the whole screen,
-    // with periodic flap-bursts to climb then glide back down (mirrors site/cat-live.js).
+    // air-current glider CONFINED to a zone around the cat's head (the zone follows the cat),
+    // so the butterfly plays near the cat instead of roaming the screen. Flap-bursts still
+    // climb within the band (mirrors site/cat-live.js's figure-eight, just penned in).
     bfPhase += DRIFT_PHASE_RATE * dtf;
-    const ax = Math.min(viewW * 0.30, 220), ay = Math.min(viewH * 0.16, 100);
+    const ax = BF_LISSA_AX, ay = BF_LISSA_AY;
+    const zL = Math.max(BF_EDGE, headX - BF_ZONE_X), zR = Math.min(viewW - BF_EDGE, headX + BF_ZONE_X);
+    const zT = Math.max(BF_TOP, headY - BF_ZONE_TOP), zB = Math.min(viewH - BF_EDGE, headY + BF_ZONE_BOT);
     if (t > bfNextDrift) {
-      const de = Math.min(ax + 24, viewW * 0.42);
-      bfDriftTX = de + Math.random() * Math.max(0, viewW - 2 * de);
-      bfDriftTY = BF_TOP + Math.random() * Math.max(0, viewH * 0.5 - BF_TOP);
+      // pick the figure-eight CENTER inside the zone, inset by the swing so the whole
+      // oscillation stays inside it (min/max guard a degenerate zone near a screen edge)
+      const cxLo = Math.min(zL + ax, zR - ax), cxHi = Math.max(zL + ax, zR - ax);
+      const cyLo = Math.min(zT + ay, zB - ay), cyHi = Math.max(zT + ay, zB - ay);
+      bfDriftTX = cxLo + Math.random() * (cxHi - cxLo);
+      bfDriftTY = cyLo + Math.random() * (cyHi - cyLo);
       bfNextDrift = t + DRIFT_REPICK_MS[0] + Math.random() * DRIFT_REPICK_MS[1];
     }
     bfDriftCx += (bfDriftTX - bfDriftCx) * DRIFT_EASE * dtf;
     bfDriftCy += (bfDriftTY - bfDriftCy) * DRIFT_EASE * dtf;
-    bfWpX = clamp(bfDriftCx + ax * Math.sin(bfPhase), BF_EDGE, viewW - BF_EDGE);
+    bfWpX = clamp(bfDriftCx + ax * Math.sin(bfPhase), zL, zR);
     let gy = bfDriftCy + ay * Math.sin(bfPhase * LISSA_RATIO + LISSA_DELTA);
     burst = Math.sin(bfPhase * BURST_RATIO) > BURST_GATE;
     if (burst) gy -= BURST_LIFT;                                      // flap-burst to gain height, then glide down
-    bfWpY = clamp(gy, BF_TOP, viewH - BF_EDGE);
+    bfWpY = clamp(gy, zT, zB);
     tx = bfWpX; ty = bfWpY;
   }
   let accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : WANDER_ACCEL));
@@ -1198,7 +1309,7 @@ function updateButterflyDesk(t, dt, step, f) {
   bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
   // despawn once it has flown off-screen — or, as a failsafe, if it has been leaving too long
   // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
-  if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; bfIdleNextVisit = t + 18000 + Math.random() * 12000; return; }
+  if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; bfIdleNextVisit = t + 14000 + Math.random() * 10000; return; }
   // keep the sprite on-screen — but NOT while leaving, or the clamp pins it at the edge and it
   // can never reach the off-screen despawn threshold above (it would flutter there forever).
   if (bfMode !== 'out') {
@@ -1228,7 +1339,13 @@ function updateButterflyDesk(t, dt, step, f) {
   const dh = Math.hypot(bfX - headX, bfY - headY);
   // the chase pays off: once the cat has crept within range of a calmly wandering bug, pounce at it
   if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && !f.hunting && t >= huntUntil && t > bfSwatCool && !SHOT) {
-    huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; bfSwatCool = t + 1200;
+    huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; bfSwatCool = t + 900;
+  }
+  // gentle paw-swat: the bug is near the head but just out of pounce range (or the pounce is
+  // cooling down) -> raise a front paw and swipe at it. Shares bfSwatCool with the lean + pounce
+  // so the three never stack; ordered AFTER the pounce so a real pounce always wins.
+  if (cursorIdle && !f.hunting && t >= huntUntil && bfMode !== 'out' && dh > 62 && dh < BF_SWAT_RANGE && t > bfSwatCool && roamUntil < t) {
+    bfSwatT0 = t; bfSwatUntil = t + BF_SWAT_MS; bfSwatCool = t + 700; tailFlickT0 = t;
   }
   if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting && t >= huntUntil) {
     if (cursorIdle && t > bfSwatCool) { bfSwatCool = t + 900; tailFlickT0 = t; leanTarget = clamp((bfX - pos.x) / 120, -0.12, 0.12); leanUntil = t + 260; }
@@ -1395,6 +1512,8 @@ function draw(t) {
   if (FORCED_STATE === 'overheat') { typing = true; overheat = true; heatT = 1; }
   else if (FORCED_STATE === 'typing') { typing = true; overheat = false; heatT = 0; }
   else { typing = !grabbing && !hunting && !startleActive && (t - lastKeyAt) < 350; overheat = heat > 0.7; heatT = overheat ? (heat - 0.7) / 0.3 : 0; }
+  // rear-up bat: reach a butterfly overhead - its own top-level pose (like typing)
+  const batting = FORCED_STATE === 'rearup' || (bfOn && bfMode !== 'out' && t < bfSwatUntil && !hunting && !typing && !petting && !bodyPet && !grabbing && !startleActive && !paperActive && roamUntil < t);
 
   // A real cat abandons its stroll the instant you interact. Cancel any active roam
   // so it never slides while petted/typing, and never resumes from a stale path
@@ -1664,6 +1783,10 @@ function draw(t) {
       // keycaps and kneads them with alternating paws (Comnyang-style).
       renderTypeFront(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - TW / 2 - 16, pos.y - TH - 8, TW + 32, TH + 16, false);
+    } else if (batting) {
+      // rear up on the haunches and bat at the butterfly overhead with both paws
+      renderRearBat(t, palRGB, blinking);
+      sendHot(pos.x - SW / 2 - 12, pos.y - SH - 46, SW + 24, SH + 46, false);
     } else if (!grabbing && (calm || petting || stretching || thinking || working || hopActive || paperActive || FORCED_STATE === 'loaf' || FORCED_STATE === 'groom' || FORCED_STATE === 'play' || FORCED_STATE === 'yawn')) {
       const idleSway = Math.round(Math.sin(t / 2600));                 // slow weight shift ±1
       const grooming = FORCED_STATE === 'groom' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && roamUntil < t && t < groomUntil);
