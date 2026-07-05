@@ -670,8 +670,8 @@ function recipeHero(wantMp4) {
   if (wantMp4) encodeMp4(frames, A('hero-banner.mp4'));
 }
 
-// six looping micro-GIFs (340x260) -> assets/gallery/<name>.gif
-function recipeGallery() {
+// six looping micro-GIFs (340x260) -> assets/gallery/<name>.gif (+ .mp4 with `mp4`)
+function recipeGallery(wantMp4) {
   const items = [
     ['climb', (f) => sceneClimb(f)],
     ['type', (f) => sceneType(f, { n: 24 })],
@@ -688,6 +688,7 @@ function recipeGallery() {
     build(frames);
     maybeDump(frames, name);
     encodeGif(frames, A('gallery', `${name}.gif`));
+    if (wantMp4) encodeMp4(frames, A('gallery', `${name}.mp4`));
   }
 }
 
@@ -719,9 +720,9 @@ const wantMp4 = process.argv.includes('mp4');
 const RECIPES = {
   demo: () => recipeDemo(wantMp4),
   hero: () => recipeHero(wantMp4),
-  gallery: () => recipeGallery(),
+  gallery: () => recipeGallery(wantMp4),
   carousel: () => recipeCarousel(),
-  all: () => { recipeDemo(wantMp4); recipeHero(wantMp4); recipeGallery(); recipeCarousel(); },
+  all: () => { recipeDemo(wantMp4); recipeHero(wantMp4); recipeGallery(wantMp4); recipeCarousel(); },
 };
 if (!RECIPES[recipe]) { console.error(`unknown recipe: ${recipe} (expected demo|hero|gallery|carousel|all)`); process.exit(1); }
 RECIPES[recipe]();

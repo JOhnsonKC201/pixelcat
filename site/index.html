@@ -25,6 +25,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"pixelcat","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows, macOS","description":"A cute, from-scratch pixel cat that lives on your desktop: follows your cursor, purrs when you pet it, plays with a butterfly, kneads the keyboard when you type, and gets the zoomies. 14 coats. Free & open source.","image":"https://pixelcat-jet.vercel.app/assets/showcase.png","url":"https://pixelcat-jet.vercel.app/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"JohnsonKC201"},"license":"https://github.com/JOhnsonKC201/pixelcat/blob/main/LICENSE"}
 </script>
+<noscript><style>.rv{opacity:1!important; transform:none!important}</style></noscript>
 <link rel="preload" as="font" type="font/woff2" href="assets/fonts/press-start-2p-latin.woff2" crossorigin />
 <link rel="preload" as="font" type="font/woff2" href="assets/fonts/vt323-latin.woff2" crossorigin />
 <style>
@@ -110,8 +111,10 @@ header.hud{
 .brand b{font-family:"Press Start 2P",monospace; font-size:13px; letter-spacing:.5px; color:var(--ink)}
 .brand b i{color:var(--orange); font-style:normal}
 nav.links{display:flex; gap:22px; margin-left:auto}
-nav.links a{font-size:20px; color:var(--muted); text-decoration:none; letter-spacing:.5px}
+nav.links a{font-size:20px; color:var(--muted); text-decoration:none; letter-spacing:.5px;
+  border-bottom:2px solid transparent; padding-bottom:2px}
 nav.links a:hover{color:var(--orange)}
+nav.links a.on{color:var(--orange); border-color:var(--orange)}
 .hud .cta{margin-left:6px}
 
 /* buttons */
@@ -148,7 +151,7 @@ h1.title small{display:block; font-size:34px}
 .crt-wrap{position:relative}
 .crt{
   position:relative; background:#0c0d12; border:3px solid #0e1016;
-  padding:14px 14px 30px; box-shadow:var(--shadow);
+  padding:14px 14px 30px; box-shadow:var(--shadow), 0 0 70px rgba(232,148,60,.10);
   border-radius:14px;
 }
 .crt .screen{position:relative; overflow:hidden; background:#1c1f27; border:2px solid #05060a; border-radius:6px; aspect-ratio:1410 / 398}
@@ -173,7 +176,7 @@ h1.title small{display:block; font-size:34px}
   background:var(--green); box-shadow:0 0 10px var(--green)}
 .crt .brandtag{position:absolute; left:20px; bottom:7px; font-size:15px; color:var(--faint); letter-spacing:3px}
 .crt .scrlabel{position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:3;
-  font-family:"Press Start 2P",monospace; font-size:8px; color:rgba(238,240,245,.55); letter-spacing:1px}
+  font-family:"Press Start 2P",monospace; font-size:8px; color:rgba(238,240,245,.55); letter-spacing:1px; white-space:nowrap}
 /* perched cat sticker on top of the monitor */
 .perch{position:absolute; top:-30px; right:34px; width:56px; height:56px; z-index:3;
   border-radius:12px; box-shadow:0 0 0 2px #0e1016, var(--shadow-sm); cursor:pointer;
@@ -207,7 +210,8 @@ h2.sec{font-size:24px; line-height:1.45}
 .card.violet .ico{color:var(--violet)}
 .card h3{font-size:12px; color:var(--ink); margin-bottom:10px}
 .card p{margin:0; color:var(--muted); font-size:20px}
-.card .tag{position:absolute; top:14px; right:14px; font-size:14px; color:var(--faint); letter-spacing:1px}
+.card .tag{position:absolute; top:14px; right:14px; font-size:14px; color:var(--faint); letter-spacing:1px; transition:color .15s}
+.card:hover .tag{color:var(--orange)}
 .col-3{grid-column:span 3}
 .col-2{grid-column:span 2}
 .col-6{grid-column:span 6}
@@ -235,6 +239,32 @@ h2.sec{font-size:24px; line-height:1.45}
   border-style:dashed; border-color:var(--line); background:transparent}
 .coat.custom .big{font-size:30px; color:var(--orange); margin-bottom:6px}
 .coat.custom .nm{color:var(--muted)}
+
+/* footage tapes: mini-CRTs looping real behaviour clips */
+.tape{margin:0; background:var(--panel); border:3px solid #11131a; box-shadow:var(--shadow);
+  transition:transform .12s steps(2), box-shadow .15s}
+.tape:hover{transform:translate(-2px,-2px); box-shadow:6px 6px 0 0 rgba(0,0,0,.55), 0 0 18px rgba(232,148,60,.18)}
+.tape .tv{position:relative; background:#0c0d12; border-bottom:3px solid #11131a; overflow:hidden}
+.tape video{display:block; width:100%; aspect-ratio:340/260; object-fit:cover; image-rendering:pixelated; cursor:pointer}
+.tape video:focus-visible{outline:3px solid var(--green); outline-offset:-3px}
+.tape .tv::after{content:""; position:absolute; inset:0; pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg,rgba(0,0,0,.20) 0 2px,transparent 2px 4px),
+    radial-gradient(130% 130% at 50% 0%, transparent 62%, rgba(0,0,0,.34) 100%);
+  mix-blend-mode:multiply}
+.tape .rec{position:absolute; top:9px; left:11px; z-index:2; font-family:"Press Start 2P",monospace; font-size:8px;
+  color:#ff6d64; letter-spacing:1px; text-shadow:0 0 8px rgba(255,109,100,.6);
+  animation:blink 1.4s steps(2) infinite; pointer-events:none}
+.tape .tapeix{position:absolute; top:9px; right:11px; z-index:2; font-family:"Press Start 2P",monospace; font-size:8px;
+  color:rgba(238,240,245,.5); letter-spacing:1px; pointer-events:none}
+.tape .pp{position:absolute; inset:0; z-index:2; display:grid; place-items:center; pointer-events:none;
+  font-size:34px; color:var(--ink); text-shadow:0 0 14px rgba(0,0,0,.85); opacity:0; transition:opacity .15s}
+.tape.paused .pp{opacity:.92}
+.tape.paused .rec{animation:none; color:var(--faint); text-shadow:none}
+.tape figcaption{padding:14px 16px 16px}
+.tape figcaption b{display:block; font-family:"Press Start 2P",monospace; font-weight:400; font-size:11px;
+  color:var(--orange); margin-bottom:8px}
+.tape figcaption span{display:block; color:var(--muted); font-size:19px; line-height:1.4}
 
 /* agent terminal */
 .term{font-family:"VT323",monospace; background:#0c0d12; border:3px solid #0e1016; box-shadow:var(--shadow);
@@ -333,6 +363,9 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
   nav.links{display:none}
   .bento{grid-template-columns:repeat(2,1fr)}
   .col-3,.col-2,.col-6{grid-column:span 2}
+  .tapes .col-2{grid-column:span 1}   /* small tapes stay 2-up on tablets */
+  .tape figcaption b{font-size:10px}
+  .tape figcaption span{font-size:17px}
   .agentgrid,.dl,.moods{grid-template-columns:1fr}
   .moods{grid-template-columns:repeat(2,1fr)}
   /* the cat is the star on phones: trade the wide desktop letterbox for a taller screen */
@@ -356,6 +389,7 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
 }
 @media(max-width:420px){
   h1.title,h1.title small{font-size:23px}
+  .tapes .col-2{grid-column:span 2}   /* stack the tapes on small phones */
 }
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important}
@@ -375,6 +409,7 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
     <a class="brand" href="#top"><img src="assets/icon.png" alt="pixelcat icon" width="34" height="34" decoding="async" fetchpriority="high" /><b><i>pixel</i>cat</b></a>
     <nav class="links">
       <a href="#features">features</a>
+      <a href="#footage">footage</a>
       <a href="#coats">coats</a>
       <a href="#agent">agent</a>
       <a href="#moods">moods</a>
@@ -478,6 +513,75 @@ footer{border-top:3px solid #0e1016; background:#13141a; padding:46px 0 60px; ma
         <h3>a butterfly visits</h3><p>Now and then a butterfly flutters in and the cat plays - it watches, swats, and pounces to catch it. Sometimes it lands on the cat's nose (achoo!), changes color on a lap off-screen, and once in a while a rare shiny one appears.</p></div>
       <div class="card col-3 rv"><span class="tag">12</span><div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M9 6l3-3 3 3M9 18l3 3 3-3"/></svg></div>
         <h3>scroll to climb</h3><p>Scroll the page and the cat grabs a yarn rope and climbs hand-over-hand, travelling up or down with you.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== FOOTAGE -->
+<section id="footage">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker">// CAUGHT ON TAPE</div>
+      <h2 class="sec">field footage</h2>
+      <p>Every clip below is rendered by the same sprite engine that draws the desktop cat - real behaviours, not mock-ups. Click a tape to pause it.</p>
+    </div>
+    <div class="bento tapes">
+      <figure class="tape col-3 rv">
+        <div class="tv">
+          <video src="assets/gallery/butterfly.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat tracks, swats at, and catches a butterfly"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 01</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>butterfly play</b><span>it watches, swats… and sometimes catches it.</span></figcaption>
+      </figure>
+      <figure class="tape col-3 rv">
+        <div class="tv">
+          <video src="assets/gallery/mochi.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat stretches like mochi when dragged"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 02</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>mochi-drag</b><span>grab it and it stretches like taffy, then snaps back.</span></figcaption>
+      </figure>
+      <figure class="tape col-2 rv">
+        <div class="tv">
+          <video src="assets/gallery/type.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat kneads the keyboard while you type"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 03</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>keyboard kneading</b><span>type anywhere and it taps its paws along.</span></figcaption>
+      </figure>
+      <figure class="tape col-2 rv">
+        <div class="tv">
+          <video src="assets/gallery/pet.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat purrs and floats hearts while being petted"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 04</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>head pets</b><span>purrs out loud, floats hearts, nuzzles your hand.</span></figcaption>
+      </figure>
+      <figure class="tape col-2 rv">
+        <div class="tv">
+          <video src="assets/gallery/hunt.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat crouches and pounces to hunt the cursor"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 05</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>cursor hunt</b><span>crouch… wiggle… pounce.</span></figcaption>
+      </figure>
+      <figure class="tape col-2 rv">
+        <div class="tv">
+          <video src="assets/gallery/climb.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat climbs a yarn rope as you scroll"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 06</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>scroll-climb</b><span>hand-over-hand up the yarn rope as you scroll.</span></figcaption>
+      </figure>
+      <figure class="tape col-2 rv">
+        <div class="tv">
+          <video src="assets/gallery/eat.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat eats a fish treat with hearts"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 07</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>snack time</b><span>noms a fish treat, leaves little hearts.</span></figcaption>
+      </figure>
+      <figure class="tape col-2 rv">
+        <div class="tv">
+          <video src="assets/gallery/sing.mp4" muted loop playsinline preload="metadata" tabindex="0" aria-label="Play or pause: the cat sings with floating music notes"></video>
+          <span class="rec" aria-hidden="true">● REC</span><span class="tapeix" aria-hidden="true">TAPE 08</span><span class="pp" aria-hidden="true">▶</span>
+        </div>
+        <figcaption><b>sings &amp; meows</b><span>a little pixel recital, notes and all.</span></figcaption>
+      </figure>
     </div>
   </div>
 </section>
@@ -646,6 +750,47 @@ grid.appendChild(custom);
 /* reveal on scroll (steps for a spritey snap) */
 const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -40px 0px'});
 document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+/* footage tapes: autoplay only while on screen; click / Enter / Space toggles.
+   reduced-motion: never autoplay - the ▶ overlay invites a manual play. */
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tapes=document.querySelectorAll('.tape');
+if(tapes.length){
+  const vio=new IntersectionObserver((es)=>{es.forEach(e=>{
+    const v=e.target.querySelector('video'); if(!v) return;
+    if(e.isIntersecting){ if(!reduceMotion && !v.dataset.userPaused) v.play().catch(()=>{}); }
+    else v.pause();
+  });},{threshold:.25});
+  tapes.forEach(fig=>{
+    const v=fig.querySelector('video'); if(!v) return;
+    fig.classList.add('paused');            // ▶ shows until the tape actually rolls
+    /* decode+paint the first frame so a paused tape isn't a black screen */
+    v.addEventListener('loadedmetadata',()=>{ try{ v.currentTime=0.001; }catch(e){} },{once:true});
+    v.addEventListener('play',()=>fig.classList.remove('paused'));
+    v.addEventListener('pause',()=>fig.classList.add('paused'));
+    const toggle=()=>{ if(v.paused){ delete v.dataset.userPaused; v.play().catch(()=>{}); }
+                       else { v.dataset.userPaused='1'; v.pause(); } };
+    v.addEventListener('click',toggle);
+    v.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+    vio.observe(fig);
+  });
+}
+
+/* scrollspy: light up the HUD link for the section under the 42%-height line
+   (none in the hero). scroll-driven - 5 rect reads per event is negligible here. */
+const navLinks=[...document.querySelectorAll('nav.links a[href^="#"]')];
+const spyTargets=navLinks.map(a=>document.getElementById(a.hash.slice(1))).filter(Boolean);
+if(spyTargets.length){
+  const spyUpdate=()=>{
+    const band=innerHeight*0.42;
+    let cur=null;
+    for(const s of spyTargets){ const r=s.getBoundingClientRect(); if(r.top<=band && r.bottom>=band){ cur=s.id; break; } }
+    navLinks.forEach(a=>a.classList.toggle('on', !!cur && a.hash==='#'+cur));
+  };
+  addEventListener('scroll', spyUpdate, {passive:true});
+  addEventListener('resize', spyUpdate, {passive:true});
+  spyUpdate();
+}
 
 /* copy snippet */
 const copyBtn=document.getElementById('copyBtn');
