@@ -419,6 +419,7 @@ function rebuildTrayMenu() {
     ] },
     { label: 'Always on top', type: 'checkbox', checked: !(cfg && cfg.onTop === false), click: () => persistAndBroadcast({ ...cfg, onTop: !(cfg && cfg.onTop !== false) }) },
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
+    { label: 'Work mode (stay put, no butterfly)', type: 'checkbox', checked: !!(cfg && cfg.workMode), click: () => persistAndBroadcast({ ...cfg, workMode: !(cfg && cfg.workMode) }) },
     { label: 'Rest corner', submenu: [
       { label: 'Bottom-left', type: 'radio', checked: !!(cfg && cfg.restSide === 'left'), click: () => persistAndBroadcast({ ...cfg, restSide: 'left' }) },
       { label: 'Bottom-right', type: 'radio', checked: !(cfg && cfg.restSide === 'left'), click: () => persistAndBroadcast({ ...cfg, restSide: 'right' }) },

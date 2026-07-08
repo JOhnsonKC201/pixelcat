@@ -253,6 +253,11 @@ function groundBaselineY() {
 // to the play area, which still bounds left/right. config is null until the first
 // onConfig, so an unset flag reads as "on".
 function floorLockOn() { return !(config && config.floorLock === false); }
+// Work mode: while "working", the cat parks in its rest corner on the taskbar and
+// stays calm - no roaming, cursor-chase, startle-bolt, leaf-play, or butterfly.
+// Non-destructive: it overrides behavior while on; the underlying settings return
+// when it's off. config is null until the first onConfig, so unset reads as "off".
+function workModeOn() { return !!(config && config.workMode); }
 function restingY() {
   return floorLockOn() ? clamp(groundBaselineY(), SH + 10, viewH - 2) : zoneClampY(groundBaselineY());
 }
@@ -733,6 +738,7 @@ if (window.cat) {
   if (window.cat.onConfig) window.cat.onConfig((c) => {
     if (!c) return;
     const prevSide = config ? config.restSide : null;
+    const prevWork = config ? !!config.workMode : false;
     config = c;
     // Rest-side toggled live -> stroll over to the newly chosen home corner.
     if (prevSide !== null && prevSide !== c.restSide && !SHOT && !grabbing) {
@@ -740,6 +746,13 @@ if (window.cat) {
       roamFrom = { x: pos.x, y: pos.y };
       roamTo = { x: homeX(), y: floorLockOn() ? restingY() : pos.y };
       roamDur = 1400; roamUntil = now + roamDur; nextRoam = now + 12000;
+    }
+    // Work mode toggled on live -> walk over to the rest corner and hold there.
+    if (!prevWork && c.workMode && !SHOT && !grabbing) {
+      const now = performance.now();
+      roamFrom = { x: pos.x, y: pos.y };
+      roamTo = { x: homeX(), y: restingY() };
+      roamDur = 1200; roamUntil = now + roamDur; nextRoam = now + 12000;
     }
     if (master) master.gain.value = volNow();
     // reconcile the Lobby Jam audio with the new config (covers settings, tray, auto-resume)
@@ -1235,7 +1248,7 @@ function startBflyVisit(t) {
 // Flight + cat reaction. f = { follow, grabbing, hunting, typing, petting, startleActive, calm }.
 function updateButterflyDesk(t, dt, step, f) {
   const force = SHOT && qp.get('bfly') === '1';
-  const allow = f.follow && !lowPower && !(config && config.reducedMotion) && !(config && config.butterflyOn === false) && !f.grabbing && !f.typing;
+  const allow = f.follow && !lowPower && !(config && config.reducedMotion) && !(config && config.butterflyOn === false) && !workModeOn() && !f.grabbing && !f.typing;
   if (!bfOn) {
     // "do nothing -> the cat plays": once the cursor + keyboard have been idle a while,
     // summon a butterfly early (and keep them coming while you're away), instead of only
@@ -1247,7 +1260,7 @@ function updateButterflyDesk(t, dt, step, f) {
     if (!bfOn) return;
   }
   // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully
-  if (config && (config.reducedMotion || config.butterflyOn === false) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
+  if (config && (config.reducedMotion || config.butterflyOn === false || config.workMode) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
   wantHighFps = true;
   const dtf = Math.min(dt, 50) / 16.67;
   if (t > bfNextPal) { bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000; }
@@ -1433,7 +1446,7 @@ function draw(t) {
   // STARTLE: an abrupt cursor jump / velocity spike (the "sudden big change") makes
   // the cat flinch, freeze, then bolt or creep back. Cooldown stops re-fires.
   const startleNear = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5)) < STARTLE_RANGE;
-  if (moodOn && startleOn && !SHOT && !grabbing && t >= huntUntil && !pouncing && t > startleCooldownUntil && startleNear && (inst > STARTLE_VEL || moved > STARTLE_JUMP)) {
+  if (moodOn && startleOn && !SHOT && !grabbing && !workModeOn() && t >= huntUntil && !pouncing && t > startleCooldownUntil && startleNear && (inst > STARTLE_VEL || moved > STARTLE_JUMP)) {
     startleT0 = t; startleUntil = t + STARTLE_MS; startleCooldownUntil = t + 1500;
     startleMode = Math.random() < 0.5 ? 'bolt' : 'creep';
     startleFrom = { x: pos.x, y: pos.y };
@@ -1482,7 +1495,7 @@ function draw(t) {
   const follow = !(config && config.followCursor === false);
   const huntOn = follow && !!(config && config.huntOn);
   const dCur = Math.hypot(cursor.x - pos.x, cursor.y - (pos.y - SH * 0.5));
-  if (huntOn && !grabbing && !SHOT && velEMA > HUNT_TRIGGER && dCur > 70) { huntUntil = t + 1400; huntTarget = null; addEnergy(0.6 * step); }
+  if (huntOn && !grabbing && !SHOT && !workModeOn() && velEMA > HUNT_TRIGGER && dCur > 70) { huntUntil = t + 1400; huntTarget = null; addEnergy(0.6 * step); }
   const hunting = !startleActive && (FORCED_STATE === 'hunt' || (huntOn && t < huntUntil) || (t < huntUntil && huntTarget && bfOn));
 
   // pet detection (cursor resting on the head, slow, not hunting/grabbing)
@@ -1667,12 +1680,20 @@ function draw(t) {
     // --- autonomous roaming: a real cat wanders. When calm (not busy), now
     // and then stroll to a random spot inside the play area with a little hop-walk.
     if (nextRoam === 0) nextRoam = t + 8000 + Math.random() * 9000;
-    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && t >= playUntil && agentState === 'idle' && !(config && config.roamOn === false) && !((config && config.reducedMotion) || lowPower);
+    const roamIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && t > groomUntil && t >= playUntil && agentState === 'idle' && !(config && config.roamOn === false) && !((config && config.reducedMotion) || lowPower) && !workModeOn();
     // the chase: when a butterfly is drifting far off (and the cursor is idle), creep toward it
     const cursorIdleNow = (t - lastCursorMove) > BF_PLAY_IDLE;
     const bugStalkOn = roamIdle && follow && cursorIdleNow && bfOn && bfMode !== 'out' &&
       Math.hypot(bfX - pos.x, bfY - (pos.y - SH * 0.5)) > BUG_INTEREST_MIN;
-    if (bugStalkOn) {
+    if (workModeOn()) {
+      // Work mode: hold in the rest corner on the taskbar; walk back if nudged away.
+      // Reuses the eased roam interpolation below by aiming a short roam at the corner.
+      const parkIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && agentState === 'idle';
+      if (parkIdle && roamUntil < t) {
+        const tx = homeX(), ty = restingY();
+        if (Math.hypot(tx - pos.x, ty - pos.y) > 2) { roamFrom = { x: pos.x, y: pos.y }; roamTo = { x: tx, y: ty }; roamDur = 900; roamUntil = t + roamDur; }
+      }
+    } else if (bugStalkOn) {
       const side = Math.sign(bfX - pos.x) || 1;
       const tgX = zoneClampX(bfX - side * BUG_STANDOFF);
       if (roamUntil < t || !roamTo || Math.abs(roamTo.x - tgX) > BUG_RETARGET_DIST) {   // (re)aim as the bug drifts
@@ -1739,13 +1760,13 @@ function draw(t) {
         if (roll < 0.26) { lookTarget = { x: Math.random() * 2 - 1, y: (Math.random() * 2 - 1) * 0.5 }; lookTargetUntil = t + 800 + Math.random() * 1100; }
         else if (roll < 0.42 && !(config && config.reducedMotion)) { tailFlickT0 = t; }   // skip frequent tail-flicks in Calm mode (falls through to a gentle loaf/blink)
         else if (roll < 0.54 && !(config && config.reducedMotion)) { leanTarget = (Math.random() < 0.5 ? -1 : 1) * 0.045; leanUntil = t + 700; }   // weight shift (skipped in Calm mode)
-        else if (roll < 0.70 && band !== 'calm' && motionOK) { startPlay(t); }   // bat a drifting leaf with a paw (self-play; never grabs the cursor)
+        else if (roll < 0.70 && band !== 'calm' && motionOK && !workModeOn()) { startPlay(t); }   // bat a drifting leaf with a paw (self-play; never grabs the cursor)
         else if (roll < 0.80) { loafUntil = t + 4000 + Math.random() * 4000; }   // settle into a content loaf
         else if (roll < 0.90 && band !== 'zoomies') { groomUntil = t + 2600 + Math.random() * 1400; }   // wash its face (paw to muzzle)
         else if (roll < 0.95 && band !== 'calm' && motionOK) { doneHopPending = true; tailFlickT0 = t; }   // an occasional perk-up bounce (rare now)
         else if (band === 'calm' && Math.random() < 0.5) { yawnUntil = t + 1000; }   // a big sleepy yawn
         else { blinkUntil = t + 230; nextBlink = t + 380; }   // sleepy double-blink
-        if (band === 'zoomies' && Math.random() < 0.45 && motionOK) startPlay(t);   // hyper: more likely to break into play
+        if (band === 'zoomies' && Math.random() < 0.45 && motionOK && !workModeOn()) startPlay(t);   // hyper: more likely to break into play
         if (band === 'zoomies' && Math.random() < 0.22 && motionOK) spinUntil = t + 650;   // tail-chase pirouette
       }
     } else { nextIdleAt = 0; }

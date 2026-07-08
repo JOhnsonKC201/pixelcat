@@ -65,6 +65,9 @@ test('config.normalize fills defaults and clamps', () => {
   assert.strictEqual(normalize({ floorLock: 1 }).floorLock, true);
   assert.strictEqual(normalize({}).butterflyOn, true);
   assert.strictEqual(normalize({ butterflyOn: false }).butterflyOn, false);
+  assert.strictEqual(normalize({}).workMode, false);            // "work mode" off by default
+  assert.strictEqual(normalize({ workMode: true }).workMode, true);
+  assert.strictEqual(normalize({ workMode: 1 }).workMode, true);
   assert.strictEqual(normalize({}).playArea, null);
   const pa = normalize({ playArea: { x: 0.5, y: 0.6, w: 0.5, h: 0.4 } }).playArea;
   assert.ok(pa && pa.x === 0.5 && pa.w === 0.5, "valid play area kept");

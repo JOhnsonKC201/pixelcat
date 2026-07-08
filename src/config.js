@@ -25,6 +25,7 @@ const DEFAULTS = {
   restSide: 'right',   // which bottom corner is home (spawn + where roaming drifts back to): 'left' | 'right'
   floorLock: true,     // pin the cat to the taskbar/Dock line: it strolls left/right but never wanders up the screen
   butterflyOn: true,   // a butterfly occasionally flits in and the cat plays with it; off = no visits
+  workMode: false,     // "I'm working": park in the rest corner on the taskbar + hide the butterfly, roaming, cursor-chase, startle-bolt, and leaf-play
   volume: 100,         // master sound volume 0-100
   reducedMotion: false,// calm mode: no roaming/bouncing/screen-glow
   lowPower: false,     // fewer idle frames + slower cursor polling to spare CPU/GPU
@@ -78,6 +79,7 @@ function normalize(cfg) {
     restSide: c.restSide === 'left' ? 'left' : 'right',
     floorLock: c.floorLock === undefined ? true : !!c.floorLock,
     butterflyOn: c.butterflyOn === undefined ? true : !!c.butterflyOn,
+    workMode: !!c.workMode,
     volume: clampInt(c.volume, 0, 100, 100),
     reducedMotion: !!c.reducedMotion,
     lowPower: !!c.lowPower,
