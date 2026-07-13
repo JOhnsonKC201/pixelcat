@@ -686,6 +686,13 @@ let settleT0 = -1, settleFromY = 0, settleToY = 0, settleSquash = 0;
 // stale height and float mid-screen. resize() (top of file) only resizes the canvas;
 // this re-snaps the cat after the canvas settles. Main also calls win.setBounds() on
 // display changes (see main.js refit), which fires 'resize' too.
+// After boot, keep re-homing X to the rest corner for a brief window while the launch geometry
+// settles: viewW/viewH can arrive stale (small) on a HiDPI/multi-monitor launch, so the first
+// pins land against the wrong size. repinFloor runs on module load, every 'resize', and every
+// 'geom', so re-homing here tracks the cat to the TRUE corner as the size stabilizes. After the
+// window, only Y is re-pinned (so later display changes / user drags never yank X sideways).
+const LAUNCH_HOME_MS = 3000;
+const bootAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
 function floorIdle() {
   const t = performance.now();
   const startled = startleT0 >= 0 && t < startleUntil;
@@ -696,6 +703,7 @@ function repinFloor() {
   if (typeof pos === 'undefined' || !pos) return;   // resize can fire before pos exists
   if (!floorLockOn()) { pos.x = zoneClampX(pos.x); restSprings(); persistPos(); resumeRaf(); return; }
   if (!floorIdle()) return;                          // never yank the cat mid-interaction
+  if (performance.now() - bootAt < LAUNCH_HOME_MS) pos.x = homeX();   // launch settling: snap to the rest corner as geometry stabilizes
   pos.x = zoneClampX(pos.x);
   const target = restingY();
   if (Math.abs(target - pos.y) > 1) { settleFromY = pos.y; settleToY = target; settleT0 = performance.now(); }   // ease the drop, don't teleport
@@ -774,8 +782,9 @@ if (window.cat) {
   if (window.cat.onGeom) window.cat.onGeom((g) => {
     if (g && Number.isFinite(g.bottomInset)) geomBottomInset = g.bottomInset;
     if (g && Number.isFinite(g.bottomWorkY)) geomBottomWorkY = g.bottomWorkY;
+    resize();   // geom accompanies the overlay reaching full size; refresh viewW/viewH before re-pinning
     if (typeof pos !== 'undefined' && pos && (pos.x < EDGE_L || pos.x > viewW - EDGE_R)) pos.x = homeX();   // a resolution/display change stranded the cat off-screen -> re-home
-    repinFloor();   // settle onto the now-correct floor line (guards idle/floor-lock internally)
+    repinFloor();   // settle onto the now-correct floor line (+ re-home to the corner during launch)
   });
 }
 
@@ -1165,6 +1174,10 @@ const BF_PLAY_IDLE = 1800, BF_TOP = 46, BF_EDGE = 18, BF_SCALE = 1.25;
 // If you leave the machine alone (no cursor/keys) this long, a butterfly comes out so
 // the cat has something to play with - then keeps dropping by every so often while idle.
 const IDLE_BUTTERFLY_MS = 7500;
+// The butterfly is idle-only: it won't appear until the mouse has been still this long,
+// and it leaves the moment the mouse starts moving again (the cursor always wins).
+const BF_MOUSE_QUIET_MS = 6000;    // mouse must be still this long before a butterfly may spawn
+const BF_MOUSE_ACTIVE_MS = 500;    // mouse moved within this window => an on-screen butterfly leaves
 // Come back after being away this long and the cat notices you: happy eyes, hearts, a chirp.
 const GREET_IDLE_MS = 90000;
 // "air currents & the chase" (mirrors site/cat-live.js): the butterfly glides a drifting
@@ -1255,12 +1268,15 @@ function updateButterflyDesk(t, dt, step, f) {
     // on the slow ~50-100s periodic timer.
     const idleMs = t - Math.max(lastCursorMove, lastKeyAt);
     const idleWants = idleMs > IDLE_BUTTERFLY_MS && t > bfIdleNextVisit;
+    const mouseQuiet = (t - lastCursorMove) > BF_MOUSE_QUIET_MS;   // no butterfly while the mouse is in use
     if (force) startBflyVisit(t);
-    else if (allow && f.calm && (t > bfNextVisit || idleWants)) startBflyVisit(t);
+    else if (allow && f.calm && mouseQuiet && (t > bfNextVisit || idleWants)) startBflyVisit(t);
     if (!bfOn) return;
   }
   // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully
   if (config && (config.reducedMotion || config.butterflyOn === false || config.workMode) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
+  // idle-only: the instant the user uses the mouse again, the butterfly leaves
+  if ((t - lastCursorMove) < BF_MOUSE_ACTIVE_MS && bfMode !== 'out') bfMode = 'out';
   wantHighFps = true;
   const dtf = Math.min(dt, 50) / 16.67;
   if (t > bfNextPal) { bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000; }
