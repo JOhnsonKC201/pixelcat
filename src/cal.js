@@ -64,7 +64,7 @@ function sync(cfg) {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   clearTimers();
   if (cfg && cfg.calendar && cfg.calendar.on && cfg.calendar.icsUrl) {
-    const everyMin = Math.max(1, Math.min(15, leadOf(cfg) || 10));
+    const everyMin = 10;   // fixed refresh cadence; per-event one-shot timers (arm) do the precise firing
     poll();
     pollTimer = setInterval(poll, everyMin * 60000);
   }

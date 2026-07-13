@@ -174,6 +174,25 @@ test('calendar config normalizes (url validation + webcal + clamp)', () => {
   assert.deepStrictEqual(normalize({ calendar: 'junk' }).calendar, { on: false, icsUrl: '', leadMin: 10 });
 });
 
+test('cal-worker isBlockedIp allowlist blocks private/loopback/metadata, allows public', () => {
+  const { isBlockedIp } = require(path.join(ROOT, 'src', 'cal-worker.js'));
+  // blocked: loopback, private, link-local + cloud metadata, CGNAT, multicast/reserved
+  for (const ip of ['0.0.0.0', '127.0.0.1', '10.1.2.3', '172.16.0.1', '172.31.255.255',
+    '192.168.1.1', '169.254.169.254', '100.64.0.1', '224.0.0.1', '255.255.255.255']) {
+    assert.strictEqual(isBlockedIp(ip), true, ip + ' should be blocked');
+  }
+  // blocked IPv6: loopback, unspecified, ULA, link-local, IPv4-mapped loopback
+  for (const ip of ['::1', '::', 'fd00::1', 'fe80::1', '::ffff:127.0.0.1', '::ffff:10.0.0.1']) {
+    assert.strictEqual(isBlockedIp(ip), true, ip + ' should be blocked');
+  }
+  // not a resolvable IP -> block (defensive default)
+  assert.strictEqual(isBlockedIp('not-an-ip'), true);
+  // allowed: normal public addresses
+  for (const ip of ['93.184.216.34', '8.8.8.8', '1.1.1.1', '172.15.0.1', '172.32.0.1', '2606:2800:220:1::1']) {
+    assert.strictEqual(isBlockedIp(ip), false, ip + ' should be allowed');
+  }
+});
+
 test('imapHostFor infers/corrects the IMAP server', () => {
   const { imapHostFor } = require(path.join(ROOT, 'src', 'mail.js'));
   // infer from the email domain when the host is blank

@@ -47,13 +47,26 @@ async function assertSafeUrl(raw) {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('blocked: scheme');
   const { address } = await dnsp.lookup(url.hostname);
   if (isBlockedIp(address)) throw new Error('blocked: host');
-  return url;
+  return { url, address };
 }
 
-function fetchOnce(url) {
+function fetchOnce(url, address) {
   return new Promise((resolve, reject) => {
-    const mod = url.protocol === 'https:' ? https : http;
-    const req = mod.get(url, { timeout: FETCH_TIMEOUT, headers: { 'user-agent': 'pixelcat-cal', accept: 'text/calendar,*/*' } }, (res) => {
+    const isHttps = url.protocol === 'https:';
+    const mod = isHttps ? https : http;
+    // Connect straight to the IP we already vetted in assertSafeUrl (no re-resolution), so a
+    // rebinding host can't swap in a private/metadata IP between the DNS check and the connect
+    // (TOCTOU). The Host header + TLS SNI still carry the real hostname, so vhosts and cert
+    // validation keep working against the pinned address.
+    const opts = {
+      host: address,
+      port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname + url.search,
+      timeout: FETCH_TIMEOUT,
+      headers: { 'user-agent': 'pixelcat-cal', accept: 'text/calendar,*/*', host: url.host },
+    };
+    if (isHttps) opts.servername = url.hostname;   // TLS SNI + cert validation against the real hostname
+    const req = mod.get(opts, (res) => {
       const status = res.statusCode || 0;
       if (status >= 300 && status < 400 && res.headers.location) { res.resume(); resolve({ redirect: new URL(res.headers.location, url).toString() }); return; }
       if (status !== 200) { res.resume(); reject(new Error('http ' + status)); return; }
@@ -69,8 +82,8 @@ function fetchOnce(url) {
 async function fetchIcsSafely(start) {
   let current = start;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    const url = await assertSafeUrl(current);
-    const r = await fetchOnce(url);
+    const { url, address } = await assertSafeUrl(current);   // re-validate + re-pin every hop
+    const r = await fetchOnce(url, address);
     if (r.body != null) return r.body;
     if (r.redirect) { current = r.redirect; continue; }
     throw new Error('no body');
@@ -78,6 +91,9 @@ async function fetchIcsSafely(start) {
   throw new Error('blocked: too many redirects');
 }
 
+// Only run the fork protocol when launched as the forked entry point; when this file
+// is require()'d (e.g. from a unit test) just expose the pure functions below.
+if (require.main === module) {
 process.once('message', async (msg) => {
   const send = (m) => { try { process.send(m); } catch (e) { /* parent gone */ } };
   try {
@@ -118,3 +134,6 @@ process.once('message', async (msg) => {
 
 // Safety: never hang if no message arrives.
 setTimeout(() => process.exit(0), 30000);
+}
+
+module.exports = { isBlockedIp, assertSafeUrl, fetchIcsSafely };
