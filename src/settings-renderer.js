@@ -178,7 +178,8 @@ $('addReminder').addEventListener('click', () => {
 $('newMsg').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addReminder').click(); });
 
 function emailSave() {
-  save({ email: { on: $('emailOn').checked, user: $('emailUser').value.trim(), host: $('emailHost').value.trim(), port: Number($('emailPort').value) || 993, secure: true, intervalMin: Number($('emailInterval').value) || 5 } });
+  const port = Number($('emailPort').value) || 993;
+  save({ email: { on: $('emailOn').checked, user: $('emailUser').value.trim(), host: $('emailHost').value.trim(), port, secure: port !== 143, intervalMin: Number($('emailInterval').value) || 5 } });   // port 143 => STARTTLS (secure:false); config guards the downgrade
 }
 ['emailOn', 'emailUser', 'emailHost', 'emailPort', 'emailInterval'].forEach((id) => $(id).addEventListener('change', emailSave));
 async function refreshEmailPassState() {
@@ -224,8 +225,9 @@ $('calTest').addEventListener('click', async () => {
   $('calStatus').textContent = r && r.ok ? (r.next ? ('Loaded \u2014 next: ' + r.next) : 'Loaded \u2014 no upcoming events.') : ('Failed: ' + ((r && r.error) || 'unknown error'));
 });
 
-// "Test meow" is a real user gesture, so playing audio here always unlocks cleanly.
-$('testSound').addEventListener('click', () => { playTestMeow(); window.settings.testSound(); });
+// "Test meow" plays the cat's REAL voice in the overlay (one meow, no desktop toast) rather
+// than a second, cruder local synth. The overlay autoplays without a gesture, so it just works.
+$('testSound').addEventListener('click', () => window.settings.testSound());
 
 // Esc closes the settings window.
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.settings.close(); });
@@ -253,26 +255,3 @@ $('addTheme').addEventListener('click', async () => {
 $('exportThemes').addEventListener('click', () => window.settings.exportThemes());
 $('importThemes').addEventListener('click', async () => { themes = await window.settings.importThemes(); populateCoats(); renderThemes(); });
 
-// --- local meow preview (same synthesis the overlay uses) -------------------
-let actx = null;
-function playTestMeow() {
-  try {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-    if (actx.state === 'suspended') actx.resume();
-    const t0 = actx.currentTime, g = actx.createGain();
-    g.connect(actx.destination);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.04);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.30);
-    const o = actx.createOscillator(); o.type = 'triangle';
-    o.frequency.setValueAtTime(620, t0);
-    o.frequency.linearRampToValueAtTime(720, t0 + 0.10);
-    o.frequency.linearRampToValueAtTime(520, t0 + 0.28);
-    const o2 = actx.createOscillator(); o2.type = 'sine'; o2.detune.value = 6;
-    o2.frequency.setValueAtTime(620, t0);
-    o2.frequency.linearRampToValueAtTime(720, t0 + 0.10);
-    o2.frequency.linearRampToValueAtTime(520, t0 + 0.28);
-    o.connect(g); o2.connect(g);
-    o.start(t0); o2.start(t0); o.stop(t0 + 0.32); o2.stop(t0 + 0.32);
-  } catch (e) { /* ignore */ }
-}

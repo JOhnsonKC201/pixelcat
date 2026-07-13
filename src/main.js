@@ -668,7 +668,7 @@ ipcMain.on('settings:open', () => openSettings());
 ipcMain.on('settings:save-pattern', (_e, i) => { if (cfg) persistAndBroadcast({ ...cfg, pattern: i }); });
 ipcMain.on('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close(); });
 ipcMain.on('settings:testSound', () => {
-  notify('Hi {name}!', { source: 'test', dedupeMs: 0 });
+  notify('Hi {name}!', { source: 'test', dedupeMs: 0, os: false });   // a sound test shouldn't also pop a desktop toast
 });
 ipcMain.handle('email:hasPassword', () => mail.hasPassword());
 ipcMain.handle('email:setPassword', (_e, pw) => mail.setPassword(pw));

@@ -323,18 +323,31 @@ function drawCat(g, sp, t, palRGB, o) {
   const { bob = 0, blinking = false, look = { x: 0, y: 0 }, typing = false, eyeMode = 'open', blush = false, dilate = 1 } = o;
   const closed = blinking || eyeMode === 'happy';
   const grid = sp.grid, COLS = sp.COLS, ROWS = sp.ROWS;
-  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-    const ch = grid[r][c];
-    if (ch === '.') continue;
-    const base = ch === 'E' ? (closed ? palRGB.C : palRGB.E) : palRGB[ch];
-    if (!base) continue;
-    const isOut = ch === 'O';
-    const f = BODY.has(ch) || (ch === 'E' && closed) ? Math.max(0.82, 1.12 - (r / ROWS) * 0.34)   // floor the body shade so dark coats don't sink into the outline
-      : isOut ? 1.16 - (r / ROWS) * 0.30                                                            // rim-light: outline lit at the top, darker below
-      : 1;
-    g.globalAlpha = ch === 'H' ? HALO_ALPHA * clamp(1.3 - (r / ROWS) * 0.7, 0.5, 1.4) : 1;          // halo glows from the top, fades along the bottom
-    g.fillStyle = f === 1 ? rgbStr(base) : shadeStr(base, f);
-    g.fillRect(c * CELL, r * CELL + bob, CELL, CELL);
+  // Within a row, the base color + shade factor `f` (and thus the fillStyle string) depend only
+  // on the char, so compute each distinct char's fill ONCE per row instead of rebuilding the
+  // color string for every column cell (~720 shadeStr builds/frame -> a handful). Output is
+  // byte-identical (verified via the t=0 contact sheet).
+  const rowFill = new Map();
+  for (let r = 0; r < ROWS; r++) {
+    rowFill.clear();
+    for (let c = 0; c < COLS; c++) {
+      const ch = grid[r][c];
+      if (ch === '.') continue;
+      let style = rowFill.get(ch);
+      if (style === undefined) {
+        const base = ch === 'E' ? (closed ? palRGB.C : palRGB.E) : palRGB[ch];
+        if (!base) { rowFill.set(ch, null); continue; }
+        const isOut = ch === 'O';
+        const f = BODY.has(ch) || (ch === 'E' && closed) ? Math.max(0.82, 1.12 - (r / ROWS) * 0.34)   // floor the body shade so dark coats don't sink into the outline
+          : isOut ? 1.16 - (r / ROWS) * 0.30                                                            // rim-light: outline lit at the top, darker below
+          : 1;
+        style = f === 1 ? rgbStr(base) : shadeStr(base, f);
+        rowFill.set(ch, style);
+      } else if (style === null) continue;
+      g.globalAlpha = ch === 'H' ? HALO_ALPHA * clamp(1.3 - (r / ROWS) * 0.7, 0.5, 1.4) : 1;          // halo glows from the top, fades along the bottom
+      g.fillStyle = style;
+      g.fillRect(c * CELL, r * CELL + bob, CELL, CELL);
+    }
   }
   g.globalAlpha = 1;
   if (!typing) {
@@ -735,7 +748,7 @@ if (window.cat) {
     else agentState = 'idle';
     resumeRaf();
   });
-  if (window.cat.onScroll) window.cat.onScroll((dir) => { scrollPulses++; if (typeof dir === 'number') scrollDirRaw = dir; });
+  if (window.cat.onScroll) window.cat.onScroll((dir) => { scrollPulses++; if (typeof dir === 'number') scrollDirRaw = dir; resumeRaf(); });
   if (window.cat.onThemes) window.cat.onThemes((list) => { applyThemes(list); if (SHEET) renderSheet(); else resumeRaf(); });
   if (window.cat.onMood) window.cat.onMood((c) => {
     if (c === 'zoomies') energy = 96;
@@ -774,7 +787,6 @@ if (window.cat) {
     resumeRaf();
   });
   if (window.cat.onPower) window.cat.onPower((p) => { lowPower = !!(p && p.lowPower); resumeRaf(); });
-  if (window.cat.onRemind) window.cat.onRemind((d) => triggerReminder(d && d.message));
   if (window.cat.onNotify) window.cat.onNotify((d) => triggerNotify(d));
   if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
   if (window.cat.onTreat) window.cat.onTreat(() => dropTreat());
@@ -801,14 +813,6 @@ function triggerNotify(d) {
   bubbleUntil = performance.now() + (d.ttl || 5000);
   stretchT0 = performance.now();
   if (config && config.soundOn && d.sound !== false) playMeow();
-  resumeRaf();
-}
-// A reminder/break: show a speech bubble, do the big stretch, meow.
-function triggerReminder(message) {
-  bubbleText = template(message) || 'Meow!';
-  bubbleUntil = performance.now() + 5000;
-  stretchT0 = performance.now();
-  if (config && config.soundOn) playMeow();
   resumeRaf();
 }
 function triggerBreak() {

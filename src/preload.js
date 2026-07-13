@@ -18,7 +18,6 @@ contextBridge.exposeInMainWorld('cat', {
   onThemes: sub('themes', (list) => list),
   onMood: sub('mood', (c) => c),
   onSetArea: sub('setarea:start'),
-  onRemind: sub('remind', (d) => d),
   onBreak: sub('break'),
   onTreat: sub('treat'),
   onPomo: sub('pomo', (d) => d),
