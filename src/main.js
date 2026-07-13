@@ -633,8 +633,24 @@ function cleanup() {
   if (tray) { try { tray.destroy(); } catch (e) { /* ignore */ } tray = null; }
 }
 
+// Defense-in-depth: only accept IPC from our own local windows. Both the overlay and settings
+// windows load file:// pages, and navigation + window.open are blocked (hardenNav), so any
+// sender whose frame URL isn't file:// is bogus. Wrap on()/handle() so every handler is guarded.
+function isTrustedSender(e) {
+  const wc = e && e.sender;
+  if (!wc) return false;
+  // Primary + reliable: the IPC came from one of the windows WE created.
+  if ((win && !win.isDestroyed() && wc === win.webContents) ||
+      (settingsWin && !settingsWin.isDestroyed() && wc === settingsWin.webContents)) return true;
+  // Fallback: any local file:// frame (navigation/window.open are blocked, so this is still ours).
+  try { const u = e.senderFrame && e.senderFrame.url; return typeof u === 'string' && u.startsWith('file:'); }
+  catch (_) { return false; }
+}
+const onSecure = (ch, fn) => ipcMain.on(ch, (e, ...a) => { if (isTrustedSender(e)) fn(e, ...a); });
+const handleSecure = (ch, fn) => ipcMain.handle(ch, (e, ...a) => (isTrustedSender(e) ? fn(e, ...a) : undefined));
+
 // Renderer reports the cat's interactive bbox (overlay-local px) + drag state.
-ipcMain.on('hot', (_e, o) => {
+onSecure('hot', (_e, o) => {
   if (!o || typeof o !== 'object') return;
   const num = (v) => (Number.isFinite(v) ? v : 0);   // reject NaN/Infinity from a misbehaving/forged renderer (else the click-through bbox could become unbounded and capture all clicks)
   hot = { x: num(o.x), y: num(o.y), w: Math.max(0, num(o.w)), h: Math.max(0, num(o.h)), dragging: !!o.dragging };
@@ -652,9 +668,9 @@ function endSetArea() {
   clearTimeout(areaTimer); areaTimer = null;
   if (win && !win.isDestroyed()) win.setIgnoreMouseEvents(true, { forward: true });
 }
-ipcMain.on('setarea:done', (_e, area) => { endSetArea(); if (area && cfg) persistAndBroadcast({ ...cfg, playArea: area }); });
-ipcMain.on('quit', () => app.quit());
-ipcMain.on('sheet:image', (_e, dataUrl) => {
+onSecure('setarea:done', (_e, area) => { endSetArea(); if (area && cfg) persistAndBroadcast({ ...cfg, playArea: area }); });
+onSecure('quit', () => app.quit());
+onSecure('sheet:image', (_e, dataUrl) => {
   try {
     const b64 = String(dataUrl || '').replace(/^data:image\/png;base64,/, '');
     const dir = path.join(APP_DIR, 'previews');
@@ -664,18 +680,18 @@ ipcMain.on('sheet:image', (_e, dataUrl) => {
   } catch (e) { console.log('[sheet-error]', e.message); }
   app.quit();
 });
-ipcMain.on('settings:open', () => openSettings());
-ipcMain.on('settings:save-pattern', (_e, i) => { if (cfg) persistAndBroadcast({ ...cfg, pattern: i }); });
-ipcMain.on('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close(); });
-ipcMain.on('settings:testSound', () => {
+onSecure('settings:open', () => openSettings());
+onSecure('settings:save-pattern', (_e, i) => { if (cfg) persistAndBroadcast({ ...cfg, pattern: i }); });
+onSecure('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close(); });
+onSecure('settings:testSound', () => {
   notify('Hi {name}!', { source: 'test', dedupeMs: 0, os: false });   // a sound test shouldn't also pop a desktop toast
 });
-ipcMain.handle('email:hasPassword', () => mail.hasPassword());
-ipcMain.handle('email:setPassword', (_e, pw) => mail.setPassword(pw));
-ipcMain.handle('email:test', (_e, pw) => mail.test(cfg, pw && String(pw).length ? String(pw) : null));
-ipcMain.handle('calendar:test', () => cal.test(cfg));
-ipcMain.handle('settings:get', () => cfg);
-ipcMain.handle('settings:save', (_e, partial) => {
+handleSecure('email:hasPassword', () => mail.hasPassword());
+handleSecure('email:setPassword', (_e, pw) => mail.setPassword(pw));
+handleSecure('email:test', (_e, pw) => mail.test(cfg, pw && String(pw).length ? String(pw) : null));
+handleSecure('calendar:test', () => cal.test(cfg));
+handleSecure('settings:get', () => cfg);
+handleSecure('settings:save', (_e, partial) => {
   // reject anything that isn't a small plain object before merging (normalize is the
   // real sanitizer, but this caps the in-flight allocation and drops junk payloads)
   if (!partial || typeof partial !== 'object' || Array.isArray(partial)) return cfg;
@@ -683,15 +699,15 @@ ipcMain.handle('settings:save', (_e, partial) => {
   persistAndBroadcast({ ...cfg, ...partial });
   return cfg;
 });
-ipcMain.handle('themes:get', () => themesCache);
-ipcMain.handle('themes:add', (_e, t) => { themesCache = themes.save([...themesCache, t]); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
-ipcMain.handle('themes:delete', (_e, name) => { themesCache = themes.save(themesCache.filter((x) => x.name !== name)); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
-ipcMain.handle('themes:export', async () => {
+handleSecure('themes:get', () => themesCache);
+handleSecure('themes:add', (_e, t) => { themesCache = themes.save([...themesCache, t]); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
+handleSecure('themes:delete', (_e, name) => { themesCache = themes.save(themesCache.filter((x) => x.name !== name)); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
+handleSecure('themes:export', async () => {
   const r = await dialog.showSaveDialog(settingsWin || win, { title: 'Export custom coats', defaultPath: 'pixelcat-coats.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
   if (r.canceled || !r.filePath) return false;
   try { fs.writeFileSync(r.filePath, JSON.stringify({ themes: themesCache }, null, 2)); return true; } catch (e) { return false; }
 });
-ipcMain.handle('themes:import', async () => {
+handleSecure('themes:import', async () => {
   const r = await dialog.showOpenDialog(settingsWin || win, { title: 'Import custom coats', properties: ['openFile'], filters: [{ name: 'JSON', extensions: ['json'] }] });
   if (r.canceled || !r.filePaths || !r.filePaths[0]) return themesCache;
   try {
