@@ -71,6 +71,11 @@
 
   // ---- ported paint functions (ctx passed explicitly as `g`) -----------------
 
+  const HALO_ALPHA = 0.55;
+  // Frame clock the live hero shares with drawCat's whiskers; the render loop sets it
+  // to the frame time and the static/reduced-motion frame pins it to 0 (whiskers at rest).
+  let whiskT = 0;
+
   function drawCat(g, sp, palRGB, o) {
     const { bob = 0, blinking = false, look = { x: 0, y: 0 }, eyeMode = 'open', blush = false, dilate = 1, eyeSquint = 0 } = o;
     const closed = blinking || eyeMode === 'happy';
@@ -80,14 +85,22 @@
       if (ch === '.') continue;
       const base = ch === 'E' ? (closed ? palRGB.C : palRGB.E) : palRGB[ch];
       if (!base) continue;
-      const f = BODY.has(ch) || (ch === 'E' && closed) ? 1.12 - (r / ROWS) * 0.34 : 1;
+      const f = BODY.has(ch) || (ch === 'E' && closed) ? Math.max(0.82, 1.12 - (r / ROWS) * 0.34)   // floor the body shade so dark coats don't sink into the outline
+        : ch === 'O' ? 1.16 - (r / ROWS) * 0.30                                                      // rim-light: outline lit at the top, grounded below
+        : 1;
+      g.globalAlpha = ch === 'H' ? HALO_ALPHA * clamp(1.3 - (r / ROWS) * 0.7, 0.5, 1.4) : 1;          // halo glows from the top, fades along the bottom
       g.fillStyle = f === 1 ? rgbStr(base) : shadeStr(base, f);
       g.fillRect(c * CELL, r * CELL + bob, CELL, CELL);
     }
+    g.globalAlpha = 1;
     g.strokeStyle = 'rgba(245,245,245,0.6)'; g.lineWidth = 1; g.lineCap = 'round';
     const my = sp.muzzle.y + bob, cl = sp.muzzle.x - 4.5 * CELL, cr = sp.muzzle.x + 4.5 * CELL;
+    // living whiskers: a slow waft plus a quick twitch every ~5s (whiskT==0 => at rest)
+    const waft = Math.sin(whiskT / 1400) * 0.6;
+    const twitch = (whiskT % 5200) < 200 ? Math.sin(whiskT / 26) * 1.5 : 0;
     for (const [sx, dir] of [[cl, -1], [cr, 1]]) for (let i = 0; i < 3; i++) {
-      g.beginPath(); g.moveTo(sx, my + i * 3 - 2); g.lineTo(sx + dir * 13, my + i * 5 - 1); g.stroke();
+      const tipY = my + i * 5 - 1 + waft + twitch + Math.sin(whiskT / 900 + i) * 0.5;
+      g.beginPath(); g.moveTo(sx, my + i * 3 - 2); g.lineTo(sx + dir * 13, tipY); g.stroke();
     }
     if (blush) {
       g.globalAlpha = 0.52; g.fillStyle = '#ffaab8';
@@ -1238,6 +1251,7 @@
       if (!running) return;
       if (document.hidden || !onScreen) return;
       const t = now();
+      whiskT = t;
       const fdt = lastFrameT ? Math.min(60, t - lastFrameT) : 16; lastFrameT = t;
       if (reducedMotion) { if (!drewStatic) { paintStatic(); drewStatic = true; } return; }
       // update the head-hover pet latch BEFORE resolveState so the 30->60fps choice and
@@ -1299,6 +1313,7 @@
     }
     function paintStatic() {
       resize();
+      whiskT = 0;   // static/reduced-motion frame: whiskers rest, deterministic output
       ctx.clearRect(0, 0, cssW, cssH);
       ctx.save(); ctx.translate(footX, footY); ctx.scale(scale, scale); drawShadow(ctx, 0, 0, 0.17, SW * 0.30); ctx.restore();
       ctx.save(); ctx.translate(footX, footY); ctx.scale(scale, scale); drawTail(ctx, 0, 0, 0, pal, -1, false, SW, SH); ctx.restore();
