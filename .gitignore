@@ -22,6 +22,10 @@ previews/
 # Local code intelligence (CodeGraph index)
 .codegraph/
 
+# Local-only launcher + unrelated coursework kept in this folder
+launch-pixelcat.vbs
+CODEPATH Proj/
+
 # OS
 .DS_Store
 Thumbs.db
