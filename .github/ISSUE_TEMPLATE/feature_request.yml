@@ -1,0 +1,15 @@
+name: Feature request
+description: Something the cat should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should the cat do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would this be delightful (or useful)?
+      description: pixelcat aims to feel alive without getting in your way, so ideas that fit that spirit land best.

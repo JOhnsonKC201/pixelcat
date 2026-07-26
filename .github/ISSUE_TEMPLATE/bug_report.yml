@@ -1,0 +1,44 @@
+name: Bug report
+description: The cat did something wrong (or nothing at all)
+labels: [bug]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where are you running it?
+      options:
+        - Windows (installer)
+        - Windows (from source, npm start)
+        - macOS beta (dmg/zip)
+        - macOS (from source)
+        - Browser demo (pixelcat-jet.vercel.app)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From the release you installed, or the commit hash if running from source.
+      placeholder: v0.2.0
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect the cat to do, and what did it actually do?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start the cat
+        2. Scroll in any app
+        3. ...
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything unusual about your setup?
+      description: Multiple monitors, HiDPI scaling, fullscreen apps, non-default settings (play area, work mode), etc.

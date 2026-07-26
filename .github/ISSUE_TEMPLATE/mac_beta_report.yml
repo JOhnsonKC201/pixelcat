@@ -1,0 +1,34 @@
+name: macOS beta test report
+description: Ran the untested mac build? Good or bad, this is the most useful issue you can file
+labels: [help wanted]
+title: "[mac beta] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The macOS port is code-complete but has never been smoke-tested on real hardware. Whatever happened when you ran it, reporting it here helps enormously. Remember: the build is unsigned, so right-click the app and choose Open the first time, and grant Accessibility permission for typing/cursor reactions.
+  - type: input
+    id: hardware
+    attributes:
+      label: Mac + macOS version
+      placeholder: M2 MacBook Air, macOS 15.2
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Smoke checklist
+      description: Check everything that WORKED.
+      options:
+        - label: App launches (right-click → Open past Gatekeeper)
+        - label: Overlay shows over all apps and Spaces, including fullscreen
+        - label: Clicks pass through everywhere except on the cat
+        - label: Typing reaction works after granting Accessibility
+        - label: The cat rests on the Dock edge (not the menu bar)
+        - label: Tray menu works in the menu bar
+        - label: Login launch works
+  - type: textarea
+    id: notes
+    attributes:
+      label: What broke, looked wrong, or felt off?
+      description: Crashes, visual glitches, permission weirdness, console output, anything.
