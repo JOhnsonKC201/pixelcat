@@ -4,7 +4,8 @@
 // BUILDS, draw } (the palette arrays are re-exported from cat-sprite for the
 // settings dropdown/preview).
 (function () {
-  function drawCatStatic(g, sp, palRGB) {
+  function drawCatStatic(g, sp, palRGB, opts) {
+    const noWhiskers = !!(opts && opts.noWhiskers);
     const grid = sp.grid, COLS = sp.COLS, ROWS = sp.ROWS;
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const ch = grid[r][c]; if (ch === '.') continue;
@@ -13,9 +14,11 @@
       g.fillStyle = f === 1 ? rgbStr(base) : shadeStr(base, f);
       g.fillRect(c * CELL, r * CELL, CELL, CELL);
     }
-    g.strokeStyle = 'rgba(245,245,245,0.6)'; g.lineWidth = 1; g.lineCap = 'round';
-    const my = sp.muzzle.y, cl = sp.muzzle.x - 4.5 * CELL, cr = sp.muzzle.x + 4.5 * CELL;
-    for (const [sx, dir] of [[cl, -1], [cr, 1]]) for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(sx, my + i * 3 - 2); g.lineTo(sx + dir * 13, my + i * 5 - 1); g.stroke(); }
+    if (!noWhiskers) {
+      g.strokeStyle = 'rgba(245,245,245,0.6)'; g.lineWidth = 1; g.lineCap = 'round';
+      const my = sp.muzzle.y, cl = sp.muzzle.x - 4.5 * CELL, cr = sp.muzzle.x + 4.5 * CELL;
+      for (const [sx, dir] of [[cl, -1], [cr, 1]]) for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(sx, my + i * 3 - 2); g.lineTo(sx + dir * 13, my + i * 5 - 1); g.stroke(); }
+    }
     for (const e of sp.eyes) {
       if (!isFinite(e.cx) || e.w <= 0) continue;
       const pw = Math.max(4, Math.round(e.w * 0.46)), ph = Math.max(5, Math.round(e.h * 0.7));
@@ -39,5 +42,20 @@
     const dw = sp.SW * scale, dh = sp.SH * scale;
     ctx.drawImage(oc, 0, 0, sp.SW, sp.SH, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
   }
-  window.PixelcatPreview = { PATTERNS, PATTERN_BUILD, TABBY, BUILDS, draw };
+  // Same preview for the dog, using the canine composer and no whiskers.
+  function drawDog(canvas, pal, build) {
+    if (!canvas || !pal || typeof composeSitDog !== 'function') return;
+    const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const B = Object.assign({}, DOG_BUILDS[build] || DOG_BUILDS[DOG_PATTERN_BUILD[0]]);
+    const sp = buildSprite(24, 30, () => composeSitDog(B));
+    const palRGB = { O: toRgb(pal.outline), C: toRgb(pal.coat), K: toRgb(pal.mark), W: toRgb(pal.white), X: toRgb(pal.patch), I: toRgb(pal.inner), N: toRgb(pal.nose), E: toRgb(pal.eye), H: toRgb(HALO), T: toRgb(pal.tongue || '#e8747f') };
+    const oc = document.createElement('canvas'); oc.width = sp.SW; oc.height = sp.SH;
+    const octx = oc.getContext('2d'); octx.imageSmoothingEnabled = false;
+    drawCatStatic(octx, sp, palRGB, { noWhiskers: true });
+    const scale = Math.min((canvas.width - 8) / sp.SW, (canvas.height - 8) / sp.SH);
+    const dw = sp.SW * scale, dh = sp.SH * scale;
+    ctx.drawImage(oc, 0, 0, sp.SW, sp.SH, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+  }
+  window.PixelcatPreview = { PATTERNS, PATTERN_BUILD, TABBY, BUILDS, draw, drawDog };
 })();

@@ -6,18 +6,33 @@ let cfg = null;
 
 // Populate the coat dropdown from the built-in names plus any custom coats.
 let themes = [];
+// Which species the window is currently editing, and therefore which list of
+// coats to show and which config field a pick writes to.
+function curSpecies() { return (cfg && cfg.species === 'dog') ? 'dog' : 'cat'; }
+function coatField() { return curSpecies() === 'dog' ? 'dogPattern' : 'pattern'; }
 function populateCoats() {
   const sel = $('pattern'); const cur = sel.value;
+  const dog = curSpecies() === 'dog';
   sel.innerHTML = '';
-  const names = (window.PATTERN_NAMES || []).concat(themes.map((t) => t.name));
+  // Custom coats are built from the cat's geometry, so they are only offered for cats.
+  const base = dog ? (window.DOG_COATS || []) : (window.PATTERN_NAMES || []);
+  const names = dog ? base.slice() : base.concat(themes.map((t) => t.name));
   names.forEach((name, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = name; sel.appendChild(o); });
-  if (cfg) sel.value = String(cfg.pattern || 0); else if (cur) sel.value = cur;
+  const lbl = $('coatLabel'); if (lbl) lbl.textContent = dog ? 'Breed' : 'Coat';
+  if (cfg) sel.value = String(cfg[coatField()] || 0); else if (cur) sel.value = cur;
+  const spSel = $('species'); if (spSel) spSel.value = curSpecies();
   drawPreview();
 }
 function drawPreview() {
   const P = window.PixelcatPreview, cv = $('coatPreview');
   if (!P || !cv) return;
   const i = Number($('pattern').value) || 0;
+  if (curSpecies() === 'dog') {
+    const pal = (window.DOG_PATTERNS || [])[i];
+    if (!pal || !P.drawDog) return;
+    P.drawDog(cv, pal, (window.DOG_PATTERN_BUILD || [])[i]);
+    return;
+  }
   let pal, build, tabby;
   if (i < P.PATTERNS.length) { pal = P.PATTERNS[i]; build = P.PATTERN_BUILD[i]; tabby = P.TABBY[i]; }
   else { const t = themes[i - P.PATTERNS.length]; if (!t) return; pal = t; build = t.build; tabby = t.tabby; }
@@ -42,7 +57,7 @@ function render() {
   // Don't stomp the name field while the user is typing in it (a broadcast config
   // echo would otherwise overwrite it with the normalized value and jump the caret).
   if (document.activeElement !== $('name')) $('name').value = cfg.name || '';
-  $('pattern').value = String(cfg.pattern || 0);
+  $('pattern').value = String(cfg[coatField()] || 0);
   $('breakMinutes').value = String(cfg.breakMinutes || 0);
   $('followCursor').checked = !!cfg.followCursor;
   $('huntOn').checked = !!cfg.huntOn;
@@ -115,7 +130,13 @@ $('name').addEventListener('input', () => {
   clearTimeout(nameTimer);
   nameTimer = setTimeout(() => save({ name: $('name').value }), 300);
 });
-$('pattern').addEventListener('change', () => { save({ pattern: Number($('pattern').value) }); drawPreview(); });
+$('pattern').addEventListener('change', () => { save({ [coatField()]: Number($('pattern').value) }); drawPreview(); });
+$('species').addEventListener('change', () => {
+  const next = $('species').value === 'dog' ? 'dog' : 'cat';
+  if (cfg) cfg.species = next;             // optimistic, so the list swaps before main echoes back
+  save({ species: next });
+  populateCoats();
+});
 $('breakMinutes').addEventListener('change', () => save({ breakMinutes: Number($('breakMinutes').value) }));
 $('followCursor').addEventListener('change', () => save({ followCursor: $('followCursor').checked }));
 $('huntOn').addEventListener('change', () => save({ huntOn: $('huntOn').checked }));

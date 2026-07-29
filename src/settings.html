@@ -161,7 +161,12 @@
         <input type="text" id="name" maxlength="24" placeholder="e.g. John" />
       </div>
       <div class="row">
-        <label class="lbl" for="pattern">Coat</label>
+        <label class="lbl" for="species">Pet</label>
+        <select id="species">
+          <option value="cat">🐱  Cat</option>
+          <option value="dog">🐶  Dog</option>
+        </select>
+        <label class="lbl" for="pattern" id="coatLabel">Coat</label>
         <select id="pattern"></select>
         <div class="coatPreview-wrap">
           <canvas id="coatPreview" width="120" height="150"></canvas>
