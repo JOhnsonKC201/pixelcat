@@ -191,7 +191,63 @@ function composeRearUp(B) {
   ellipse(8, 20, 2.2, 2.8, 'X', ['C', 'K']); ellipse(16, 24, 2.0, 2.2, 'X', ['C', 'K']);
 }
 
-const spriteHunt = buildSprite(30, 20, composeHunt);
+// ---- species -----------------------------------------------------------------
+// The overlay hosts either a cat or a dog. Rather than branch at every draw site,
+// the active species REWRITES the shared sprite/palette tables, so everything
+// downstream (tray coats, settings, contact sheet, themes) keeps working unchanged.
+// The cat's built-in tables are snapshotted first because applyThemes() mutates
+// them in place and we need a clean copy to restore when switching back.
+const CAT_BASE = { patterns: PATTERNS.slice(), build: PATTERN_BUILD.slice(), tabby: TABBY.slice() };
+const forcedSpecies = qp.get('species');
+let species = forcedSpecies === 'dog' || forcedSpecies === 'cat'
+  ? forcedSpecies
+  : (localStorage.getItem('species') === 'dog' ? 'dog' : 'cat');
+const isDog = () => species === 'dog';
+
+function speciesDefs(sp) {
+  if (sp === 'dog') {
+    return {
+      patterns: DOG_PATTERNS, build: DOG_PATTERN_BUILD, tabby: DOG_PATTERN_BUILD.map(() => false),
+      builds: DOG_BUILDS,
+      sit: composeSitDog, type: composeTypeDog, loaf: composeCurlDog, rear: composeBegDog,
+      hunt: composeBowDog, huntCols: 30, huntRows: 22,
+      typeCols: 24, typeRows: 24,
+    };
+  }
+  return {
+    patterns: CAT_BASE.patterns, build: CAT_BASE.build, tabby: CAT_BASE.tabby,
+    builds: BUILDS,
+    sit: composeSit, type: composeTypeFront, loaf: composeLoaf, rear: composeRearUp,
+    hunt: composeHunt, huntCols: 30, huntRows: 20,
+    typeCols: 24, typeRows: 24,
+  };
+}
+
+// Build descriptor for coat i under the active species. Cats carry a `tabby`
+// flag; dogs carry breed geometry (ear/tail/leg length) straight off the build.
+function buildFor(i, D) {
+  const b = D.builds[D.build[i]] || {};
+  return { ...b, tabby: !!D.tabby[i] };
+}
+
+// Rewrite the shared coat tables in place. Everything that reads PATTERNS /
+// PATTERN_BUILD / TABBY (tray, settings, themes, contact sheet) then sees the
+// active species without needing to know a species exists at all.
+function installTables(D) {
+  PATTERNS.length = 0; for (const p of D.patterns) PATTERNS.push(p);
+  PATTERN_BUILD.length = 0; for (const b of D.build) PATTERN_BUILD.push(b);
+  TABBY.length = 0; for (const t of D.tabby) TABBY.push(t);
+}
+
+let SPECIES_DEFS = speciesDefs(species);
+installTables(SPECIES_DEFS);
+let spriteHunt = buildSprite(SPECIES_DEFS.huntCols, SPECIES_DEFS.huntRows, () => SPECIES_DEFS.hunt(buildFor(0, SPECIES_DEFS)));
+let huntSprites = null;   // dogs vary the bow by breed (markings); cats share one crouch
+function huntSpriteFor(i) { return (huntSprites && huntSprites[i]) || spriteHunt; }
+function buildHuntSprites(D) {
+  return D === null || !isDog() ? null
+    : D.build.map((b, i) => buildSprite(D.huntCols, D.huntRows, () => D.hunt(buildFor(i, D))));
+}
 const TW = 24 * CELL, TH = 24 * CELL;            // front-facing kneading-cat dims (per-coat sprites built below)
 // Sit grid is always 24x30, so SW/SH and the mochi bands stay constant across the
 // per-coat body builds (different shapes, same canvas). The sit sprites themselves
@@ -269,16 +325,18 @@ const octx = oc.getContext('2d'); octx.imageSmoothingEnabled = false;
 const HEAD_SRC = 14 * CELL, FEET_SRC = 7 * CELL, MID_SRC = SH - HEAD_SRC - FEET_SRC;
 
 
-const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeSit({ ...BUILDS[b], tabby: TABBY[i] })));
+const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => SPECIES_DEFS.sit(buildFor(i, SPECIES_DEFS))));
 // each coat also gets its own typing (kneading) body, so every breed types differently
 // one shared front "kneading cat" shape, recoloured per coat (+ tabby stripes / fluffy tufts)
-const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 24, () => composeTypeFront({ tabby: TABBY[i], fluff: BUILDS[b].fluff })));
+const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 24, () => SPECIES_DEFS.type(buildFor(i, SPECIES_DEFS))));
 // and a dedicated loaf (resting) body per coat - same 24x30 size as the sit sprite
-const loafSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeLoaf({ ...BUILDS[b], tabby: TABBY[i] })));
+const loafSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => SPECIES_DEFS.loaf(buildFor(i, SPECIES_DEFS))));
 // and a rear-up "bat the butterfly" body per coat - same 24x30 size as the sit sprite
-const rearSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => composeRearUp({ ...BUILDS[b], tabby: TABBY[i] })));
-const DEFAULT_PATTERN = Math.max(0, PATTERNS.findIndex((p) => p.name === 'Tuxedo'));   // tuxedo is the out-of-box coat
-const storedPattern = localStorage.getItem('pattern');
+const rearSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => SPECIES_DEFS.rear(buildFor(i, SPECIES_DEFS))));
+huntSprites = buildHuntSprites(SPECIES_DEFS);
+const DEFAULT_PATTERN = Math.max(0, PATTERNS.findIndex((p) => p.name === (species === 'dog' ? 'Golden Retriever' : 'Tuxedo')));
+const coatKey = (sp) => (sp === 'dog' ? 'dogPattern' : 'pattern');
+const storedPattern = localStorage.getItem(coatKey(species));
 let patternIndex = storedPattern != null ? Number(storedPattern) : DEFAULT_PATTERN;
 if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
 const forcedPattern = qp.get('pattern');
@@ -290,29 +348,70 @@ if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().in
 // Cached "cold" (non-overheat) palette, rebuilt only when the coat changes - avoids
 // recomputing ~12 colour conversions every single frame. Invalidated in applyThemes().
 let _palKey = -1, _coldPalRGB = null, _coldPal = null;
-const BASE_PATTERNS = PATTERNS.length;
+let BASE_PATTERNS = PATTERNS.length;
 function applyThemes(list) {
   _palKey = -1;   // coat palettes changed -> force a cold-palette rebuild next frame
   PATTERNS.length = BASE_PATTERNS; PATTERN_BUILD.length = BASE_PATTERNS; TABBY.length = BASE_PATTERNS;
   sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS; loafSprites.length = BASE_PATTERNS; rearSprites.length = BASE_PATTERNS;
   for (const th of (Array.isArray(list) ? list : [])) {
     if (!th || !th.name || !th.coat) continue;
-    const build = BUILDS[th.build] ? th.build : 'standard';
+    const build = (SPECIES_DEFS.builds[th.build] || BUILDS[th.build]) ? th.build : (isDog() ? DOG_PATTERN_BUILD[0] : 'standard');
     PATTERNS.push({ name: th.name, coat: th.coat, mark: th.mark || th.coat, white: th.white || th.coat,
       patch: th.patch || th.coat, eye: th.eye || '#8bbf5a', nose: th.nose || '#e0888f',
       inner: th.inner || '#f0b6a0', outline: th.outline || '#222831' });
     PATTERN_BUILD.push(build);
     TABBY.push(!!th.tabby);
-    sprites.push(buildSprite(24, 30, () => composeSit({ ...BUILDS[build], tabby: !!th.tabby })));
-    typeSprites.push(buildSprite(24, 24, () => composeTypeFront({ tabby: !!th.tabby, fluff: BUILDS[build].fluff })));
-    loafSprites.push(buildSprite(24, 30, () => composeLoaf({ ...BUILDS[build], tabby: !!th.tabby })));
-    rearSprites.push(buildSprite(24, 30, () => composeRearUp({ ...BUILDS[build], tabby: !!th.tabby })));
+    const D = SPECIES_DEFS, tb = { ...(D.builds[build] || BUILDS[build] || {}), tabby: !!th.tabby };
+    sprites.push(buildSprite(24, 30, () => D.sit(tb)));
+    typeSprites.push(buildSprite(24, 24, () => D.type(tb)));
+    loafSprites.push(buildSprite(24, 30, () => D.loaf(tb)));
+    rearSprites.push(buildSprite(24, 30, () => D.rear(tb)));
+    if (huntSprites) huntSprites.push(buildSprite(D.huntCols, D.huntRows, () => D.hunt(tb)));
   }
   if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
   if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
 }
 
+// Swap species live (tray or settings). Rebuilds every sprite table in place so
+// the running overlay never needs a restart.
+function setSpecies(next, coatIdx) {
+  const want = next === 'dog' ? 'dog' : 'cat';
+  if (want === species && coatIdx == null) return false;
+  const changed = want !== species;
+  if (changed) {
+    species = want;
+    localStorage.setItem('species', species);
+    SPECIES_DEFS = speciesDefs(species);
+    installTables(SPECIES_DEFS);
+    BASE_PATTERNS = PATTERNS.length;
+    const D = SPECIES_DEFS;
+    const rebuild = (arr, cols, rows, fn) => {
+      arr.length = 0;
+      for (let i = 0; i < D.build.length; i++) arr.push(buildSprite(cols, rows, () => fn(buildFor(i, D))));
+    };
+    rebuild(sprites, 24, 30, D.sit);
+    rebuild(typeSprites, 24, 24, D.type);
+    rebuild(loafSprites, 24, 30, D.loaf);
+    rebuild(rearSprites, 24, 30, D.rear);
+    spriteHunt = buildSprite(D.huntCols, D.huntRows, () => D.hunt(buildFor(0, D)));
+    huntSprites = buildHuntSprites(D);
+    _palKey = -1;                        // force a cold-palette rebuild for the new coats
+    climbImgs = {};                      // painted climb frames are cat-only art
+    ball = null; pantUntil = 0; wagBoost = 0;   // drop any in-flight dog-only state
+  }
+  const stored = coatIdx != null ? coatIdx : Number(localStorage.getItem(coatKey(species)));
+  patternIndex = Number.isFinite(stored) && stored >= 0 && stored < PATTERNS.length
+    ? stored
+    : Math.max(0, PATTERNS.findIndex((p) => p.name === (isDog() ? 'Golden Retriever' : 'Tuxedo')));
+  localStorage.setItem(coatKey(species), String(patternIndex));
+  _palKey = -1;
+  return changed;
+}
+
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+// Excitement bleeds off after a fetch/greeting rather than snapping back, so the
+// tail eases down instead of cutting from a whip to a sway in one frame.
+function decayWag(dt) { if (wagBoost > 0) wagBoost = Math.max(0, wagBoost - dt * 0.00035); }
 const HOT_BODY = '#d9534f', HOT_OUTLINE = '#7a1f1a';
 
 // ---- draw the cat body into context g (local origin 0,0) -------------------
@@ -350,7 +449,10 @@ function drawCat(g, sp, t, palRGB, o) {
     }
   }
   g.globalAlpha = 1;
-  if (!typing) {
+  // A dog with cat whiskers reads as a cat wearing a dog costume, so the whisker
+  // pass is skipped entirely and a panting tongue takes its place.
+  if (o.panting) drawTongue(g, sp, bob, t, palRGB);
+  if (!typing && !isDog()) {
     g.strokeStyle = 'rgba(245,245,245,0.6)'; g.lineWidth = 1; g.lineCap = 'round';
     const my = sp.muzzle.y + bob, cl = sp.muzzle.x - 4.5 * CELL, cr = sp.muzzle.x + 4.5 * CELL;
     // whiskers are alive: a slow waft plus a quick twitch every ~5s (t==0 on the
@@ -388,6 +490,80 @@ function drawCat(g, sp, t, palRGB, o) {
       g.fillRect(px + pw - 3, py + 1, 2, 2);        // bright sparkle (top-right)
       g.fillStyle = 'rgba(255,255,255,0.4)';
       g.fillRect(px + 1, py + ph - 3, 2, 2);        // soft glint (bottom-left)
+    }
+  }
+}
+
+// A lolling tongue under the muzzle. Dogs pant after exertion and when hot, and
+// it is the single cheapest way to make the sprite read as happy rather than blank.
+function drawTongue(g, sp, bob, t, palRGB) {
+  const mx = sp.muzzle.x, my = sp.muzzle.y + bob;
+  const lol = 3 + Math.sin(t / 260) * 1.6;             // the tongue bobs with the breath
+  const w = 5, h = 4 + lol;
+  g.fillStyle = 'rgb(90,32,40)';                        // dark rim so it reads on any coat
+  g.fillRect(Math.round(mx - w / 2) - 1, Math.round(my + 2), w + 2, Math.round(h) + 1);
+  g.fillStyle = (palRGB && palRGB.T) ? rgbStr(palRGB.T) : '#e8747f';
+  g.fillRect(Math.round(mx - w / 2), Math.round(my + 2), w, Math.round(h));
+  g.fillStyle = 'rgba(255,255,255,0.35)';
+  g.fillRect(Math.round(mx - 1), Math.round(my + 4), 1, Math.round(h) - 3);   // centre crease
+}
+
+// A dog's tail is a different instrument from a cat's: shorter, thicker, carried
+// HIGH, and it wags from the base in a wide fast arc instead of the cat's slow
+// rolling S. Shape varies by breed (curl / stub / plume / feather / straight),
+// which is a big part of telling the breeds apart at this size.
+const TAIL_SHAPE = {
+  straight: { n: 8, len: 0.055, rest: [-0.55, -0.45, -0.36, -0.28, -0.22, -0.16, -0.10, -0.05], thick: 7, taper: 3.2 },
+  feather:  { n: 9, len: 0.052, rest: [-0.70, -0.62, -0.55, -0.48, -0.42, -0.36, -0.30, -0.24, -0.18], thick: 9, taper: 4.6 },
+  plume:    { n: 9, len: 0.050, rest: [-0.95, -0.88, -0.80, -0.72, -0.64, -0.56, -0.48, -0.40, -0.32], thick: 8.5, taper: 4.2 },
+  curl:     { n: 9, len: 0.048, rest: [-1.30, -1.55, -1.85, -2.20, -2.60, -3.00, -3.40, -3.80, -4.15], thick: 7.5, taper: 3.4 },
+  stub:     { n: 4, len: 0.045, rest: [-0.85, -0.70, -0.55, -0.42], thick: 8, taper: 3.0 },
+};
+function dogTailShape() { return TAIL_SHAPE[DOG_TAILS[patternIndex] || 'straight'] || TAIL_SHAPE.straight; }
+
+function drawDogTail(footX, footY, t, pal, flickT0, petting, mood) {
+  const S = dogTailShape();
+  const baseX = footX + SW * 0.19, baseY = footY - SH * 0.30;
+  const segLen = SH * S.len;
+  const calm = !!(config && config.reducedMotion);
+  // Wag rate and amplitude both ride the mood: a calm dog sways, an excited one
+  // whips. `wagBoost` spikes on greetings, treats and a caught ball.
+  const excite = clamp((mood || 0) + wagBoost + (petting ? 0.55 : 0), 0, 1.6);
+  const rate = calm ? 620 : 260 - excite * 130;
+  const amp = (calm ? 0.10 : 0.20 + excite * 0.34) * (petting ? 1.25 : 1);
+  let flick = 0;
+  if (flickT0 >= 0 && t - flickT0 < 650) { const e = (t - flickT0) / 650; flick = Math.sin(e * Math.PI * 4) * (1 - e) * 0.5; }
+  const wag = Math.sin(t / rate) * amp + flick;
+  const pts = [[baseX, baseY]];
+  let x = baseX, y = baseY, dev = 0;
+  for (let i = 0; i < S.n; i++) {
+    const w = (i + 1) / S.n;
+    dev += wag * w * w * 0.9;                       // the whole tail swings from the base
+    const ang = S.rest[i] + dev;
+    x += Math.cos(ang) * segLen;
+    y = Math.min(y + Math.sin(ang) * segLen, footY - 2);
+    pts.push([x, y]);
+  }
+  let reach = 0; for (const p of pts) reach = Math.max(reach, Math.abs(p[0] - baseX));
+  if (reach > 52) { const f = 52 / reach; for (const p of pts) p[0] = baseX + (p[0] - baseX) * f; }
+  const sm = [pts[0]]; let px = pts[0][0], py = pts[0][1];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2;
+    for (let k = 1; k <= 4; k++) {
+      const u = k / 4, v = 1 - u;
+      sm.push([v * v * px + 2 * v * u * pts[i][0] + u * u * mx, v * v * py + 2 * v * u * pts[i][1] + u * u * my]);
+    }
+    px = mx; py = my;
+  }
+  sm.push(pts[pts.length - 1]);
+  const n = sm.length - 1;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const pass of [0, 1]) {
+    for (let j = 0; j < n; j++) {
+      const f = (j + 0.5) / n;
+      ctx.strokeStyle = pass === 0 ? pal.O : (f > 0.80 ? pal.W : pal.C);
+      ctx.lineWidth = S.thick - S.taper * f + (pass === 0 ? 3 : 0);
+      ctx.beginPath(); ctx.moveTo(sm[j][0], sm[j][1]); ctx.lineTo(sm[j + 1][0], sm[j + 1][1]); ctx.stroke();
     }
   }
 }
@@ -658,6 +834,10 @@ let lookTarget = null, lookTargetUntil = 0;
 let nextIdleAt = 0, leanTarget = 0, lean = 0, cursorLean = 0, leanUntil = 0, tailFlickT0 = -1, loafUntil = 0, groomUntil = 0;
 let playUntil = 0, playT0 = -1, mote = null;   // idle paw-play: the cat bats a drifting leaf with a front paw
 let treat = null;   // a dropped treat (tray "Give a treat"): the cat trots over and noms it
+// --- dog-only state ---------------------------------------------------------
+let ball = null;          // { x, y, vx, vy, phase: 'fly'|'rest'|'carry'|'drop', ... } - fetch
+let wagBoost = 0;                         // transient wag speed-up (greeting, fetch, treats)
+let pantUntil = 0;                        // tongue out after exertion
 let yawnUntil = 0;   // occasional sleepy yawn (open mouth + squint)
 let nextRoam = 0, roamUntil = 0, roamFrom = null, roamTo = null, roamDur = 1500;   // autonomous wandering
 let lastDrawn = 0, wantHighFps = true, rafPaused = false;
@@ -783,13 +963,24 @@ if (window.cat) {
     else if (lj.on && jamRunning && lj.mood !== jamMoodCur) { if (window.jamSetMood) window.jamSetMood(lj.mood); jamMoodCur = lj.mood; }
     playArea = c.playArea || null;
     pos.x = zoneClampX(pos.x); pos.y = floorLockOn() ? restingY() : zoneClampY(pos.y); persistPos();
-    if (typeof c.pattern === 'number') patternIndex = clamp(c.pattern, 0, PATTERNS.length - 1);
+    // Species first: it rewrites the coat tables, so the coat index below must be
+    // read against the NEW species' list, not the outgoing one.
+    const wantSpecies = c.species === 'dog' ? 'dog' : 'cat';
+    const wantCoat = wantSpecies === 'dog' ? c.dogPattern : c.pattern;
+    if (wantSpecies !== species) {
+      setSpecies(wantSpecies, typeof wantCoat === 'number' ? wantCoat : null);
+      if (!SHOT) { wagBoost = 1.0; stretchT0 = performance.now(); }   // the new pet says hello
+    } else if (typeof wantCoat === 'number') {
+      patternIndex = clamp(wantCoat, 0, PATTERNS.length - 1);
+      localStorage.setItem(coatKey(species), String(patternIndex));
+    }
     resumeRaf();
   });
   if (window.cat.onPower) window.cat.onPower((p) => { lowPower = !!(p && p.lowPower); resumeRaf(); });
   if (window.cat.onNotify) window.cat.onNotify((d) => triggerNotify(d));
   if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
   if (window.cat.onTreat) window.cat.onTreat(() => dropTreat());
+  if (window.cat.onBall) window.cat.onBall(() => throwBall());
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
   if (window.cat.onGeom) window.cat.onGeom((g) => {
     if (g && Number.isFinite(g.bottomInset)) geomBottomInset = g.bottomInset;
@@ -823,6 +1014,91 @@ function triggerBreak() {
   if (config && config.soundOn) playMeow();
   resumeRaf();
 }
+// --- Fetch (dogs only): the tray throws a tennis ball. The ball arcs out under
+//     gravity, bounces, and settles; the dog bolts after it, picks it up, carries
+//     it back to its home corner, drops it, then wags and pants. This is the whole
+//     reason a dog is worth having as a desktop pet rather than a recoloured cat.
+const FETCH_GRAB = 22;        // how close the dog must get to pick the ball up
+const BALL_R = 5;
+function throwBall() {
+  if (SHOT || !pos || !isDog()) return;
+  const side = pos.x < viewW / 2 ? 1 : -1;
+  ball = {
+    x: pos.x, y: pos.y - SH * 0.55,
+    vx: side * (5.2 + Math.random() * 2.2), vy: -6.4 - Math.random() * 1.6,
+    phase: 'fly', spin: 0, restAt: 0,
+  };
+  addEnergy(16);                                  // a thrown ball is the best thing that has ever happened
+  wagBoost = 0.9;
+  if (config && config.soundOn) playChirp();
+  resumeRaf();
+}
+function ballApproachX() { return zoneClampX(ball.x); }
+function updateBall(t, dt, f) {
+  if (!ball) return;
+  const floor = restingY();
+  ball.spin += (ball.phase === 'fly' ? 0.4 : 0.08) * (dt / 16);
+
+  if (ball.phase === 'fly') {                     // ballistic arc + a couple of bounces
+    const k = dt / 16;
+    ball.vy += 0.62 * k;
+    ball.x += ball.vx * k; ball.y += ball.vy * k;
+    if (ball.y >= floor - BALL_R) {
+      ball.y = floor - BALL_R;
+      if (Math.abs(ball.vy) > 1.6) { ball.vy = -ball.vy * 0.46; ball.vx *= 0.72; }
+      else { ball.vy = 0; ball.vx = 0; ball.phase = 'rest'; ball.restAt = t; }
+    }
+    if (ball.x < EDGE_L || ball.x > viewW - EDGE_R) { ball.vx = -ball.vx * 0.5; ball.x = clamp(ball.x, EDGE_L, viewW - EDGE_R); }
+    return;
+  }
+  if (ball.phase === 'carry') {                   // held in the mouth, tracks the muzzle
+    ball.x = pos.x + (ball.side || 1) * 6;
+    ball.y = pos.y - SH * 0.52;
+    const home = homeX();
+    if (roamUntil <= t) {
+      if (Math.abs(pos.x - home) > 14) {
+        roamFrom = { x: pos.x, y: pos.y };
+        roamTo = { x: home, y: floorLockOn() ? restingY() : pos.y };
+        roamDur = clamp(Math.abs(pos.x - home) * 2.4, 400, 1700); roamUntil = t + roamDur; nextRoam = t + 20000;
+      } else {                                    // delivered: drop it, wag, pant, ask for another
+        ball.phase = 'rest'; ball.restAt = t; ball.y = floor - BALL_R;
+        wagBoost = 1.2; pantUntil = t + 4200; addEnergy(10);
+        popLove(t, pos.x, pos.y - SH * 0.8, 2, 16);
+        if (config && config.soundOn) playChirp();
+      }
+    }
+    return;
+  }
+  // 'rest': lying on the floor. The dog goes and gets it.
+  if (f.grabbing || f.hunting || f.startleActive || f.typing || paperLen > 1) return;
+  if (t - ball.restAt > 45000) { ball = null; return; }        // forgotten after a while
+  const dist = Math.abs(pos.x - ballApproachX());
+  if (dist <= FETCH_GRAB) {
+    ball.phase = 'carry'; ball.side = Math.sign(ball.x - pos.x) || 1;
+    wagBoost = 1.0; roamUntil = 0;
+    lookTarget = { x: ball.x, y: ball.y }; lookTargetUntil = t + 600;
+    return;
+  }
+  if (roamUntil <= t) {                                        // sprint after it
+    roamFrom = { x: pos.x, y: pos.y };
+    roamTo = { x: ballApproachX(), y: floorLockOn() ? restingY() : pos.y };
+    roamDur = clamp(dist * 1.9, 350, 1500); roamUntil = t + roamDur; nextRoam = t + 20000;
+    lookTarget = { x: ball.x, y: ball.y }; lookTargetUntil = t + roamDur;
+  }
+}
+function drawBall(t) {
+  if (!ball) return;
+  const x = Math.round(ball.x), y = Math.round(ball.y);
+  if (ball.phase !== 'carry') drawShadow(x, restingY(), 0.18, 7);
+  ctx.fillStyle = '#3f4a1e';                                   // dark rim keeps it readable on any wallpaper
+  ctx.beginPath(); ctx.arc(x, y, BALL_R + 1, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#d8e84a';                                   // tennis yellow-green
+  ctx.beginPath(); ctx.arc(x, y, BALL_R, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#f4f7dd'; ctx.lineWidth = 1.4;            // the seam, rotating with the spin
+  ctx.beginPath(); ctx.arc(x - Math.cos(ball.spin) * 3, y, BALL_R - 0.6, -1.1, 1.1); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + Math.cos(ball.spin) * 3, y, BALL_R - 0.6, Math.PI - 1.1, Math.PI + 1.1); ctx.stroke();
+}
+
 // --- Treat: tray "Give a treat" drops a little fish nearby; the cat trots over and
 //     noms it (look down, hearts, a happy chirp, an energy bump). Uses the roam
 //     machinery to walk, re-aiming each time the walk expires until it arrives.
@@ -1215,6 +1491,13 @@ function isNight(t) {
 const STARTLE_RANGE = 160;   // only flinch when the cursor lunges NEAR the cat - not on every fast move across the screen
 function bandOf(e) { return e <= CALM_MAX ? 'calm' : e <= PLAYFUL_MAX ? 'playful' : 'zoomies'; }
 function addEnergy(n) { energy = clamp(energy + n, 0, 100); }
+// A dog that has just been sprinting pants. Tied to the zoomies band so it shows
+// up exactly when the sprite is already visibly worked up.
+function updateDogVitals(t, dt) {
+  if (!isDog()) { wagBoost = 0; pantUntil = 0; return; }
+  decayWag(dt);
+  if (energy > PLAYFUL_MAX && t > pantUntil) pantUntil = t + 3000;
+}
 
 function restSprings() { head = { x: pos.x, y: pos.y - SH, vx: 0, vy: 0 }; feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 }; }
 function persistPos() { localStorage.setItem('pos', JSON.stringify({ x: pos.x, y: pos.y })); }
@@ -1567,6 +1850,7 @@ function draw(t) {
       W: toRgb(lerpHex(P.white, HOT_BODY, heatT * 0.5)),
       X: toRgb(lerpHex(P.patch, HOT_BODY, heatT)),
       I: toRgb(P.inner), N: toRgb(P.nose), E: toRgb(P.eye), H: toRgb(HALO),
+      T: toRgb(P.tongue || '#e8747f'),
     };
     pal = { O: rgbStr(palRGB.O), C: rgbStr(palRGB.C), W: rgbStr(palRGB.W), N: rgbStr(palRGB.N) };
   } else {                                  // common case: reuse the cached cold palette for this coat
@@ -1574,6 +1858,7 @@ function draw(t) {
       _coldPalRGB = {
         O: toRgb(P.outline), C: toRgb(P.coat), K: toRgb(P.mark), W: toRgb(P.white), X: toRgb(P.patch),
         I: toRgb(P.inner), N: toRgb(P.nose), E: toRgb(P.eye), H: toRgb(HALO),
+        T: toRgb(P.tongue || '#e8747f'),
       };
       _coldPal = { O: rgbStr(_coldPalRGB.O), C: rgbStr(_coldPalRGB.C), W: rgbStr(_coldPalRGB.W), N: rgbStr(_coldPalRGB.N) };
       _palKey = patternIndex;
@@ -1675,7 +1960,7 @@ function draw(t) {
     }
     drawShadow(pos.x, pos.y, 0.18, 26);
     octx.clearRect(0, 0, oc.width, oc.height);
-    drawCat(octx, spriteHunt, t, palRGB, { bob: creep, blinking, look, eyeMode: 'open', dilate: pouncing ? 1.5 : (windingUp ? 1.32 + coil * 0.2 : 1.32) });
+    drawCat(octx, huntSpriteFor(patternIndex), t, palRGB, { bob: creep, blinking, look, eyeMode: 'open', dilate: pouncing ? 1.5 : (windingUp ? 1.32 + coil * 0.2 : 1.32) });
     ctx.save();
     if (facingLeft) { ctx.translate(ox + HW, oy); ctx.scale(-1, stretchY); ctx.drawImage(oc, 0, 0, HW, HH, 0, 0, HW, HH); }
     else { ctx.translate(ox, oy); ctx.scale(1, stretchY); ctx.drawImage(oc, 0, 0, HW, HH, 0, 0, HW, HH); }
@@ -1795,6 +2080,8 @@ function draw(t) {
     lean += (leanTarget - lean) * 0.09 * step;
     updateButterflyDesk(t, dt, step, { follow, grabbing, hunting, typing, petting, startleActive, calm });
     updateTreat(t, { grabbing, hunting, typing, startleActive });
+    updateBall(t, dt, { grabbing, hunting, typing, startleActive });
+    updateDogVitals(t, dt);
     const gaze = lookTarget || look;
     smoothLook.x += (gaze.x - smoothLook.x) * 0.18 * step;   // snappier cursor tracking
     smoothLook.y += (gaze.y - smoothLook.y) * 0.18 * step;
@@ -1860,7 +2147,11 @@ function draw(t) {
       const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop) - Math.round(petPush);
       const shadowA = (petting || bodyPet) ? 0.14 + Math.sin(t / 800) * 0.05 : 0.18;
       drawShadow(pos.x + wig, pos.y, shadowA);
-      if (!stretching && !thinking && !working && !loafing && !climbRaster) drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);   // loaf has a baked, wrapped tail; the climb frame has its own tail
+      if (!stretching && !thinking && !working && !loafing && !climbRaster) {
+        // loaf/curl has a baked, wrapped tail; the climb frame has its own
+        if (isDog()) drawDogTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting, energy / 100 + (ball && ball.phase === 'carry' ? 0.5 : 0));
+        else drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);
+      }
       if (!lowPower && restIdle && band === 'calm' && !paperActive && t > nextIdleSparkle) {   // ambient sparkles off in low power (they pin the loop at 60fps)
         idleSparkles.push({ x: pos.x + (Math.random() - 0.5) * 8, y: oy, t0: t });
         nextIdleSparkle = t + 5000 + Math.random() * 4000;
@@ -1876,7 +2167,7 @@ function draw(t) {
       } else {
       octx.clearRect(0, 0, oc.width, oc.height);
       const stareDilate = (staring && t - staringT0 < 1800) ? 1.12 : 1;   // subtle wide-eyed fixate
-      drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet, dilate: stareDilate });
+      drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet, dilate: stareDilate, panting: isDog() && t < pantUntil && !loafing });
       if (paperActive && !petting && !stretching) {
         // both front paws lift off the ground to grip the rope, so paint over the
         // baked planted front legs+paws on the offscreen sprite (so it scales/flips
@@ -1959,6 +2250,7 @@ function draw(t) {
     drawButterfly(ctx, bfX, bfY, BF_SCALE, BFLY_STYLES[bfPal], bfFlap, t, clamp(bfVx / 44, -0.22, 0.22));
   }
   drawTreat();   // the fish sits on the floor line, under the hearts
+  drawBall(t);   // the tennis ball rides above the floor line (and the muzzle when carried)
   // floating hearts (update + draw; persist after petting ends)
   if (hearts.length) hearts = hearts.filter((h) => t - h.t0 < (h.life || 1100));
   for (const h of hearts) {

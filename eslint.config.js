@@ -9,6 +9,13 @@ const sharedOverlay = {
   CELL: 'readonly', setCell: 'readonly', ellipse: 'readonly', triangle: 'readonly',
   outlineHalo: 'readonly', eyeBox: 'readonly', muzzlePt: 'readonly', buildSprite: 'readonly',
   composeSit: 'readonly', PATTERNS: 'readonly', PATTERN_NAMES: 'readonly',
+  // dog-sprite.js (loaded after cat-sprite.js) provides the canine composers + tables:
+  composeSitDog: 'readonly', composeBowDog: 'readonly', composeTypeDog: 'readonly',
+  composeCurlDog: 'readonly', composeBegDog: 'readonly', applyMarking: 'readonly',
+  DOG_PATTERNS: 'readonly', DOG_BUILDS: 'readonly', DOG_PATTERN_BUILD: 'readonly', DOG_TAILS: 'readonly',
+  // pets.js provides the species registry:
+  PET_SPECIES: 'readonly', SPECIES_IDS: 'readonly', speciesOf: 'readonly', coatsFor: 'readonly',
+  isSpecies: 'readonly', defaultCoatIndex: 'readonly', CAT_COATS: 'readonly', DOG_COATS: 'readonly',
   BUILDS: 'readonly', TABBY: 'readonly', PATTERN_BUILD: 'readonly',
   BODY: 'readonly', G: 'readonly', GC: 'readonly', GR: 'readonly', HALO: 'readonly',
   rgbStr: 'readonly', toRgb: 'readonly', shadeStr: 'readonly', lerpHex: 'readonly',
@@ -31,7 +38,7 @@ module.exports = [
   {
     // Node / CommonJS: main process, workers, scripts, tests, configs, template.js
     files: ['**/*.js'],
-    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/patterns.js', 'src/audio.js', 'src/effects.js', 'src/jam.js'],
+    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/dog-sprite.js', 'src/patterns.js', 'src/pets.js', 'src/audio.js', 'src/effects.js', 'src/jam.js'],
     languageOptions: { sourceType: 'commonjs', ecmaVersion: 2023, globals: { ...globals.node } },
   },
   {
@@ -58,7 +65,7 @@ module.exports = [
   {
     // cat-sprite.js / patterns.js are dual-loaded: classic <script> in the overlay AND
     // CommonJS modules in Node (make-app-icon.js / main.js). They DEFINE shared globals.
-    files: ['src/cat-sprite.js', 'src/patterns.js'],
+    files: ['src/cat-sprite.js', 'src/dog-sprite.js', 'src/patterns.js', 'src/pets.js'],
     languageOptions: { sourceType: 'commonjs', ecmaVersion: 2023, globals: { ...globals.node, ...globals.browser } },
   },
   {

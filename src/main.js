@@ -8,6 +8,7 @@ const mail = require('./mail');
 const cal = require('./cal');
 const themes = require('./themes');
 const { PATTERN_NAMES } = require('./patterns');
+const { SPECIES, SPECIES_IDS, speciesOf, coatsFor, defaultCoatIndex } = require('./pets');
 
 // Let the overlay auto-resume the Lobby Jam music at launch without a click — Chromium
 // otherwise blocks autoplay until a user gesture.
@@ -255,7 +256,7 @@ function createWindow() {
       // sanitize fields from the untrusted bridge file before they reach Notification + renderer IPC
       const level = ['info', 'success', 'warn', 'alert'].includes(o.level) ? o.level : 'info';
       const ttl = Math.max(500, Math.min(30000, Math.round(Number(o.ttl)) || 5000));
-      const title = String(o.title || 'pixelcat').slice(0, 80);
+      const title = String(o.title || 'pixelpets').slice(0, 80);
       notify(String(o.message).slice(0, 300), { source: 'bridge', dedupeKey: 'bridge:' + id, title, level, ttl, sound: o.sound !== false });
     }
   };
@@ -366,17 +367,27 @@ function trayImage() {
 function createTray() {
   try {
     tray = new Tray(trayImage());
-    tray.setToolTip('pixelcat');
+    tray.setToolTip('pixelpets');
     tray.on('double-click', openSettings);
     rebuildTrayMenu();
   } catch (e) { console.log('[tray-error]', e.message); }
 }
 function rebuildTrayMenu() {
   if (!tray) return;
-  const allCoats = PATTERN_NAMES.concat(themesCache.map((t) => t.name));
+  // The tray follows the active species: a dog owner picks a BREED, not a coat,
+  // and each species remembers its own choice in its own config field.
+  const sp = speciesOf(cfg && cfg.species);
+  const isDogCfg = sp.id === 'dog';
+  const coatField = isDogCfg ? 'dogPattern' : 'pattern';
+  const curCoat = cfg ? cfg[coatField] : 0;
+  const allCoats = (isDogCfg ? coatsFor('dog') : PATTERN_NAMES).concat(isDogCfg ? [] : themesCache.map((t) => t.name));
   const coatItems = allCoats.map((name, i) => ({
-    label: name, type: 'radio', checked: cfg && cfg.pattern === i,
-    click: () => persistAndBroadcast({ ...cfg, pattern: i }),
+    label: name, type: 'radio', checked: curCoat === i,
+    click: () => persistAndBroadcast({ ...cfg, [coatField]: i }),
+  }));
+  const speciesItems = SPECIES_IDS.map((id) => ({
+    label: `${SPECIES[id].emoji}  ${SPECIES[id].label}`, type: 'radio', checked: sp.id === id,
+    click: () => persistAndBroadcast({ ...cfg, species: id }),
   }));
   const recent = notifyHistory.slice(-10).reverse();
   const recentItems = recent.length
@@ -388,7 +399,7 @@ function rebuildTrayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Settings…', click: openSettings },
     { label: 'Start break now', click: triggerBreak },
-    { label: 'Give a treat 🐟', click: giveTreat },
+    { label: sp.treatLabel, click: giveTreat },
     { label: 'Recent notifications', submenu: recentItems },
     { label: 'Snooze last reminder', submenu: [
       { label: '5 minutes', click: () => snoozeLast(5) },
@@ -396,7 +407,8 @@ function rebuildTrayMenu() {
       { label: '30 minutes', click: () => snoozeLast(30) },
     ] },
     { type: 'separator' },
-    { label: 'Coat', submenu: coatItems },
+    { label: 'Pet', submenu: speciesItems },
+    { label: sp.coatNoun, submenu: coatItems },
     { label: 'Follow cursor', type: 'checkbox', checked: !!(cfg && cfg.followCursor), click: () => persistAndBroadcast({ ...cfg, followCursor: !cfg.followCursor }) },
     { label: 'Mouse hunt', type: 'checkbox', checked: !!(cfg && cfg.huntOn), click: () => persistAndBroadcast({ ...cfg, huntOn: !cfg.huntOn }) },
     { label: 'Butterfly visits', type: 'checkbox', checked: !(cfg && cfg.butterflyOn === false), click: () => persistAndBroadcast({ ...cfg, butterflyOn: !(cfg && cfg.butterflyOn !== false) }) },
@@ -438,7 +450,7 @@ function rebuildTrayMenu() {
       ];
     })() },
     { type: 'separator' },
-    { label: 'Quit pixelcat', click: () => app.quit() },
+    { label: 'Quit pixelpets', click: () => app.quit() },
   ]));
 }
 
@@ -447,7 +459,7 @@ function openSettings() {
   if (settingsWin && !settingsWin.isDestroyed()) { settingsWin.show(); settingsWin.focus(); return; }
   settingsWin = new BrowserWindow({
     width: 400, height: 560, resizable: false, fullscreenable: false, maximizable: false,
-    title: 'pixelcat settings', skipTaskbar: false, alwaysOnTop: true,
+    title: 'pixelpets settings', skipTaskbar: false, alwaysOnTop: true,
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),   // taskbar icon for the settings window
     show: false, backgroundColor: '#191b22',   // dark from the first paint - no white flash
     webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
@@ -471,7 +483,10 @@ function triggerBreak() {
   breakAnchor = Date.now();
 }
 function giveTreat() {
-  if (win && !win.isDestroyed()) win.webContents.send('treat');
+  if (!win || win.isDestroyed()) return;
+  // Same tray slot, species-appropriate payload: a cat is handed a fish, a dog
+  // gets a tennis ball thrown for it to chase down and bring back.
+  win.webContents.send(speciesOf(cfg && cfg.species).id === 'dog' ? 'ball' : 'treat');
 }
 
 // ---- Pomodoro: focus/break loops. Main owns the phase clock (the renderer may
@@ -556,7 +571,7 @@ function notify(message, opts) {
   }
   const wantOs = opts.os !== undefined ? opts.os : !(cfg && cfg.notifyOn === false);
   if (wantOs) {
-    try { if (Notification.isSupported()) new Notification({ title: opts.title || 'pixelcat', body: msg, silent: true }).show(); }
+    try { if (Notification.isSupported()) new Notification({ title: opts.title || 'pixelpets', body: msg, silent: true }).show(); }
     catch (e) { /* toasts are best-effort */ }
   }
 }
@@ -681,7 +696,17 @@ onSecure('sheet:image', (_e, dataUrl) => {
   app.quit();
 });
 onSecure('settings:open', () => openSettings());
-onSecure('settings:save-pattern', (_e, i) => { if (cfg) persistAndBroadcast({ ...cfg, pattern: i }); });
+onSecure('settings:save-pattern', (_e, i) => {
+  if (!cfg) return;
+  persistAndBroadcast({ ...cfg, [speciesOf(cfg.species).id === 'dog' ? 'dogPattern' : 'pattern']: i });
+});
+onSecure('settings:save-species', (_e, id) => {
+  if (!cfg) return;
+  const next = SPECIES[id] ? id : 'cat';
+  const patch = { ...cfg, species: next };
+  if (next === 'dog' && !Number.isFinite(cfg.dogPattern)) patch.dogPattern = defaultCoatIndex('dog');
+  persistAndBroadcast(patch);
+});
 onSecure('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close(); });
 onSecure('settings:testSound', () => {
   notify('Hi {name}!', { source: 'test', dedupeMs: 0, os: false });   // a sound test shouldn't also pop a desktop toast
@@ -703,7 +728,7 @@ handleSecure('themes:get', () => themesCache);
 handleSecure('themes:add', (_e, t) => { themesCache = themes.save([...themesCache, t]); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
 handleSecure('themes:delete', (_e, name) => { themesCache = themes.save(themesCache.filter((x) => x.name !== name)); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
 handleSecure('themes:export', async () => {
-  const r = await dialog.showSaveDialog(settingsWin || win, { title: 'Export custom coats', defaultPath: 'pixelcat-coats.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
+  const r = await dialog.showSaveDialog(settingsWin || win, { title: 'Export custom coats', defaultPath: 'pixelpets-coats.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
   if (r.canceled || !r.filePath) return false;
   try { fs.writeFileSync(r.filePath, JSON.stringify({ themes: themesCache }, null, 2)); return true; } catch (e) { return false; }
 });

@@ -7,12 +7,16 @@ const fs = require('fs');
 const path = require('path');
 
 const { PATTERN_NAMES } = require('./patterns');
+const { isSpecies, coatsFor, defaultCoatIndex } = require('./pets');
 const MAX_PATTERN = PATTERN_NAMES.length - 1;
 const DEFAULT_PATTERN = Math.max(0, PATTERN_NAMES.indexOf('Tuxedo'));   // tuxedo is the out-of-box coat
 
 const DEFAULTS = {
   name: '',
+  species: 'cat',      // 'cat' | 'dog' - which pet lives on the desktop
   pattern: DEFAULT_PATTERN,
+  dogPattern: defaultCoatIndex('dog'),  // the dog's breed, kept separately so switching
+                                        // species back and forth never loses either choice
   breakMinutes: 0,     // 0 = break timer off
   soundOn: true,
   huntOn: true,        // Comnyang hunts the cursor by default; user-toggleable
@@ -66,7 +70,9 @@ function normalize(cfg) {
   const reminders = Array.isArray(c.reminders) ? c.reminders : [];
   return {
     name: String(c.name == null ? '' : c.name).trim().slice(0, 24),
+    species: isSpecies(c.species) ? c.species : 'cat',
     pattern: clampInt(c.pattern, 0, MAX_PATTERN, DEFAULT_PATTERN),
+    dogPattern: clampInt(c.dogPattern, 0, coatsFor('dog').length - 1, defaultCoatIndex('dog')),
     breakMinutes: clampInt(c.breakMinutes, 0, 240, 0),
     soundOn: c.soundOn === undefined ? true : !!c.soundOn,
     huntOn: c.huntOn === undefined ? true : !!c.huntOn,

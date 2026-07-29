@@ -1,14 +1,17 @@
 <div align="center">
 
-<img src="assets/logo-mark.png" alt="pixelcat logo" width="112" />
+<img src="assets/logo-mark.png" alt="pixelpets logo" width="112" />
 
-# pixelcat
+# pixelpets
 
-### A pixel cat that lives on your desktop.
+### A pixel cat or dog that lives on your desktop.
 
 It sits in the corner, watches your cursor, kneads the keyboard when you type,
-purrs when you pet it, and stretches like mochi when you drag it. A desktop pet
-built from scratch: nearly every sprite, animation, and sound is original and procedural.
+purrs when you pet it, and stretches like mochi when you drag it. Prefer a dog?
+Switch species from the tray and you get a real one: 14 breeds, a wagging tail
+that reads your pet's mood, a play bow instead of a hunting crouch, and a tennis
+ball it will actually chase down and bring back. A desktop pet built from
+scratch: nearly every sprite, animation, and sound is original and procedural.
 
 <br />
 
@@ -33,6 +36,32 @@ built from scratch: nearly every sprite, animation, and sound is original and pr
 <sub>The browser demo runs the real renderer: pet it, type at it, scroll to climb, and wait for the butterfly.</sub>
 
 </div>
+
+## Two pets, one app
+
+Pick your species from the tray (**Pet → Cat / Dog**). Each one keeps its own
+coat choice, so switching back and forth never loses your pick.
+
+|  | Cat | Dog |
+|---|---|---|
+| Coats | 14 coats, from Orange Tabby to Russian Blue | 14 breeds, from Golden Retriever to Chihuahua |
+| Resting | loafs into a "cat bread" | curls nose-to-tail into a ring |
+| Excited | hunting crouch, ears back | **play bow**: chest down, rump up, tail flagged |
+| Tail | slow rolling S-curve, tip flicks | fast wag from the base, shaped per breed (curl / plume / feather / stub / straight) |
+| Play | bats a butterfly | **fetch**: chases the thrown ball, carries it home, drops it |
+| After exertion | grooms | pants, tongue out |
+| Reward | a fish treat | a tennis ball |
+
+The dog is not a recoloured cat. It has its own sprite module with a muzzle that
+protrudes past the skull line, ears that hang or perk per breed, a broader chest,
+and short legs on the dwarf breeds. Markings are coat *structures*, not palette
+swaps: the Dalmatian is spotted, the shepherd wears a saddle, the beagle is
+tricolour, the husky has a mask, and the Aussie is merle.
+
+```bash
+npm run sheet:dog   # renders previews/dog-sheet.png - every breed x every pose
+npm run sheet:cat
+```
 
 ## See it in action
 

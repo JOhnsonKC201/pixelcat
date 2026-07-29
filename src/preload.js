@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('cat', {
   onSetArea: sub('setarea:start'),
   onBreak: sub('break'),
   onTreat: sub('treat'),
+  onBall: sub('ball'),
   onPomo: sub('pomo', (d) => d),
   onGeom: sub('geom', (g) => g),
   onNotify: sub('notify', (d) => d),

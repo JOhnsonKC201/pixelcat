@@ -1,7 +1,7 @@
 {
-  "name": "pixelcat",
+  "name": "pixelpets",
   "version": "0.2.0",
-  "description": "A pixel cat that lives on your desktop",
+  "description": "A pixel cat or dog that lives on your desktop",
   "main": "src/main.js",
   "author": "JOhnsonKC201",
   "license": "MIT",
@@ -13,6 +13,8 @@
     "start": "electron .",
     "autostart:off": "electron . --autostart=off",
     "sheet": "electron . --sheet",
+    "sheet:dog": "node scripts/pet-sheet.js dog",
+    "sheet:cat": "node scripts/pet-sheet.js cat",
     "icon": "node scripts/make-logo-icons.js",
     "social": "node scripts/make-social-card.js",
     "climb-frames": "node scripts/embed-climb-frames.js",
@@ -45,7 +47,7 @@
   },
   "build": {
     "appId": "com.johnsonkc.pixelcat",
-    "productName": "pixelcat",
+    "productName": "pixelpets",
     "npmRebuild": false,
     "directories": {
       "output": "dist"
