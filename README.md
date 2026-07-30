@@ -60,8 +60,9 @@ swaps: the Dalmatian is spotted, the shepherd wears a saddle, the beagle is
 tricolour, the husky has a mask, and the Aussie is merle.
 
 ```bash
-npm run sheet:dog   # renders previews/dog-sheet.png - every breed x every pose
-npm run sheet:cat
+npm run poses:dog   # previews/dog-poses.png - every breed x every ACTIVITY
+npm run poses:cat   # previews/cat-poses.png - 14 coats x 11 activities
+npm run sheet:dog   # previews/dog-sheet.png - the five base poses only
 ```
 
 ## See it in action
@@ -158,8 +159,8 @@ to your cursor, to your typing, and to its own internal mood.
 | Interaction | What the cat does |
 |-------------|-------------------|
 | **Drag it** | Stretches like mochi (head and feet stay solid while the body thins), then squashes and bounces back. Shake it side to side and it wobbles like jello with a startled mrrp. It stays where you drop it. |
-| **Pet its head** | Closes its eyes, wiggles, floats little hearts, and purrs. |
-| **Touch its body** | Leans and arches into your hand, tail up, trilling. |
+| **Pet its head** | Squeezes its eyes shut, wiggles, floats little hearts, and purrs. The squint holds through the whole stroke, not just when your hand stops moving. |
+| **Touch its body** | Squints just as happily, leans and arches into your hand, tail up, trilling. |
 | **Tap it** | A quick pet: happy eyes, hearts, a chirp. |
 | **Move your cursor** | The cat watches it and blinks now and then. Flick the cursor fast and it crouches, stalks, and pounces. A sudden jolt startles it: it puffs up, freezes, then bolts or creeps back. |
 | **Type in any app** | It leans onto two big keys and kneads them with its paws. Type fast enough and it overheats, turning red with steam, then cools down. |
@@ -489,17 +490,22 @@ isolated worker processes. Your IMAP app password is stored encrypted at rest
 
 ```powershell
 npm start                 # run the cat
-npm test                  # smoke tests (node --test)
-npm run sheet             # render previews/contact-sheet.png (every pose x coat)
+npm test                  # 52 tests: config, poses, petting, audio, site drift
+npm run poses:cat         # previews/cat-poses.png (every activity x every coat)
+npm run poses:dog         # the same for all 14 breeds
 npm run demo:all          # regenerate the README media (hero, gallery, carousel)
 npm run hook -- cursor    # print a path-filled agent hook config
 npm run icon              # regenerate the tray + app-tile icons
 ```
 
-**Visual QA.** Because the overlay is GPU-composited and ordinary screenshots
-cannot capture it, poses are reviewed with a one-command contact sheet:
-`npm run sheet` renders every pose across all coats (built-in and custom) into
-one labeled image, so a redesign can be checked on light and dark coats at once.
+**Visual QA.** The overlay is GPU-composited, so ordinary screenshots cannot
+capture it. Poses are reviewed with a one-command contact sheet instead:
+`npm run poses:cat` renders **every activity across every coat** into one image,
+bottom-aligned on a shared floor line so silhouettes can be compared down a
+column. It runs headlessly, with no Electron and no GPU, by loading the overlay's
+script stack in a vm (`scripts/overlay-vm.js`) and reading the pose grids back
+out. That is also what the pose tests drive, so the sheet and the suite are
+looking at exactly the same sprites.
 
 **README media.** The hero banner, the gallery above, and the coat carousel are
 all rendered from the same sprite geometry by `scripts/make-demo-gif.js`, in
