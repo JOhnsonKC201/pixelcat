@@ -50,6 +50,7 @@ coat choice, so switching back and forth never loses your pick.
 | Tail | slow rolling S-curve, tip flicks | fast wag from the base, shaped per breed (curl / plume / feather / stub / straight) |
 | Play | bats a butterfly | **fetch**: chases the thrown ball, carries it home, drops it |
 | After exertion | grooms | pants, tongue out |
+| Scroll | climbs the yarn rope hand over hand | hauls itself up the same rope, ears and snout intact |
 | Reward | a fish treat | a tennis ball |
 
 The dog is not a recoloured cat. It has its own sprite module with a muzzle that
@@ -84,14 +85,16 @@ npm run sheet:cat
 </table>
 
 <div align="center">
-<sub>The climb clip uses the app's own hand-painted Tuxedo frames; the rest are rendered from the same
-sprite the cat draws with. All of it is generated headlessly by one script. Nothing here is a screen recording.</sub>
+<sub>The climb clip uses the app's own hand-painted Tuxedo frames. Coats without painted art climb the same
+rope from a composed pose in their own colours, dogs included. Everything here is rendered from the sprite the
+pet draws with, generated headlessly by one script. Nothing is a screen recording.</sub>
 </div>
 
-## Highlights
+## What it actually does
 
 - It reacts to you. Petting, dragging, typing, scrolling, and cursor play each get their own response, gated by an internal mood model that runs from calm up to zoomies and back.
 - 14 coat patterns ship built in, all recolored at draw time from one role-coded sprite, and you can design, import, and export your own.
+- Every animation is composed into that sprite, limbs included, so all 28 coats across both species get every pose in their own colours without shipping a single extra frame.
 - Every sound is synthesized live with Web Audio: the meow, the purr, the chirp, and an endlessly improvising lo-fi jam. The app ships zero audio files.
 - It keeps you on track. Break and Pomodoro timers, repeating reminders, a pinned note, IMAP unread-mail alerts, and calendar nudges, all delivered by the cat.
 - It knows when your coding agent is thinking, working, or done, and reacts with its paws. Hook configs ship for five agents.
@@ -428,10 +431,20 @@ bar), the tray menu works in the menu bar, and login launch works.
 - The cat is one role-coded sprite (outline, coat, markings, white, patch, eye,
   nose, inner ear) built procedurally, then recolored per pattern at draw time,
   so a dozen cats come from one shape.
+- Every pose is composed into that same grid, including the limbs. A raised paw
+  is made of the same cells as the rest of the pet, so it picks up the coat's
+  shading, outline halo, markings and breathing scale for free. Nothing is
+  painted on top afterwards. That is why washing, pondering, batting a leaf,
+  boxing at the butterfly and climbing the yarn rope all work in all 28 coats
+  and both species without a single extra sprite asset.
+- Poses that vary continuously (how high a paw is raised, how far it reaches,
+  which paw has the rope) are quantised to a handful of steps and memoised, and
+  built only for the coat currently on screen. Pixel art wants stepped limbs
+  anyway, so the cheap thing and the right-looking thing are the same thing.
 - Rendering happens on an HTML canvas in a full-screen transparent Electron
   window. Ordinary screenshots cannot capture it (it is GPU-composited), so
   previews use a self-capture:
-  `electron . --shot --pattern=<name> [--state=typing|overheat|mochi|pet]`.
+  `electron . --shot --pattern=<name> [--species=cat|dog] [--state=<pose>] [--at=<ms>]`.
 - The mochi drag is a spring system (a pinned handle plus a trailing body
   point) with a three-band stretch that keeps the head and feet rigid.
 - Break timers and reminders are scheduled in the main process (the renderer
