@@ -403,6 +403,143 @@ function composeBegDog(B) {
   for (let r = 15; r <= 20; r++) { setCell(CX - 5, r, '.'); setCell(CX + 5, r, '.'); }
 }
 
+// ---- seated with one front paw raised ---------------------------------------
+// The canine composePawUp: same knobs (o.lift / o.out), same reason for existing -
+// a limb composed into the grid inherits the coat's shading, outline and breed
+// markings, where a rectangle drawn over the finished sprite inherits none of it.
+// A dog's front legs sit closer together and lower than a cat's, so the shoulder
+// and the planted-leg erase are tuned to composeSitDog rather than shared.
+function composePawUpDog(B, o) {
+  const { setCell, ellipse } = _c();
+  B = B || {}; o = o || {};
+  const lift = Math.max(0, Math.min(1, o.lift == null ? 1 : o.lift));
+  const out = Math.max(0, Math.min(1, o.out || 0));
+  const CX = 12, bw = B.bodyW || 1;
+  const legLen = B.legLen == null ? 1 : B.legLen;
+  composeSitDog(B);
+
+  // lift the left foreleg: erase it, close the chest back up, restore the blaze
+  for (let r = 19; r <= 29; r++) for (let c = 7; c <= 12; c++) setCell(c, r, '.');
+  ellipse(CX, 25.6, 7.7 * bw, 4.4, 'C', ['.']);
+  ellipse(CX, 20.0, 5.9 * bw, 6.2, 'C', ['.']);
+  ellipse(CX, 20.5, B.fluff ? 3.0 : 2.4, 4.8, 'W', ['C']);
+
+  const shX = CX - 2.0, shY = 21.0;
+  const pawX = CX - 2.3 - out * 4.4, pawY = 28.4 - 5.0 * (1 - legLen) - lift * 15.0;
+  for (let i = 0; i <= 6; i++) {
+    const f = i / 6;
+    ellipse(shX + (pawX - shX) * f, shY + (pawY - shY) * f, 1.6, 1.6, 'C');
+  }
+  ellipse(pawX, pawY, 2.1, 1.7, 'W', ['C']);
+  if (lift > 0.62) {                                  // paw turned toward you: pads show
+    ellipse(pawX, pawY + 0.5, 1.0, 0.7, 'I', ['W']);
+    ellipse(pawX - 1.6, pawY - 0.5, 0.6, 0.6, 'I', ['W']);
+    ellipse(pawX + 1.6, pawY - 0.5, 0.6, 0.6, 'I', ['W']);
+  }
+  for (let r = 24; r <= 29; r++) setCell(CX + 5, r, '.');    // planted right leg vs haunch
+  setCell(CX + 2, 29, '.');                                  // its toe split
+  if (lift > 0.15) for (let c = Math.round(Math.min(pawX, shX)) - 1; c <= Math.round(shX) + 1; c++) setCell(c, Math.round(shY) - 1, '.');
+}
+
+// ---- rope climb -------------------------------------------------------------
+// The canine counterpart to composeClimb: the dog hauls itself up a vertical rope
+// that runs at column CLIMB_ROPE_C, body hanging just left of it. Same knobs -
+// `o.hand` swaps the high paw between frames, `o.dir` coils the body for a haul
+// UP and stretches it for a slide DOWN. A dog is not a recoloured cat here
+// either: the snout still protrudes, the ears still hang or perk, and the chest
+// stays broad, so the breed keeps reading while it climbs.
+const CLIMB_ROPE_C_DOG = 14.8;
+function composeClimbDog(B, o) {
+  const { setCell, ellipse, triangle } = _c();
+  B = B || {}; o = o || {};
+  // Centred on column 12 for the same reason composeClimb is: eyeBox() splits the
+  // grid there to tell the eyes apart, and an off-centre face puts one eye in both
+  // boxes, which smears its pupil into a bar across the muzzle.
+  const BX = 11.25;
+  const EYE_DX = 2.6;
+  const coil = -Math.max(-1, Math.min(1, o.dir || 0));
+  const bw = B.bodyW || 1, fluff = !!B.fluff;
+  const ear = B.ear || 'floppy';
+  const headRx = (B.headRx || 5.6) * 0.82, headRy = (B.headRy || 4.7) * 0.9;
+  const headY = 9.4;
+  const snoutRx = (B.snoutRx || 3.3) * 0.9, snoutRy = (B.snoutRy || 2.8) * 0.9;
+  const snoutY = headY + headRy * 0.78;
+  const eRx = Math.min(1.7, B.eyeRx || 1.7), eRy = B.eyeRy || 1.8;
+
+  // tail hangs and curls behind the haunch
+  [[BX - 4.0, 22.4], [BX - 5.6, 24.4], [BX - 6.4, 26.8], [BX - 5.6, 28.8]]
+    .forEach(([c, r]) => ellipse(c, r, 1.6, 1.6, 'C'));
+
+  // hind legs dangling: tucked on a haul, long on a drop
+  const hipY = 23.2 - coil * 0.5, hindPawY = 27.4 - coil * 1.8;
+  ellipse(BX - 2.6, hipY + 1.6, 1.8, 2.8 - coil * 0.5, 'C');
+  ellipse(BX + 1.9, hipY + 2.0, 1.7, 2.7 - coil * 0.5, 'C');
+  ellipse(BX - 2.8, hindPawY, 2.1, 1.5, 'W', ['C']);
+  ellipse(BX + 2.1, hindPawY + 0.7, 2.0, 1.5, 'W', ['C']);
+
+  // rump, broad chest, neck - the dog silhouette, hung vertically
+  ellipse(BX - 0.3, hipY, 4.6 * bw, 3.3, 'C');
+  ellipse(BX, 18.0 + coil * 0.5, 4.9 * bw, 6.2 - coil * 0.5, 'C');
+  ellipse(BX, 13.4, 3.4 * bw, 2.9, 'C');
+  if (fluff) { ellipse(BX - 4.6 * bw, 17.6, 2.1, 2.9, 'C'); ellipse(BX + 4.6 * bw, 18.0, 1.9, 2.6, 'C'); }
+
+  // hanging ears go behind the skull
+  const earOx = headRx - 0.6;
+  if (ear === 'floppy' || ear === 'long' || ear === 'round') {
+    const drop = ear === 'long' ? 5.2 : ear === 'round' ? 3.4 : 4.1;
+    const exr = ear === 'round' ? 2.6 : 2.2;
+    ellipse(BX - earOx, headY + 2.0, exr, drop, 'K');
+    ellipse(BX + earOx, headY + 2.0, exr, drop, 'K');
+  }
+  ellipse(BX, headY, headRx, headRy, 'C');
+  if (ear === 'perk' || ear === 'semi' || ear === 'big') {
+    const ew = ear === 'big' ? 2.9 : 2.5, eo = ear === 'big' ? 3.9 : 3.6;
+    const apex = headY - headRy - (ear === 'big' ? 2.6 : 1.6);
+    triangle(BX - eo - 0.6, apex, BX - eo - ew, headY + 0.6, BX - eo + ew, headY - 1.2, 'K');
+    triangle(BX + eo + 0.6, apex, BX + eo + ew, headY + 0.6, BX + eo - ew, headY - 1.2, 'K');
+    const iw = ew * 0.5;
+    triangle(BX - eo - 0.4, apex + 2.0, BX - eo - iw, headY + 0.1, BX - eo + iw, headY - 1.0, 'I');
+    triangle(BX + eo + 0.4, apex + 2.0, BX + eo + iw, headY + 0.1, BX + eo - iw, headY - 1.0, 'I');
+    if (ear === 'semi') { ellipse(BX - eo - 0.2, apex + 1.2, 1.7, 1.3, 'K'); ellipse(BX + eo + 0.2, apex + 1.2, 1.7, 1.3, 'K'); }
+  }
+  if (ear === 'rose') { ellipse(BX - headRx + 0.8, headY - 2.8, 1.8, 1.9, 'K'); ellipse(BX + headRx - 0.8, headY - 2.8, 1.8, 1.9, 'K'); }
+
+  // the snout still breaks the skull line, nose at its tip
+  ellipse(BX, snoutY, snoutRx, snoutRy, 'W');
+  if (B.snoutDark) ellipse(BX, snoutY - snoutRy * 0.2, snoutRx * 0.95, snoutRy * 0.78, 'K');
+  ellipse(BX, snoutY - snoutRy * 0.30, 1.6, 1.1, 'N');
+  ellipse(BX - EYE_DX, headY - 0.6, eRx, eRy, 'E');
+  ellipse(BX + EYE_DX, headY - 0.6, eRx, eRy, 'E');
+  if (B.brows) { ellipse(BX - EYE_DX, headY - 3.1, 1.3, 0.9, 'X'); ellipse(BX + EYE_DX, headY - 3.1, 1.3, 0.9, 'X'); }
+
+  ellipse(BX - 0.2, 18.6, 2.5, 5.0, 'W', ['C']);   // chest blaze
+  applyMarking(B.marking, { cx: BX, top: 13.0, bot: 28.0, w: 5.4 * bw, headY, headRx });
+
+  // forelegs last: both reach up to the rope, one high one low
+  const gripHi = 2.2 - coil * 0.8, gripLo = gripHi + 7.0;
+  const grips = o.hand ? [gripLo, gripHi] : [gripHi, gripLo];
+  const arm = (sx, sy, gy) => {
+    for (let i = 0; i <= 7; i++) {
+      const f = i / 7;
+      ellipse(sx + (CLIMB_ROPE_C_DOG - sx) * f, sy + (gy - sy) * f, 1.8, 1.8, 'C');
+    }
+    ellipse(CLIMB_ROPE_C_DOG, gy, 2.1, 1.7, 'W', ['C']);
+  };
+  const shoulder = [[BX + 4.4, 15.2], [BX + 4.7, 17.4]];
+  arm(shoulder[0][0], shoulder[0][1], grips[0]);
+  arm(shoulder[1][0], shoulder[1][1], grips[1]);
+
+  carveJaw(BX, snoutY, snoutRx, snoutRy);
+  // seam between the two forelegs, tracked along their midline
+  for (let r = Math.round(Math.min(...grips)) + 2; r < Math.round(shoulder[1][1]); r++) {
+    const at = (s, g) => s[0] + (CLIMB_ROPE_C_DOG - s[0]) * Math.max(0, Math.min(1, (s[1] - r) / Math.max(1, s[1] - g)));
+    setCell(Math.round((at(shoulder[0], grips[0]) + at(shoulder[1], grips[1])) / 2), r, '.');
+  }
+  for (let r = 24; r <= 29; r++) setCell(Math.round(BX), r, '.');
+  setCell(Math.round(BX - 2.8), Math.round(hindPawY) + 1, '.');
+  setCell(Math.round(BX + 2.1), Math.round(hindPawY) + 2, '.');
+}
+
 // ---- breed palettes ---------------------------------------------------------
 // Dog noses are overwhelmingly black or liver, never the pink a cat gets, so the
 // `nose` values here run dark on purpose. `tongue` is dog-only (panting).
@@ -454,6 +591,6 @@ function attach(prims) { P = prims; }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     attach, composeSitDog, composeBowDog, composeTypeDog, composeCurlDog, composeBegDog,
-    applyMarking, DOG_PATTERNS, DOG_BUILDS, DOG_PATTERN_BUILD, DOG_TAILS,
+    composeClimbDog, composePawUpDog, applyMarking, DOG_PATTERNS, DOG_BUILDS, DOG_PATTERN_BUILD, DOG_TAILS,
   };
 }

@@ -11,7 +11,8 @@ const sharedOverlay = {
   composeSit: 'readonly', PATTERNS: 'readonly', PATTERN_NAMES: 'readonly',
   // dog-sprite.js (loaded after cat-sprite.js) provides the canine composers + tables:
   composeSitDog: 'readonly', composeBowDog: 'readonly', composeTypeDog: 'readonly',
-  composeCurlDog: 'readonly', composeBegDog: 'readonly', applyMarking: 'readonly',
+  composeCurlDog: 'readonly', composeBegDog: 'readonly', composeClimbDog: 'readonly',
+  composePawUpDog: 'readonly', applyMarking: 'readonly',
   DOG_PATTERNS: 'readonly', DOG_BUILDS: 'readonly', DOG_PATTERN_BUILD: 'readonly', DOG_TAILS: 'readonly',
   // pets.js provides the species registry:
   PET_SPECIES: 'readonly', SPECIES_IDS: 'readonly', speciesOf: 'readonly', coatsFor: 'readonly',

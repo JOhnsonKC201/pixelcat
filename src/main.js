@@ -47,6 +47,7 @@ let hot = { x: 0, y: 0, w: 0, h: 0, dragging: false }; // cat's interactive regi
 const stateArg = (process.argv.find((a) => a.startsWith('--state=')) || '').split('=')[1] || '';
 const patternArg = (process.argv.find((a) => a.startsWith('--pattern=')) || '').split('=')[1] || '';
 const dirArg = (process.argv.find((a) => a.startsWith('--dir=')) || '').split('=')[1] || '';   // force climb direction (up|down) for --shot previews
+const speciesArg = (process.argv.find((a) => a.startsWith('--species=')) || '').split('=')[1] || '';   // force cat|dog for --shot previews (the renderer already reads ?species=)
 const SHOT = process.argv.includes('--shot');
 const SHEET = process.argv.includes('--sheet');   // contact-sheet QA capture
 // `--at=<ms>` sets how long to let the scene animate before the --shot capture, so
@@ -132,6 +133,7 @@ function createWindow() {
   if (stateArg) params.push(`state=${stateArg}`);
   if (patternArg) params.push(`pattern=${patternArg}`);
   if (dirArg) params.push(`dir=${dirArg}`);
+  if (speciesArg) params.push(`species=${speciesArg}`);
   if (process.argv.includes('--bfly')) params.push('bfly=1');   // force the butterfly visitor (QA shots)
   if (process.argv.includes('--treat')) params.push('treat=1'); // force a dropped treat (QA shots)
   if (SHOT) params.push('shot=1');

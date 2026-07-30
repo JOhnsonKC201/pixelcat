@@ -191,6 +191,196 @@ function composeRearUp(B) {
   ellipse(8, 20, 2.2, 2.8, 'X', ['C', 'K']); ellipse(16, 24, 2.0, 2.2, 'X', ['C', 'K']);
 }
 
+// --- reared up, boxing at the butterfly overhead ------------------------------
+// The reared body fills a 24x30 grid to its very top row, so a paw thrown ABOVE
+// the head has nowhere to go - which is why these arms used to be drawn in screen
+// space, and why at rest they showed up as a detached white square on the chest
+// with a 4px stub of forearm. This pose gets its own TALLER grid: the reared body
+// drops BAT_DROP rows and the freed rows at the top are where the strike lands.
+// Species-agnostic: it reuses whichever upright pose the active species defines
+// (composeRearUp / composeBegDog), so the dog boxes too, in its own silhouette.
+const BAT_ROWS = 38, BAT_DROP = 6, BAT_H = BAT_ROWS * CELL;
+function composeBat(B, o) {
+  o = o || {};
+  const up = (o.up || -1) < 0 ? -1 : 1;              // which paw is thrown this beat
+  const ph = clamp(o.ph == null ? 1 : o.ph, 0, 1);   // how far through the strike
+  const CX = 12;
+
+  SPECIES_DEFS.rear(B);                              // the upright body, drawn at its own coords
+  for (let r = BAT_ROWS - 1; r >= 0; r--) {          // then slid down to free the top rows
+    for (let c = 0; c < 24; c++) G[r][c] = r - BAT_DROP >= 0 ? G[r - BAT_DROP][c] : '.';
+  }
+
+  // Both forelegs: the thrown one snaps up past the ears, the other loads low
+  // against the chest. Real limbs, so they take the coat's shading and outline.
+  const shoulderY = 20 + BAT_DROP;
+  const arm = (side, reach) => {
+    const shX = CX + side * 3.6;
+    const pawX = CX + side * (5.4 + reach * 1.4), pawY = shoulderY - 4 - reach * 21;
+    // The limb BOWS outward on the way up. A straight shoulder-to-paw line cuts
+    // across the cheek and clips an eye on the way past; bowing it keeps the whole
+    // arm clear of the skull, which is also how a cat actually throws a paw.
+    const at = (f) => ({
+      x: shX + (pawX - shX) * f + side * 3.0 * Math.sin(f * Math.PI) * reach,
+      y: shoulderY + (pawY - shoulderY) * f,
+    });
+    for (let i = 0; i <= 14; i++) { const p = at(i / 14); ellipse(p.x, p.y, 1.5, 1.5, 'C'); }
+    ellipse(pawX, pawY, 2.0, 1.6, 'W', ['C']);
+    if (reach > 0.5) {                               // pads flash on the strike
+      ellipse(pawX, pawY + 0.4, 1.0, 0.7, 'I', ['W']);
+      ellipse(pawX - 1.5, pawY - 0.6, 0.6, 0.6, 'I', ['W']);
+      ellipse(pawX + 1.5, pawY - 0.6, 0.6, 0.6, 'I', ['W']);
+    }
+    // seam the limb off the body so it reads as a separate arm on solid coats
+    if (reach > 0.35) for (let i = 3; i <= 12; i++) { const p = at(i / 14); setCell(Math.round(p.x + side * 1.9), Math.round(p.y), '.'); }
+  };
+  arm(up, ph);
+  arm(-up, 0.08);                                    // the loading paw stays tucked in
+}
+
+// --- seated with one front paw raised ---------------------------------------
+// Grooming, pondering, tapping and batting all want the same thing: the cat sits
+// and lifts ONE front paw. That used to be drawn as axis-aligned rectangles over
+// the finished sprite, which ignored the coat's shading, outline halo, markings
+// and breathing scale - so it read as a pale domino pasted on the chest rather
+// than a limb. Composing it into the grid instead means the paw is made of the
+// same cells as the rest of the cat and inherits all of that for free.
+//   o.lift  0 = planted, 1 = held up at the muzzle
+//   o.out   0 = tucked against the chest, 1 = reaching away from the body
+function composePawUp(B, o) {
+  B = B || {}; o = o || {};
+  const lift = clamp(o.lift == null ? 1 : o.lift, 0, 1);
+  const out = clamp(o.out || 0, 0, 1);
+  composeSit(B);   // start from the real seated cat, then re-hang its left foreleg
+
+  // Lift the planted left foreleg off the floor: erase it, close the haunch back
+  // up behind it, then restore the chest bib composeSit had drawn underneath.
+  for (let r = 19; r <= 29; r++) for (let c = 8; c <= 12; c++) setCell(c, r, '.');
+  ellipse(12, 24, 7.6 * (B.bodyW || 1), 5 + (B.fluff ? 0.4 : 0), 'C', ['.']);
+  ellipse(12, 17, B.fluff ? 3.4 : 2.7, 7, 'W', ['C']);
+
+  // the raised limb: shoulder stays on the chest, paw swings up and outward
+  const shX = 10.4, shY = 20.4;
+  const pawX = 10 - out * 4.6, pawY = 27.0 - lift * 14.6;
+  for (let i = 0; i <= 6; i++) {
+    const f = i / 6;
+    ellipse(shX + (pawX - shX) * f, shY + (pawY - shY) * f, 1.5, 1.5, 'C');
+  }
+  ellipse(pawX, pawY, 2.0, 1.6, 'W', ['C']);
+  // Near the face the underside of the paw turns toward you, so the toe beans
+  // show. 'I' is the inner-ear role: already a palette-correct pink on every coat.
+  if (lift > 0.62) {
+    ellipse(pawX, pawY + 0.5, 1.0, 0.7, 'I', ['W']);
+    ellipse(pawX - 1.5, pawY - 0.5, 0.6, 0.6, 'I', ['W']);
+    ellipse(pawX + 1.5, pawY - 0.5, 0.6, 0.6, 'I', ['W']);
+  }
+  // re-carve the separations composeSit made for the leg we just moved
+  for (let r = 22; r <= 28; r++) setCell(16, r, '.');            // planted right leg vs haunch
+  setCell(14, 27, '.'); setCell(14, 28, '.');                    // its toe split
+  const seamR = Math.round(shY - 1);                             // shoulder seam so the limb reads as separate
+  if (lift > 0.15) for (let c = Math.round(Math.min(pawX, shX)) - 1; c <= Math.round(shX) + 1; c++) setCell(c, seamR, '.');
+}
+
+// --- rope climb: hanging off a vertical rope just right of the body ----------
+// The seated sprite parked beside a rope reads as "cat sitting near a string", so
+// the climb gets its OWN pose: the cat hangs by both forepaws with its hind legs
+// and tail dangling clear of the floor.
+//   o.hand  swaps which paw is high, so alternating frames read as hand-over-hand
+//   o.dir   shapes the effort: coiled and tucked hauling UP (-1), stretched long
+//           on a controlled slide DOWN (+1), relaxed hang at 0
+// The rope lives at column CLIMB_ROPE_C of this grid and ropeGeom() puts the real
+// rope at the matching world x, so the painted mitts land exactly on the strand.
+const CLIMB_ROPE_C = 18.4;
+const CLIMB_LIFT = 26;     // px the posed climb rises off the floor at full climb energy
+function composeClimb(B, o) {
+  B = B || {}; o = o || {};
+  // eyeBox() splits the grid at column 12 to tell the two eyes apart, so the face
+  // is centred on that seam and the eyes sit either side of it - off-centre and one
+  // eye lands in both boxes, which smears the pupils across half the head.
+  const BX = 11.25;                                  // body centre, left of the rope
+  const EYE_DX = 2.6;
+  const coil = -clamp(o.dir || 0, -1, 1);            // +1 hauling up (tucked), -1 sliding down (long)
+  const bw = B.bodyW || 1, fluff = !!B.fluff, cheek = B.cheek || 0;
+  const headRx = (B.headRx || 6.3) * 0.84, headRy = (B.headRy || 5.8) * 0.9;
+  const ew = (B.earW || 2.4) * 0.92, eo = (B.earOut || 4) * 0.82;
+  const eRx = Math.min(1.8, B.eyeRx || 2), eRy = (B.eyeRy || 2.4) * 0.92;
+  const headY = 10.4;
+
+  // tail hangs and curls behind - drawn first so the haunch overlaps its root
+  [[BX - 4.0, 22.6], [BX - 5.6, 24.6], [BX - 6.4, 27.0], [BX - 5.4, 28.9]]
+    .forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
+  ellipse(BX - 5.4, 28.9, 1.0, 1.0, 'W', ['C']);     // pale tail tip
+
+  // hind legs: knees tucked hauling up, hanging long on the way down
+  const hipY = 23.4 - coil * 0.5, hindPawY = 27.6 - coil * 1.8;
+  ellipse(BX - 2.6, hipY + 1.6, 1.7, 2.7 - coil * 0.5, 'C');
+  ellipse(BX + 1.8, hipY + 2.0, 1.6, 2.6 - coil * 0.5, 'C');
+  ellipse(BX - 2.8, hindPawY, 2.0, 1.4, 'W', ['C']);
+  ellipse(BX + 2.0, hindPawY + 0.7, 1.9, 1.4, 'W', ['C']);
+
+  // torso hanging from the shoulders: compressed on a pull, extended on a drop
+  ellipse(BX - 0.3, hipY, 4.3 * bw, 3.2, 'C');                        // hips
+  ellipse(BX, 18.0 + coil * 0.5, 4.4 * bw, 6.5 - coil * 0.5, 'C');    // torso
+  if (fluff) { ellipse(BX - 4.3, 19.0, 1.9, 2.6, 'C'); ellipse(BX + 4.3, 19.4, 1.7, 2.4, 'C'); }
+
+  // head, tipped back to sight up the rope
+  ellipse(BX, headY, headRx, headRy, 'C');
+  if (cheek) { ellipse(BX - headRx * 0.7, headY + 1.6, 1.7, 2.2, 'C'); ellipse(BX + headRx * 0.7, headY + 1.6, 1.7, 2.2, 'C'); }
+  if (fluff) { ellipse(BX - headRx - 0.4, headY + 2.4, 1.8, 2.3, 'C'); ellipse(BX + headRx + 0.4, headY + 2.4, 1.8, 2.3, 'C'); }
+  // ears sit ON the skull, apex clear of it, so they read at this size
+  const earTop = headY - headRy - 2.7 + (B.earApexY == null ? 0 : (B.earApexY - 1) * 0.5);
+  const earBase = headY - headRy + 3.0;
+  triangle(BX - eo - 0.5, earTop, BX - eo - ew, earBase + 1.2, BX - eo + ew, earBase, 'K');
+  triangle(BX + eo + 0.5, earTop, BX + eo + ew, earBase + 1.2, BX + eo - ew, earBase, 'K');
+  const iw = ew * 0.55;
+  triangle(BX - eo - 0.3, earTop + 1.9, BX - eo - iw, earBase + 0.7, BX - eo + iw, earBase - 0.2, 'I');
+  triangle(BX + eo + 0.3, earTop + 1.9, BX + eo + iw, earBase + 0.7, BX + eo - iw, earBase - 0.2, 'I');
+  if (fluff) { ellipse(BX - eo, earBase - 0.6, 0.9, 1.4, 'W', ['C', 'K']); ellipse(BX + eo, earBase - 0.6, 0.9, 1.4, 'W', ['C', 'K']); }
+
+  // exposed throat + belly down the hanging front
+  ellipse(BX, headY + 4.0, 2.9, 2.0, 'W', ['C']);
+  ellipse(BX - 0.2, 19.0, 2.9, 5.6, 'W', ['C']);
+
+  ellipse(BX - EYE_DX, headY + 0.2, eRx, eRy, 'E'); ellipse(BX + EYE_DX, headY + 0.2, eRx, eRy, 'E');
+  setCell(11, 13, 'N'); setCell(12, 13, 'N');
+
+  if (B.tabby) {
+    [[9, 7], [10, 8], [11, 7]].forEach(([c, r]) => { if (G[r] && G[r][c] === 'C') setCell(c, r, 'K'); });
+    for (let r = 15; r < 26; r += 2) for (let c = 5; c < 14; c++) if (G[r] && G[r][c] === 'C') setCell(c, r, 'K');
+  }
+  ellipse(BX - 2.6, 20.0, 2.1, 2.6, 'X', ['C', 'K']); ellipse(BX + 1.6, 24.0, 1.9, 2.0, 'X', ['C', 'K']);
+
+  // Forelegs LAST, reaching up the right side to the rope - clear of the face, so
+  // the arms never paint over an eye. One paw is high and one low; o.hand swaps
+  // them, which is what makes alternating frames read as hand-over-hand.
+  const gripHi = 2.2 - coil * 0.8, gripLo = gripHi + 7.0;
+  const grips = o.hand ? [gripLo, gripHi] : [gripHi, gripLo];
+  const arm = (sx, sy, gy) => {
+    for (let i = 0; i <= 7; i++) {
+      const f = i / 7;
+      ellipse(sx + (CLIMB_ROPE_C - sx) * f, sy + (gy - sy) * f, 1.7, 1.7, 'C');
+    }
+    ellipse(CLIMB_ROPE_C, gy, 2.0, 1.6, 'W', ['C']);   // white mitt closed on the rope
+  };
+  const shoulder = [[BX + 4.4, 15.4], [BX + 4.7, 17.6]];
+  arm(shoulder[0][0], shoulder[0][1], grips[0]);
+  arm(shoulder[1][0], shoulder[1][1], grips[1]);
+
+  // carve separations LAST so the halo traces them on solid coats too. The arm
+  // seam follows the midline between the two limbs, otherwise a pale coat shows
+  // one fused slab instead of two forelegs.
+  for (let r = Math.round(Math.min(...grips)) + 2; r < Math.round(shoulder[1][1]); r++) {
+    const f0 = clamp((shoulder[0][1] - r) / Math.max(1, shoulder[0][1] - grips[0]), 0, 1);
+    const f1 = clamp((shoulder[1][1] - r) / Math.max(1, shoulder[1][1] - grips[1]), 0, 1);
+    const x0 = shoulder[0][0] + (CLIMB_ROPE_C - shoulder[0][0]) * f0;
+    const x1 = shoulder[1][0] + (CLIMB_ROPE_C - shoulder[1][0]) * f1;
+    setCell(Math.round((x0 + x1) / 2), r, '.');
+  }
+  for (let r = 24; r <= 29; r++) setCell(Math.round(BX), r, '.');    // between the hind legs
+  setCell(Math.round(BX - 2.8), Math.round(hindPawY) + 1, '.');      // toe splits
+  setCell(Math.round(BX + 2.0), Math.round(hindPawY) + 2, '.');
+}
+
 // ---- species -----------------------------------------------------------------
 // The overlay hosts either a cat or a dog. Rather than branch at every draw site,
 // the active species REWRITES the shared sprite/palette tables, so everything
@@ -210,6 +400,7 @@ function speciesDefs(sp) {
       patterns: DOG_PATTERNS, build: DOG_PATTERN_BUILD, tabby: DOG_PATTERN_BUILD.map(() => false),
       builds: DOG_BUILDS,
       sit: composeSitDog, type: composeTypeDog, loaf: composeCurlDog, rear: composeBegDog,
+      climb: composeClimbDog, pawUp: composePawUpDog,
       hunt: composeBowDog, huntCols: 30, huntRows: 22,
       typeCols: 24, typeRows: 24,
     };
@@ -218,6 +409,7 @@ function speciesDefs(sp) {
     patterns: CAT_BASE.patterns, build: CAT_BASE.build, tabby: CAT_BASE.tabby,
     builds: BUILDS,
     sit: composeSit, type: composeTypeFront, loaf: composeLoaf, rear: composeRearUp,
+    climb: composeClimb, pawUp: composePawUp,
     hunt: composeHunt, huntCols: 30, huntRows: 20,
     typeCols: 24, typeRows: 24,
   };
@@ -241,6 +433,57 @@ function installTables(D) {
 
 let SPECIES_DEFS = speciesDefs(species);
 installTables(SPECIES_DEFS);
+// Climb sprites are only ever needed for the coat that is CURRENTLY on screen, and
+// only while you are scrolling, so unlike sit/type/loaf/rear they are built on
+// demand and memoised instead of eagerly for all 14 coats. Key covers everything
+// baked into the grid: species, coat build, which paw is high, and the heading.
+// Cleared wherever the coat tables are rewritten (applyThemes / setSpecies).
+// Raised-paw poses, same lazy-build deal. lift/out are QUANTISED before they reach
+// here (see PAW_STEPS) so a smooth animation reuses a handful of frames instead of
+// composing a new sprite every tick - pixel art wants stepped limbs anyway.
+const PAW_STEPS = 8;
+const pawSpriteCache = new Map();
+function pawSpriteFor(i, lift, out) {
+  const l = Math.round(clamp(lift, 0, 1) * PAW_STEPS), o = Math.round(clamp(out, 0, 1) * 4);
+  const key = `${species}:${i}:${l}:${o}`;
+  let sp = pawSpriteCache.get(key);
+  if (!sp) {
+    const D = SPECIES_DEFS;
+    const tb = { ...(D.builds[PATTERN_BUILD[i]] || BUILDS[PATTERN_BUILD[i]] || {}), tabby: !!TABBY[i] };
+    sp = buildSprite(24, 30, () => D.pawUp(tb, { lift: l / PAW_STEPS, out: o / 4 }));
+    pawSpriteCache.set(key, sp);
+  }
+  return sp;
+}
+
+const batSpriteCache = new Map();
+function batSpriteFor(i, up, ph) {
+  const p = Math.round(clamp(ph, 0, 1) * 6);
+  const key = `${species}:${i}:${up}:${p}`;
+  let sp = batSpriteCache.get(key);
+  if (!sp) {
+    const D = SPECIES_DEFS;
+    const tb = { ...(D.builds[PATTERN_BUILD[i]] || BUILDS[PATTERN_BUILD[i]] || {}), tabby: !!TABBY[i] };
+    sp = buildSprite(24, BAT_ROWS, () => composeBat(tb, { up, ph: p / 6 }));
+    batSpriteCache.set(key, sp);
+  }
+  return sp;
+}
+
+const climbSpriteCache = new Map();
+function climbSpriteFor(i, hand, dir) {
+  const key = `${species}:${i}:${hand}:${dir}`;
+  let sp = climbSpriteCache.get(key);
+  if (!sp) {
+    // Read the LIVE coat tables, not SPECIES_DEFS: those stop at the built-in
+    // coats, while PATTERN_BUILD/TABBY also carry imported custom coats.
+    const D = SPECIES_DEFS;
+    const tb = { ...(D.builds[PATTERN_BUILD[i]] || BUILDS[PATTERN_BUILD[i]] || {}), tabby: !!TABBY[i] };
+    sp = buildSprite(24, 30, () => D.climb(tb, { hand, dir }));
+    climbSpriteCache.set(key, sp);
+  }
+  return sp;
+}
 let spriteHunt = buildSprite(SPECIES_DEFS.huntCols, SPECIES_DEFS.huntRows, () => SPECIES_DEFS.hunt(buildFor(0, SPECIES_DEFS)));
 let huntSprites = null;   // dogs vary the bow by breed (markings); cats share one crouch
 function huntSpriteFor(i) { return (huntSprites && huntSprites[i]) || spriteHunt; }
@@ -320,7 +563,7 @@ function restingY() {
 
 // offscreen buffer big enough for either sprite
 const oc = document.createElement('canvas');
-oc.width = Math.max(SW, HW, TW); oc.height = Math.max(SH, HH, TH);
+oc.width = Math.max(SW, HW, TW); oc.height = Math.max(SH, HH, TH, BAT_H);
 const octx = oc.getContext('2d'); octx.imageSmoothingEnabled = false;
 const HEAD_SRC = 14 * CELL, FEET_SRC = 7 * CELL, MID_SRC = SH - HEAD_SRC - FEET_SRC;
 
@@ -351,6 +594,7 @@ let _palKey = -1, _coldPalRGB = null, _coldPal = null;
 let BASE_PATTERNS = PATTERNS.length;
 function applyThemes(list) {
   _palKey = -1;   // coat palettes changed -> force a cold-palette rebuild next frame
+  climbSpriteCache.clear(); pawSpriteCache.clear();   // custom coats shift what each index means
   PATTERNS.length = BASE_PATTERNS; PATTERN_BUILD.length = BASE_PATTERNS; TABBY.length = BASE_PATTERNS;
   sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS; loafSprites.length = BASE_PATTERNS; rearSprites.length = BASE_PATTERNS;
   for (const th of (Array.isArray(list) ? list : [])) {
@@ -396,7 +640,10 @@ function setSpecies(next, coatIdx) {
     spriteHunt = buildSprite(D.huntCols, D.huntRows, () => D.hunt(buildFor(0, D)));
     huntSprites = buildHuntSprites(D);
     _palKey = -1;                        // force a cold-palette rebuild for the new coats
-    climbImgs = {};                      // painted climb frames are cat-only art
+    // climbImgs is deliberately NOT cleared: those frames decode once at startup and
+    // there is no reloader, so wiping them on a species swap would kill the cat's
+    // painted rope-climb for the rest of the session. coatHasFrames() gates them by
+    // species instead, so a dog never borrows cat art.
     ball = null; pantUntil = 0; wagBoost = 0;   // drop any in-flight dog-only state
   }
   const stored = coatIdx != null ? coatIdx : Number(localStorage.getItem(coatKey(species)));
@@ -667,49 +914,27 @@ function renderTypeFront(t, palRGB, pal, overheat, blinking, look) {
   drawKneadPaws(palRGB, lcx, rcx, keyTop, lp, rp, pos.y - 29 + dip);
   if (overheat) drawSteam(t, pos.x, oy + 2 * CELL);
 }
-// One front paw reaching toward a point: a SHORT two-tone forearm + white mitt with
-// toe-beans. Proportional (short reach), so it reads as a paw, not a stretchy arm.
-function drawReachPaw(palRGB, sx, sy, px, py) {
-  const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
-  const adx = px - sx, ady = py - sy, aLen = Math.hypot(adx, ady) || 1, aAng = Math.atan2(ady, adx);
-  ctx.save(); ctx.translate(sx, sy); ctx.rotate(aAng);
-  ctx.fillStyle = O; ctx.fillRect(-1, -4, aLen, 8);              // outline forearm
-  ctx.fillStyle = C; ctx.fillRect(-1, -2.5, aLen, 5);           // coat core
-  ctx.restore();
-  const pwW = 8, pwH = 6, pX = Math.round(px - pwW / 2), pY = Math.round(py - pwH / 2);
-  ctx.fillStyle = O; ctx.fillRect(pX - 2, pY - 2, pwW + 4, pwH + 4);   // paw outline
-  ctx.fillStyle = W; ctx.fillRect(pX, pY, pwW, pwH);                    // white mitt
-  ctx.fillStyle = '#ff8fa3'; ctx.fillRect(Math.round(px - 3), Math.round(py + 1), 6, 2); ctx.fillRect(Math.round(px - 1), Math.round(py - 2), 2, 2);   // toe beans
-}
 // Rear up on the haunches and BAT at the butterfly overhead with both front paws.
 // The reared body brings the chest up near the bug, so the live paws only reach a
 // short, natural distance (no rubber-arm). A near-miss sends the butterfly darting.
 function renderRearBat(t, palRGB, blinking) {
-  const sp = rearSprites[patternIndex] || sprites[patternIndex];
   const oy = Math.round(pos.y - SH);
   const hasBug = bfOn && bfMode !== 'out';
   const tgtX = hasBug ? bfX : pos.x;   // horizontal aim (or straight up in a --shot)
+  // Which paw is mid-swipe. Both the pose and the near-miss check below read this,
+  // so the strike and the hit can never land on different beats.
+  const swing = (t - bfSwatT0) / 130;                // quick swipe tempo
+  const left = Math.max(0, Math.sin(swing)), right = Math.max(0, Math.sin(swing + Math.PI));
+  const topPh = Math.max(left, right);
+  const sp = batSpriteFor(patternIndex, left >= right ? -1 : 1, topPh);
   drawShadow(pos.x, pos.y, 0.2, 34);
   octx.clearRect(0, 0, oc.width, oc.height);
   drawCat(octx, sp, t, palRGB, { bob: 0, blinking, look: { x: clamp((tgtX - pos.x) / 160, -1, 1), y: -0.75 } });   // eyes tip up at the bug
   ctx.save();
   ctx.translate(pos.x, pos.y);
   ctx.rotate(clamp((tgtX - pos.x) / 520, -0.08, 0.08));         // lean toward the bug
-  ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
+  ctx.drawImage(oc, 0, 0, SW, BAT_H, -SW / 2, -BAT_H, SW, BAT_H);
   ctx.restore();
-  // two front paws BOXING up at the bug: they alternate (one strikes up while the other
-  // loads), reaching just outside the head so the arms never cross the face
-  const swing = (t - bfSwatT0) / 130;                // quick swipe tempo
-  const shY = pos.y - SH * 0.60;
-  let topPh = 0;
-  for (const side of [-1, 1]) {
-    const ph = Math.max(0, Math.sin(swing + (side < 0 ? 0 : Math.PI)));   // alternate up / load
-    topPh = Math.max(topPh, ph);
-    const restX = pos.x + side * 12, restY = shY - 4;
-    const upX = pos.x + side * 21 + (tgtX - pos.x) * 0.14, upY = oy - 2;
-    const pawX = restX + (upX - restX) * ph, pawY = restY + (upY - restY) * ph;
-    drawReachPaw(palRGB, pos.x + side * 13, shY, pawX, pawY);
-  }
   // near-miss: when a paw strikes up near the bug it startles and darts off (hit-cooldown)
   if (hasBug && topPh > 0.7 && Math.hypot(bfX - pos.x, bfY - (oy - 2)) < 50 && t > bfBatHit && bfMode !== 'dodge') {
     bfBatHit = t + 220; bfMode = 'dodge'; bfDodgeUntil = t + 360;
@@ -870,6 +1095,10 @@ let feet = { x: pos.x, y: pos.y, vx: 0, vy: 0 };
 let grabbing = false;
 let settingArea = false, areaDragStart = null, areaRect = null;   // "set play area (drag)" mode
 let petBurstUntil = 0, downAt = 0, downX = 0, downY = 0;   // click-to-pet
+// Warm window kept alive by a hand resting on OR stroking the pet, plus where that
+// touch landed. Petting used to require an almost-still cursor, which meant the
+// stroke itself broke the state and the eyes snapped open mid-pat.
+let petTouchUntil = 0, petTouchHead = false;
 const SETTLE_MS = 240;   // eased "settle/land" when the floor line moves (resize / DPI / display change)
 let settleT0 = -1, settleFromY = 0, settleToY = 0, settleSquash = 0;
 
@@ -1209,32 +1438,13 @@ function drawYarnBall(cx, cy) {
   ctx.fillStyle = YARN_HI; ctx.fillRect(bx - 8, by - 9, 4, 3);   // top-left glint
 }
 
-// One gripping front paw on the rope: a rotated two-tone arm slab from the shoulder
-// (sx,sy) to the grip (px,py), capped with a white mitt. `splay` shows pink toe-beans
-// as the paw re-grabs. Same blocky language as the old drawFeedPaw.
-function drawGripPaw(palRGB, sx, sy, px, py, splay) {
-  const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
-  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
-  const pwW = 12, pwH = 7, pY = Math.round(py - pwH / 2);
-  const adx = px - sx, ady = py - sy, aLen = Math.hypot(adx, ady) || 1, aAng = Math.atan2(ady, adx);
-  ctx.save(); ctx.translate(sx, sy); ctx.rotate(aAng);
-  ctx.fillStyle = O; ctx.fillRect(0, -5, aLen + 3, 10);   // outline slab
-  ctx.fillStyle = C; ctx.fillRect(0, -3, aLen + 3, 6);    // coat core
-  ctx.restore();
-  const pX = px - pwW / 2;
-  rect(pX - 2, pY - 2, pwW + 4, pwH + 4, O);   // paw outline
-  rect(pX, pY, pwW, pwH, W);                    // white mitt
-  if (splay) {
-    rect(px - 3, pY + 3.5, 6, 3, '#ff8fa3'); rect(px - 6.5, pY + 0.5, 3, 3, '#ff8fa3'); rect(px + 3.5, pY + 0.5, 3, 3, '#ff8fa3');
-  } else {
-    rect(px - 1, pY + 2, 2, pwH - 2, O);       // closed grip: toe-split line
-  }
-}
 
 // Shared rope geometry so the rope, the procedural grip-paws, AND the raster climb
 // frame all line up: a vertical strand from above the head down to a floor ball.
 function ropeGeom(pos, t, energy) {
-  const ropeX = Math.round(pos.x - 26);                      // just left of centre, in front of the chest
+  // The strand lines up with column CLIMB_ROPE_C of the climb sprite, so the
+  // pose's gripping mitts close on the real rope instead of near it.
+  const ropeX = Math.round(pos.x + (CLIMB_ROPE_C - 12) * CELL);
   const topY = Math.round(pos.y - SH - 55);                  // plenty of rope rising above the head
   const ballY = Math.round(pos.y - 6);                       // ball rests on the floor line
   const sway = Math.sin(t / 220) * (1 + energy / 40);        // whole-rope sway, livelier with energy
@@ -1258,27 +1468,15 @@ function drawRope(pos, t, climbing, dir, energy) {
   drawYarnBall(g.ropeAt(g.ballY), g.ballY + ballBob);
 }
 
-// Procedural rope climb (FALLBACK when no raster frames are present): seated cat's
-// two paws grip the rope hand-over-hand, hauling UP (dir<0) or DOWN (dir>0).
-function drawRopeClimb(palRGB, pos, t, climbing, dir, energy, bob, sway) {
+// The rope furniture behind the procedural climb: the strand, the floor ball, and
+// the lint that shakes loose while the pet hauls on it. The pet itself is a real
+// climb POSE now (composeClimb / composeClimbDog) drawn through the normal sprite
+// pipeline, so nothing here draws limbs any more - the sprite's own mitts close on
+// the strand at ropeX.
+function drawRopeClimb(pos, t, climbing, dir, energy) {
   const YARN_OUT = '#c8455a', YARN_LT = '#ff8fa3';
   const g = ropeGeom(pos, t, energy), dirN = clamp(dir, -1, 1);
-  bob = bob || 0; sway = sway || 0;
   drawRope(pos, t, climbing, dir, energy);
-
-  // two gripping paws, hand-over-hand (one holds while the other re-grabs). The
-  // shoulders ride the body heave (bob/sway) while the grip points stay on the rope,
-  // so the arms visibly extend and compress with each pull - a smooth climbing stroke.
-  const shX = pos.x - 6 + sway, shY = Math.round(pos.y - SH * 0.42 - bob);   // shoulders at the chest
-  const gripBaseY = Math.round(pos.y - SH * 0.42), SPAN = 22;
-  const ph = (t / (climbing ? 460 : 1100)) % 1;                // faster cycle while actively climbing
-  for (let i = 0; i < 2; i++) {
-    const phi = (ph + i * 0.5) % 1;
-    const yo = Math.cos(phi * Math.PI * 2) * (SPAN / 2);       // this paw rides high<->low
-    const reach = phi < 0.5 ? Math.sin((phi / 0.5) * Math.PI) : 0;   // 0..1..0 arc on the re-grab
-    const gy = gripBaseY + yo + (climbing ? reach * 6 * dirN : 0);   // bias the re-grab toward climb dir
-    drawGripPaw(palRGB, shX, shY, g.ropeAt(gripBaseY + yo) + reach * 3.5, gy, climbing && reach > 0.55);
-  }
 
   // falling debris flecks + bright twists riding the rope while actively climbing
   if (climbing && energy > 6) {
@@ -1323,7 +1521,14 @@ let climbImgs = {};   // { coat: { idle, up1, up2, down1, down2: Image } }
 })();
 
 // True only when THIS coat has its own decoded painted set (no cross-coat fallback).
-const coatHasFrames = (coat) => { const f = climbImgs[coat]; return !!(f && f.idle && f.idle.complete); };
+// The painted sets are cat-only art, so a dog always falls back to the procedural
+// climb in its own colours - even if a breed (or an imported custom coat) happens to
+// share a painted cat coat's name.
+const coatHasFrames = (coat) => {
+  if (isDog()) return false;
+  const f = climbImgs[coat];
+  return !!(f && f.idle && f.idle.complete);
+};
 
 // Pick a frame for this coat: idle when hanging, alternating up1/up2 climbing up,
 // down1/down2 climbing down. Returns null if the coat has no painted set.
@@ -1346,47 +1551,39 @@ function drawClimbFrame(pos, t, climbing, dir, coat, bob) {
   const dy = Math.round(pos.y - h + CLIMB_DROP - (bob || 0));   // continuous heave on top of the crisp pose swap
   ctx.drawImage(img, dx, dy, w, h);
 }
-// Grooming: the cat raises a front paw to its muzzle and licks it, washing its face.
-// Drawn over the seated sprite (cx = body centre, faceY = muzzle height).
-function drawGroom(palRGB, cx, faceY, t) {
-  const O = rgbStr(palRGB.O), C = rgbStr(palRGB.C), W = rgbStr(palRGB.W);
-  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
-  // Two timescales: a slow lift/hold/lower envelope, plus quick tongue flicks on top.
-  // The paw rises to the muzzle and settles there while the cat licks it several times
-  // per raise, instead of one sleepy full-travel bob per cycle.
-  const CYCLE = 2400;
-  const c = (t % CYCLE) / CYCLE;                                   // 0..1 within a raise
-  let lift = c < 0.16 ? c / 0.16 : c > 0.80 ? (1 - c) / 0.20 : 1;  // ease up, hold, ease down
-  lift = Math.max(0, Math.min(1, lift));
-  lift = lift * lift * (3 - 2 * lift);                            // smoothstep
-  const licking = c > 0.16 && c < 0.80;                           // tongue works while paw is up
-  const lick = licking ? (Math.sin(t / 90) + 1) / 2 : 0;          // fast flick, ~3 per raise
-  const shY = faceY + 32;                                          // chest anchor y
-  const pawX = cx - 2, pawY = faceY + 12 - lift * 11 + lick * 1.2; // rests at muzzle, nods per lick
-  const pwW = 13, pwH = 7;
-  const pY = Math.round(pawY - pwH / 2);
-  const aw = 10, ax = Math.round(pawX - aw / 2);
-  const aTop = pY + pwH;                                           // arm hangs below the paw
-  const aH = Math.max(0, Math.round(shY) - aTop);
-  if (aH > 0) { rect(ax, aTop, aw, aH, O); rect(ax + 2, aTop, aw - 4, aH, C); }
-  rect(pawX - pwW / 2 - 2, pY - 2, pwW + 4, pwH + 4, O);          // paw outline
-  rect(pawX - pwW / 2, pY, pwW, pwH, W);                           // white mitt
-  if (lift > 0.6) {                                                // paw near face: show toe beans on underside
-    rect(pawX - 3, pY + 3.5, 6, 3, '#ff8fa3');
-    rect(pawX - 6.5, pY + 0.5, 3, 3, '#ff8fa3'); rect(pawX + 3.5, pY + 0.5, 3, 3, '#ff8fa3');
-  } else {
-    rect(pawX - 1, pY + 2, 2, pwH - 2, O);                        // contact: toe-split line
-  }
-  if (licking) {                                                  // pink tongue flicking the paw
-    ctx.globalAlpha = 0.45 + lick * 0.55;                         // wet flash on each reach
-    const th = 2 + Math.round(lick * 3);                          // tongue extends, then retracts
-    rect(pawX - 2, pY + pwH - 1, 4, th, '#ff9aa8');               // tongue
-    rect(pawX - 1, pY + pwH - 1 + th, 2, 1, '#ff8090');           // pointed wet tip
-    ctx.globalAlpha = 1;
-  }
-  const sp = (t % 1600) / 1600;                                   // occasional "squeaky clean" sparkle
-  if (sp < 0.4) { ctx.globalAlpha = (0.4 - sp) * 2; ctx.fillStyle = '#fff6d6';
-    const sx = cx + 11, sy = faceY - 5 - sp * 7; ctx.fillRect(sx, sy, 2, 2); ctx.fillRect(sx + 2, sy - 3, 1, 1); ctx.globalAlpha = 1; }
+// Grooming: the LIFT ENVELOPE only. The raised limb itself is a composed pose now
+// (composePawUp), so all that is left here is the timing that drives it plus the
+// wet detail at the muzzle - drawn INTO the sprite buffer, like drawYawn, so it
+// scales and leans with the cat instead of floating in screen space.
+const GROOM_CYCLE = 2400;
+function groomPhase(t) {
+  const c = (t % GROOM_CYCLE) / GROOM_CYCLE;                        // 0..1 within one raise
+  let lift = c < 0.16 ? c / 0.16 : c > 0.80 ? (1 - c) / 0.20 : 1;   // ease up, hold, ease down
+  lift = clamp(lift, 0, 1);
+  lift = lift * lift * (3 - 2 * lift);                              // smoothstep
+  const licking = c > 0.16 && c < 0.80;                             // tongue works while the paw is up
+  return { lift, licking, lick: licking ? (Math.sin(t / 90) + 1) / 2 : 0 };
+}
+// Pink tongue flicking the raised paw, plus the odd squeaky-clean sparkle.
+function drawLick(g, sp, bob, ph) {
+  if (!ph.licking) return;
+  const mx = sp.muzzle.x - 5, my = sp.muzzle.y + bob + 1;          // the paw is held just left of the nose
+  g.globalAlpha = 0.45 + ph.lick * 0.55;                            // wet flash on each reach
+  g.fillStyle = '#ff9aa8';
+  const th = 2 + Math.round(ph.lick * 3);
+  g.fillRect(Math.round(mx - 2), Math.round(my), 4, th);
+  g.fillStyle = '#ff8090';
+  g.fillRect(Math.round(mx - 1), Math.round(my + th), 2, 1);        // pointed wet tip
+  g.globalAlpha = 1;
+}
+
+// How far through a swipe the batting paw is, 0..1. Shared by the pose (which sets
+// the limb's height/reach) and renderPlay (which knocks the leaf at the peak), so the
+// strike and the contact can never drift out of sync.
+const PLAY_BAT_CYCLE = 540;
+function battingReach(t) {
+  if (playT0 < 0) return 0;
+  return Math.sin(clamp(((t - playT0) % PLAY_BAT_CYCLE) / PLAY_BAT_CYCLE, 0, 1) * Math.PI);
 }
 
 // Idle paw-play: a small leaf drifts in front of the seated cat and it bats at it with
@@ -1401,6 +1598,9 @@ function startPlay(t) {
 // A little tumbling leaf the cat bats around (drawn in screen coords).
 function drawMote(x, y, spin) {
   ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(spin);
+  // dark rim first: the overlay sits on whatever wallpaper you have, and a small
+  // mid-green leaf disappears against a light or busy desktop without one
+  ctx.fillStyle = '#2f5f28'; ctx.beginPath(); ctx.ellipse(0, 0, 6.4, 3.9, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#5fae4e'; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.6, 0, 0, Math.PI * 2); ctx.fill();      // leaf body
   ctx.fillStyle = '#7ccb62'; ctx.beginPath(); ctx.ellipse(-1, -0.7, 3.2, 1.5, 0, 0, Math.PI * 2); ctx.fill(); // lit top
   ctx.strokeStyle = '#3c7a32'; ctx.lineWidth = 0.8; ctx.lineCap = 'round';
@@ -1418,23 +1618,24 @@ function drawYawn(g, sp, bob, open) {
   g.beginPath(); g.ellipse(mx, my + 1.8 * open, 1.5, 0.9 + 2.0 * open, 0, 0, Math.PI * 2); g.fill();   // tongue
 }
 // Update the leaf physics + draw the batting paw. Called from the seated render once
-// per frame while `playing` (oy = sprite top). Reuses drawGripPaw for the reaching arm.
+// per frame while `playing` (oy = sprite top). The paw itself lives in the pose.
 function renderPlay(palRGB, oy, t, step) {
-  if (!mote) { mote = { x: pos.x + 14, y: oy + SH * 0.06, vx: 0, vy: 0.5, spin: 0.6, side: 1, batCyc: -1 }; if (playT0 < 0) playT0 = t; }   // QA --state=play
-  // the leaf springs gently back toward a hover point in front of the face, with a
-  // little gravity so it keeps sinking and the cat keeps batting it back up.
-  const hoverX = pos.x + mote.side * 12, hoverY = oy + SH * 0.30;
+  if (!mote) { mote = { x: pos.x - 20, y: oy + SH * 0.06, vx: 0, vy: 0.5, spin: 0.6, side: -1, batCyc: -1 }; if (playT0 < 0) playT0 = t; }   // QA --state=play
+  // The leaf springs back toward a hover point, with a little gravity so it keeps
+  // sinking and the cat keeps batting it up. That point sits just OUTSIDE the
+  // silhouette, on the SAME side as the batting paw: hovering it over the cat's own
+  // body (as it used to) hid a 5px leaf against the coat, and parked it on the
+  // opposite side from the paw that was supposedly hitting it.
+  const hoverX = pos.x + mote.side * (SW * 0.46), hoverY = oy + SH * 0.34;
   mote.vx += (hoverX - mote.x) * 0.010 * step;
   mote.vy += ((hoverY - mote.y) * 0.010 + 0.06) * step;
   mote.vx *= 0.93; mote.vy *= 0.93;
   mote.x += mote.vx * step; mote.y += mote.vy * step;
   mote.spin += 0.05 * step;
-  // the left front paw reaches up toward the leaf and strikes once per cycle
-  const CYC = 540, cyc = Math.floor((t - playT0) / CYC), phase = ((t - playT0) % CYC) / CYC;
-  const strike = Math.sin(clamp(phase, 0, 1) * Math.PI);
-  const shX = pos.x - 8, shY = oy + SH * 0.60, reach = 0.42 + strike * 0.5;
-  const px = shX + (mote.x - shX) * reach, py = shY + (mote.y - shY) * reach;
-  drawGripPaw(palRGB, shX, shY, px, py, strike > 0.55);   // splayed toe-beans on the strike
+  // The striking paw is part of the composed pose now (see battingReach + pawSpriteFor),
+  // so this only owns the leaf: its physics, the knock, and the sparkle on contact.
+  const CYC = PLAY_BAT_CYCLE, cyc = Math.floor((t - playT0) / CYC), phase = ((t - playT0) % CYC) / CYC;
+  const shX = pos.x - 8, shY = oy + SH * 0.60;
   if (cyc !== mote.batCyc && phase > 0.42 && phase < 0.72) {   // connect once per cycle near the strike peak
     mote.batCyc = cyc;
     const aw = Math.atan2(mote.y - shY, mote.x - shX) + (Math.random() - 0.5) * 0.8;
@@ -1447,6 +1648,10 @@ function renderPlay(palRGB, oy, t, step) {
 
 // hunt/pet tuning
 const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300, POUNCE_WINDUP_MS = 300;
+// Patting: how fast the hand may move and still count as a stroke (px/ms - above
+// this you are flicking past, not petting), and how long a touch stays warm after
+// the pointer moves on, so one stroke does not read as a dozen separate taps.
+const PET_STROKE_MAX = 0.9, PET_GRACE_MS = 280;
 // butterfly play: the cat only engages the butterfly once the cursor has been still this
 // long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge;
 // BF_EDGE is the screen-edge keep-out for the whole sprite (covers the wingspan).
@@ -1791,6 +1996,11 @@ function draw(t) {
   const climbStroke = (t / (climbing ? 460 : 1100)) % 1;                          // matches the grip cycle in drawRopeClimb
   const climbBob = paperActive ? Math.sin(climbStroke * Math.PI * 2) * (climbing ? 2.2 + Math.min(scrollRate, 45) * 0.045 : 1.1) : 0;
   const climbSway = paperActive ? Math.cos(climbStroke * Math.PI * 2) * (climbing ? 1.0 : 0.6) : 0;
+  // Hauling off the floor: the pose only reads as hanging if its hind paws and tail
+  // clear the ground, so the whole body lifts as climb energy builds (and settles
+  // back down as it bleeds off, instead of popping). The painted climb carries its
+  // own lift inside the artwork, so this is for the posed climb only.
+  const climbLift = paperActive ? Math.min(CLIMB_LIFT, paperLen * 1.2) : 0;
 
   // Mouse-hunt: when enabled in settings, a fast cursor flick (far enough away)
   // makes the cat crouch, stalk, and pounce. Off by config (or when the cat is set
@@ -1801,18 +2011,29 @@ function draw(t) {
   if (huntOn && !grabbing && !SHOT && !workModeOn() && velEMA > HUNT_TRIGGER && dCur > 70) { huntUntil = t + 1400; huntTarget = null; addEnergy(0.6 * step); }
   const hunting = !startleActive && (FORCED_STATE === 'hunt' || (huntOn && t < huntUntil) || (t < huntUntil && huntTarget && bfOn));
 
-  // pet detection (cursor resting on the head, slow, not hunting/grabbing)
+  // Pet detection. Patting is a MOVING hand, so this deliberately does NOT ask for
+  // a still cursor: any speed short of flicking straight past counts while the
+  // pointer is on the pet, and each touch stays warm briefly afterwards so a
+  // back-and-forth stroke reads as one continuous pat instead of flickering off
+  // every time the hand picks up speed or overshoots the sprite for a frame.
+  // (A cursor this close can never trigger a hunt - that needs dCur > 70 - so a
+  // generous ceiling here costs nothing.)
   const headBox = { x: pos.x - SW / 2, y: pos.y - SH, w: SW, h: SH * 0.42 };
   const inHead = cursor.x >= headBox.x && cursor.x <= headBox.x + headBox.w && cursor.y >= headBox.y && cursor.y <= headBox.y + headBox.h;
-  const petting = FORCED_STATE === 'pet' || t < petBurstUntil || (!grabbing && !hunting && !startleActive && inHead && velEMA < 0.25);
+  const bodyBox = { x: pos.x - SW / 2, y: pos.y - SH * 0.58, w: SW, h: SH * 0.58 };
+  const inBody = cursor.x >= bodyBox.x && cursor.x <= bodyBox.x + bodyBox.w && cursor.y >= bodyBox.y && cursor.y <= bodyBox.y + bodyBox.h;
+  if ((inHead || inBody) && !grabbing && !hunting && !startleActive && velEMA < PET_STROKE_MAX) {
+    petTouchUntil = t + PET_GRACE_MS;
+    petTouchHead = inHead;                  // the head wins when the boxes overlap
+  }
+  const touching = t < petTouchUntil;
+  const petting = FORCED_STATE === 'pet' || t < petBurstUntil || (!grabbing && !hunting && !startleActive && touching && petTouchHead);
   if (petting) addEnergy(0.6 * step);   // affection nudges mood up toward calm/playful
   if (petting && inHead && !grabbing) { leanTarget = clamp((cursor.x - pos.x) / 90, -0.10, 0.10); leanUntil = t + 200; }   // tilt the head into your hand
 
-  // body touch (not the head): the cat leans/arches into your hand, tail up, looks
-  // at you, and trills now and then - a different reaction than the head-pet purr.
-  const bodyBox = { x: pos.x - SW / 2, y: pos.y - SH * 0.58, w: SW, h: SH * 0.58 };
-  const inBody = cursor.x >= bodyBox.x && cursor.x <= bodyBox.x + bodyBox.w && cursor.y >= bodyBox.y && cursor.y <= bodyBox.y + bodyBox.h;
-  const bodyPet = !FORCED_STATE && !petting && !grabbing && !hunting && !startleActive && inBody && velEMA < 0.25;
+  // body touch (not the head): the cat leans/arches into your hand, tail up, and
+  // trills now and then - a different reaction than the head-pet purr.
+  const bodyPet = !FORCED_STATE && !petting && !grabbing && !hunting && !startleActive && touching && !petTouchHead;
   if (bodyPet) {
     addEnergy(0.5 * step);
     leanTarget = clamp((cursor.x - pos.x) / 70, -0.13, 0.13); leanUntil = t + 200;   // arch toward the hand
@@ -2122,11 +2343,17 @@ function draw(t) {
       const loafing = !grooming && !playing && (FORCED_STATE === 'loaf' || (calm && !petting && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && t < loafUntil));
       const yawning = FORCED_STATE === 'yawn' || (calm && !petting && !bodyPet && !typing && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !playing && !loafing && t < yawnUntil);
       const wig = idleSway;   // calm "normal" patting - no fast side-to-side jitter while petted
-      const emode = (petting || stretching || loafing || grooming || hopActive || yawning) ? 'happy' : 'open';   // celebrate the done/playful hop with a happy squint; squint on a yawn
+      // Eyes squeeze shut for a pat ANYWHERE on the pet, not just on the head - a
+      // cat being stroked along its back squints just as happily as one having its
+      // ears scratched. Also on the done/playful hop, and on a yawn.
+      const emode = (petting || bodyPet || stretching || loafing || grooming || hopActive || yawning) ? 'happy' : 'open';
       const eLook = (thinking || working) ? { x: 0, y: -0.5 } : paperActive ? { x: -0.35, y: clamp(climbDir, -1, 1) * 0.6 }
         : (playing && mote) ? { x: clamp((mote.x - pos.x) / 70, -1, 1), y: clamp((mote.y - (pos.y - SH * 0.72)) / 70, -1, 1) }   // watch the leaf
         : smoothLook;   // look the way it climbs the rope
       const climbRaster = paperActive && !petting && !stretching && coatHasFrames(coatSlug(P.name));   // painted climb for THIS coat?
+      // Every other coat (and every dog) climbs with the role-coded climb POSE, so
+      // it hangs off the rope in its own colours instead of sitting beside it.
+      const procClimb = paperActive && !petting && !stretching && !climbRaster;
       const breath = Math.sin(t / 2200);                              // gentle, slow breathing (calmer cadence)
       let sx = 1 - breath * 0.012, sy = 1 + breath * 0.020;
       if (settleSquash) { sy *= 1 - settleSquash; sx *= 1 + settleSquash * 0.5; }   // tiny squash as it lands on the floor
@@ -2147,8 +2374,8 @@ function draw(t) {
       const ox = Math.round(pos.x - SW / 2) + wig, oy = Math.round(pos.y - SH) - Math.round(hop) - Math.round(petPush);
       const shadowA = (petting || bodyPet) ? 0.14 + Math.sin(t / 800) * 0.05 : 0.18;
       drawShadow(pos.x + wig, pos.y, shadowA);
-      if (!stretching && !thinking && !working && !loafing && !climbRaster) {
-        // loaf/curl has a baked, wrapped tail; the climb frame has its own
+      if (!stretching && !thinking && !working && !loafing && !climbRaster && !procClimb) {
+        // loaf/curl has a baked, wrapped tail; both climbs carry their own
         if (isDog()) drawDogTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting, energy / 100 + (ball && ball.phase === 'carry' ? 0.5 : 0));
         else drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);
       }
@@ -2167,24 +2394,37 @@ function draw(t) {
       } else {
       octx.clearRect(0, 0, oc.width, oc.height);
       const stareDilate = (staring && t - staringT0 < 1800) ? 1.12 : 1;   // subtle wide-eyed fixate
-      drawCat(octx, loafing ? loafSprite : catSprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet, dilate: stareDilate, panting: isDog() && t < pantUntil && !loafing });
-      if (paperActive && !petting && !stretching) {
-        // both front paws lift off the ground to grip the rope, so paint over the
-        // baked planted front legs+paws on the offscreen sprite (so it scales/flips
-        // with the cat) - otherwise they read as extra limbs behind the climbing arms.
-        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(28, 95 + bob, 64, 25);
-      } else if (grooming || playing || thinking || working) {
-        octx.fillStyle = rgbStr(palRGB.C); octx.fillRect(34, 100 + bob, 18, 22);   // hide left paw -> one raised (washing / batting / pondering / tapping) + one planted
-      }
+      // Which climb frame: the paws swap high/low on the same accumulator the
+      // painted climb uses (so both climbs beat at the scroll's cadence), and the
+      // body coils for a haul up / stretches for a slide down.
+      const climbPose = procClimb
+        ? climbSpriteFor(patternIndex, climbing ? Math.floor(climbAnim) % 2 : 0,
+          climbing ? (climbDir < -0.25 ? -1 : climbDir > 0.25 ? 1 : 0) : 0)
+        : null;
+      // Washing, pondering, tapping and batting all raise one front paw. They share
+      // one composed pose and differ only in how high it goes and how far it reaches,
+      // which replaces four separate limbs-drawn-as-rectangles over the sprite.
+      const groom = grooming ? groomPhase(t) : null;
+      const pawPose = (climbPose || loafing) ? null
+        : groom ? { lift: groom.lift, out: 0 }
+        : playing ? { lift: 0.34 + battingReach(t) * 0.5, out: 0.45 + battingReach(t) * 0.5 }
+        : thinking ? { lift: 0.74 + Math.sin(t / 700) * 0.05, out: 0.06 }
+        : working ? { lift: 0.52 + Math.abs(Math.sin(t / 150)) * 0.26, out: 0.16 }
+        : null;
+      const bodySprite = climbPose || (pawPose ? pawSpriteFor(patternIndex, pawPose.lift, pawPose.out) : (loafing ? loafSprite : catSprite));
+      drawCat(octx, bodySprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet, dilate: stareDilate, panting: isDog() && t < pantUntil && !loafing });
+      if (groom) drawLick(octx, bodySprite, bob, groom);   // tongue rides the sprite buffer, so it scales with the cat
       if (yawning || stretching) {   // open mouth + tongue, drawn into the sprite buffer so it scales/leans with the cat (cats yawn as they stretch)
         const sprog = FORCED_STATE === 'stretch' ? (t % STRETCH_MS) / STRETCH_MS : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
         const yp = stretching ? Math.sin(clamp((sprog - 0.08) / 0.84, 0, 1) * Math.PI) * 0.85
           : FORCED_STATE === 'yawn' ? Math.sin((t % 1600) / 1600 * Math.PI) : Math.sin((1 - clamp((yawnUntil - t) / 1000, 0, 1)) * Math.PI);
         drawYawn(octx, catSprite, bob, yp);
       }
+      // rope + floor ball go down FIRST so the body occludes the strand it grips
+      if (procClimb) drawRopeClimb(pos, t, climbing, climbDir, Math.round(paperLen));
       ctx.save();
       const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
-      ctx.translate(Math.round(pos.x + wig + climbSway + purrJit), Math.round(pos.y - hop - climbBob - petPush));   // round to whole CSS px for crisp pixels; nuzzle push + purr buzz ride on the rest pose
+      ctx.translate(Math.round(pos.x + wig + climbSway + purrJit), Math.round(pos.y - hop - climbBob - petPush - climbLift));   // round to whole CSS px for crisp pixels; nuzzle push + purr buzz ride on the rest pose
       if (lean || cursorLean) ctx.rotate(lean + cursorLean);   // idle lean + watch-the-cursor tilt
       if (spinUntil > t) ctx.rotate((1 - (spinUntil - t) / 650) * Math.PI * 2);   // tail-chase spin
       const faceLeft = roamUntil > t && roamFrom && roamTo && roamTo.x < roamFrom.x;   // face where it walks
@@ -2195,21 +2435,12 @@ function draw(t) {
       if (overheat) drawSteam(t, ox + SW / 2, oy + CELL);   // red+steam cooldown after typing
       if (petting && t - lastHeart > 520) { popLove(t, pos.x, oy - 4, 2.1, 14); lastHeart = t; }   // big love hearts rising from the head
       else if (bodyPet && t - lastHeart > 950) { popLove(t, pos.x, oy + 6, 1.5, 22); lastHeart = t; }
-      if (thinking) {
-        drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
-        const py = oy + SH * 0.34 + Math.sin(t / 700) * 1.4;   // a paw raised to the chin: "hmm…"
-        drawGripPaw(palRGB, pos.x - 8, oy + SH * 0.60, pos.x - 1, py, false);
-      } else if (working) {
-        drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
-        const tap = Math.abs(Math.sin(t / 150));               // a front paw tapping along while the agent works
-        drawGripPaw(palRGB, pos.x - 8, oy + SH * 0.56, pos.x - 6, oy + SH * 0.78 - tap * 9, tap > 0.55);
-      }
+      // The raised paw for both of these is baked into the pose above; only the
+      // status bubble is drawn here.
+      if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
+      else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
       if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
-      if (paperActive && !petting && !stretching) {
-        drawRopeClimb(palRGB, pos, t, climbing, climbDir, Math.round(paperLen), climbBob, climbSway);
       }
-      }
-      if (grooming && !paperActive) drawGroom(palRGB, pos.x + wig, oy + SH * 0.30, t);   // raise a paw, wash its face
       if (playing && !paperActive) renderPlay(palRGB, oy, t, step);                       // bat the drifting leaf with a paw
       else if (mote && t > playUntil) mote = null;                                        // play over -> drop the leaf
       if (t < labelUntil) {
