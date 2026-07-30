@@ -48,7 +48,7 @@ module.exports = [
     files: ['src/audio.js'],
     languageOptions: {
       sourceType: 'script', ecmaVersion: 2023,
-      globals: { ...globals.browser, config: 'readonly', patternIndex: 'readonly', PATTERN_BUILD: 'readonly' },
+      globals: { ...globals.browser, config: 'readonly', patternIndex: 'readonly', PATTERN_BUILD: 'readonly', isDog: 'readonly' },
     },
   },
   {

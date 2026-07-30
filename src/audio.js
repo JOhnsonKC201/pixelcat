@@ -68,14 +68,198 @@ function playMeowSample(ac) {
   s.connect(g).connect(master); s.start();
   s.onended = () => { try { s.disconnect(); g.disconnect(); } catch (e) { /* ignore */ } };
 }
+// Is the overlay a dog right now? renderer.js defines isDog() and loads AFTER this
+// file, so this resolves at CALL time, never at load time.
+function voiceIsDog() { return typeof isDog === 'function' && isDog(); }
+
+// Body size drives a dog's voice more than anything else: a Chihuahua yips, a
+// shepherd booms. `nasal` shapes the mouth, `snort` adds the brachycephalic rasp
+// (a pug is high AND snorty, because the short muzzle kills the top formants),
+// and `bay` gives the hound its drawn-out howl instead of a clipped bark.
+const DOG_VOICE = {
+  toy: { pitch: 1.62, dur: 0.72, gain: 0.80, nasal: 1.25 },
+  brachy: { pitch: 1.28, dur: 0.80, gain: 0.90, nasal: 0.78, snort: 1 },
+  dwarf: { pitch: 1.26, dur: 0.86, gain: 0.95 },
+  longdog: { pitch: 1.18, dur: 0.92, gain: 0.95 },
+  spitz: { pitch: 1.14, dur: 0.84, gain: 1.00, nasal: 1.12 },
+  poodle: { pitch: 1.10, dur: 0.90, gain: 0.92 },
+  collie: { pitch: 1.04, dur: 0.94, gain: 1.00 },
+  merledog: { pitch: 1.00, dur: 0.96, gain: 1.00 },
+  hound: { pitch: 0.94, dur: 1.22, gain: 1.05, bay: 1 },
+  spotted: { pitch: 0.94, dur: 1.00, gain: 1.00 },
+  retriever: { pitch: 0.88, dur: 1.05, gain: 1.05 },
+  labrador: { pitch: 0.86, dur: 1.05, gain: 1.05 },
+  working: { pitch: 0.82, dur: 1.08, gain: 1.10 },
+  shepherd: { pitch: 0.78, dur: 1.10, gain: 1.12 },
+};
+
 function voiceFor() {
   const build = (typeof PATTERN_BUILD !== 'undefined' && PATTERN_BUILD[patternIndex]) || 'standard';
-  const base = build === 'slender' ? { pitch: 1.22, dur: 1.25, type: 'sawtooth', gain: 0.95 }
-    : build === 'stocky' ? { pitch: 0.82, dur: 0.92, type: 'triangle', gain: 1.05 }
-    : build === 'fluffy' ? { pitch: 1.0, dur: 1.06, type: 'sine', gain: 0.85 }
-    : { pitch: 1.0, dur: 1.0, type: 'triangle', gain: 1.0 };
+  let base;
+  if (voiceIsDog()) {
+    base = { ...(DOG_VOICE[build] || { pitch: 1.0, dur: 1.0, gain: 1.0 }), type: 'sawtooth' };
+  } else {
+    base = build === 'slender' ? { pitch: 1.22, dur: 1.25, type: 'sawtooth', gain: 0.95 }
+      : build === 'stocky' ? { pitch: 0.82, dur: 0.92, type: 'triangle', gain: 1.05 }
+      : build === 'fluffy' ? { pitch: 1.0, dur: 1.06, type: 'sine', gain: 0.85 }
+      : { pitch: 1.0, dur: 1.0, type: 'triangle', gain: 1.0 };
+  }
   base.pitch *= 1 + ((patternIndex * 37) % 7 - 3) * 0.012;   // small per-coat individuality
   return base;
+}
+
+// Looping white noise, built once. Breath, bark transients and panting are all
+// noise; rebuilding the buffer per call would allocate on every single bark.
+let noiseBuf = null;
+function noiseSource(ac) {
+  if (!noiseBuf) {
+    noiseBuf = ac.createBuffer(1, Math.max(1, Math.floor(ac.sampleRate * 0.5)), ac.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+  return s;
+}
+
+// ---- dog voices -------------------------------------------------------------
+// A bark is not a meow with a different pitch. It is a PLOSIVE: a near-instant
+// noise transient (the "w" of woof, air released past the tongue) on top of a
+// voiced pulse that falls immediately, all over in well under a fifth of a
+// second. The cat model's slow formant glide is exactly what a bark is not, so
+// these are built from scratch rather than reusing playMeow's shape.
+function barkOnce(ac, v, t0, strength) {
+  const dur = (0.15 + Math.random() * 0.05) * v.dur * (v.bay ? 2.4 : 1);
+  const p = v.pitch * (0.96 + Math.random() * 0.08);
+  const trash = [];
+  const g = ac.createGain(); g.connect(master); trash.push(g);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.19 * (v.gain || 1) * strength, t0 + 0.008);   // hard attack
+  if (v.bay) g.gain.setValueAtTime(0.15 * (v.gain || 1) * strength, t0 + dur * 0.45);  // hounds hold the note
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  // voiced body: falls away fast (a bark is a downward chirp, not a held vowel)
+  const o = ac.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(320 * p, t0);
+  o.frequency.exponentialRampToValueAtTime(190 * p, t0 + dur * (v.bay ? 0.8 : 0.35));
+  const sub = ac.createOscillator(); sub.type = 'sine';
+  sub.frequency.setValueAtTime(160 * p, t0);
+  sub.frequency.exponentialRampToValueAtTime(96 * p, t0 + dur * 0.4);
+  const subG = ac.createGain(); subG.gain.value = 0.4; trash.push(subG);
+
+  // the mouth: opens instantly on "w", clamps shut on "f"
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.2; trash.push(lp);
+  lp.frequency.setValueAtTime(2600 * (v.nasal || 1), t0);
+  lp.frequency.exponentialRampToValueAtTime(620 * (v.nasal || 1), t0 + dur);
+  const fmt = ac.createBiquadFilter(); fmt.type = 'peaking'; fmt.Q.value = 1.8; fmt.gain.value = 8; trash.push(fmt);
+  fmt.frequency.setValueAtTime(900 * p * (v.nasal || 1), t0);
+  fmt.frequency.linearRampToValueAtTime(520 * p * (v.nasal || 1), t0 + dur);
+
+  // the transient: a burst of air, gone in 40ms. This is what makes it read as a
+  // bark rather than a synth note.
+  const n = noiseSource(ac);
+  const nf = ac.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1500 * (v.nasal || 1); nf.Q.value = 0.7; trash.push(nf);
+  const nG = ac.createGain(); trash.push(nG);
+  nG.gain.setValueAtTime(0.0001, t0);
+  nG.gain.exponentialRampToValueAtTime(0.13 * strength * (v.snort ? 1.7 : 1), t0 + 0.006);
+  nG.gain.exponentialRampToValueAtTime(0.0001, t0 + (v.snort ? 0.09 : 0.045));
+
+  o.connect(lp); sub.connect(subG); subG.connect(lp); lp.connect(fmt); fmt.connect(g);
+  n.connect(nf); nf.connect(nG); nG.connect(g);
+  o.start(t0); sub.start(t0); n.start(t0);
+  const end = t0 + dur + 0.05;
+  o.stop(end); sub.stop(end); n.stop(end);
+  o.onended = () => { for (const x of trash) { try { x.disconnect(); } catch (e) { /* ignore */ } } };
+}
+
+// Dogs rarely bark once. Small dogs rattle off three, big dogs give one or two.
+function playBark() {
+  const ac = audio(); if (!ac) return;
+  const v = voiceFor(), t0 = ac.currentTime;
+  const small = v.pitch > 1.15;
+  const n = v.bay ? 1 : small ? (Math.random() < 0.5 ? 3 : 2) : (Math.random() < 0.65 ? 1 : 2);
+  for (let i = 0; i < n; i++) barkOnce(ac, v, t0 + i * (0.15 + Math.random() * 0.05) * v.dur, i === 0 ? 1 : 0.82);
+}
+
+// The dog answer to the purr: contented panting. Rhythmic breath, not a rumble,
+// so it is noise shaped by an open-then-closed mouth rather than a low carrier.
+let pantNodes = null;
+function startPant() {
+  const ac = audio(); if (!ac || pantNodes) return;
+  const v = voiceFor();
+  const n = noiseSource(ac);
+  const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1150 * (v.nasal || 1); bp.Q.value = 0.55;
+  const amp = ac.createGain();
+  amp.gain.setValueAtTime(0.0001, ac.currentTime);
+  amp.gain.setTargetAtTime(0.03 * (v.gain || 1), ac.currentTime, 0.3);
+  // the pant rhythm: ~2.6 breaths/sec for a small dog, slower for a big one
+  const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 3.1 / v.dur;
+  const lfoGain = ac.createGain(); lfoGain.gain.value = 0.026;
+  lfo.connect(lfoGain); lfoGain.connect(amp.gain);
+  // a soft voiced hum under the breath so it is a dog panting, not just hiss
+  const hum = ac.createOscillator(); hum.type = 'triangle'; hum.frequency.value = 150 * v.pitch;
+  const humG = ac.createGain(); humG.gain.value = 0.012;
+  n.connect(bp); bp.connect(amp); hum.connect(humG); humG.connect(amp); amp.connect(master);
+  n.start(); lfo.start(); hum.start();
+  pantNodes = { n, bp, amp, lfo, lfoGain, hum, humG };
+}
+function stopPant() {
+  if (!pantNodes) return;
+  const p = pantNodes; pantNodes = null;
+  try {
+    const now = actx ? actx.currentTime : 0;
+    p.amp.gain.cancelScheduledValues(now);
+    p.amp.gain.setTargetAtTime(0.0001, now, 0.12);
+    const stopAt = now + 0.4;
+    p.n.stop(stopAt); p.lfo.stop(stopAt); p.hum.stop(stopAt);
+    p.n.onended = () => {
+      for (const x of [p.n, p.bp, p.amp, p.lfo, p.lfoGain, p.hum, p.humG]) {
+        try { x.disconnect(); } catch (e) { /* ignore */ }
+      }
+    };
+  } catch (e) { /* ignore */ }
+}
+
+// The dog answer to the chirrup: a soft rising whine, the "please" noise. Nasal
+// and voiced, with none of the cat trill's rolled flutter.
+function playWhine() {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime, v = voiceFor();
+  const trash = [];
+  const g = ac.createGain(); g.connect(master); trash.push(g);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.10 * (v.gain || 1), t0 + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42 * v.dur);
+  const o = ac.createOscillator(); o.type = 'triangle';
+  const p = v.pitch;
+  o.frequency.setValueAtTime(430 * p, t0);
+  o.frequency.linearRampToValueAtTime(720 * p, t0 + 0.20 * v.dur);   // the rise: asking
+  o.frequency.linearRampToValueAtTime(610 * p, t0 + 0.42 * v.dur);   // and a small fall off the top
+  const nasal = ac.createBiquadFilter(); nasal.type = 'peaking'; nasal.Q.value = 4.5; nasal.gain.value = 11; trash.push(nasal);
+  nasal.frequency.value = 1900 * (v.nasal || 1);                     // the pinched nasal ring
+  o.connect(nasal); nasal.connect(g);
+  o.start(t0); o.stop(t0 + 0.45 * v.dur + 0.05);
+  o.onended = () => { for (const x of trash) { try { x.disconnect(); } catch (e) { /* ignore */ } } };
+}
+
+// The dog answer to the startled mrrp: a short chesty huff. Mostly air, a little
+// voice, no pitch content to speak of.
+function playHuff() {
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime, v = voiceFor();
+  const trash = [];
+  const g = ac.createGain(); g.connect(master); trash.push(g);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.15 * (v.gain || 1), t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.20);
+  const n = noiseSource(ac);
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900 * (v.nasal || 1); lp.Q.value = 0.8; trash.push(lp);
+  const o = ac.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(150 * v.pitch, t0);
+  o.frequency.exponentialRampToValueAtTime(96 * v.pitch, t0 + 0.18);
+  const oG = ac.createGain(); oG.gain.value = 0.5; trash.push(oG);
+  n.connect(lp); o.connect(oG); oG.connect(lp); lp.connect(g);
+  n.start(t0); o.start(t0); n.stop(t0 + 0.24); o.stop(t0 + 0.24);
+  o.onended = () => { for (const x of trash) { try { x.disconnect(); } catch (e) { /* ignore */ } } };
 }
 function playMeow() {
   // A real cat's "meow" = a voiced source (rich in harmonics) shaped by the mouth
@@ -87,6 +271,7 @@ function playMeow() {
   // "meeow" — and detunes a hair — so repeated meows vary like a real cat.
   // Still 100% synthesized; voiceFor() keeps each breed's own pitch/length.
   const ac = audio(); if (!ac) return;
+  if (voiceIsDog()) { playBark(); return; }      // a dog does not meow
   if (meowBuf) { playMeowSample(ac); return; }   // a real recording, if provided, replaces the synth
   const v = voiceFor();
   const t0 = ac.currentTime;
@@ -164,6 +349,7 @@ let purrNodes = null;
 // fundamental + a soft detuned overtone for warmth, the flutter tremolo, and a slow
 // "breathing" swell so it never sits static - then fade in/out so it doesn't click.
 function startPurr() {
+  if (voiceIsDog()) { startPant(); return; }     // dogs do not purr, they pant
   const ac = audio(); if (!ac || purrNodes) return;
   const v = voiceFor();
   const purrHz = 48 * v.pitch;                                 // carrier: an audible low rumble (26 Hz was subsonic and buzzed on small speakers)
@@ -184,6 +370,9 @@ function startPurr() {
   purrNodes = { carrier, over, overG, lp, amp, lfo, lfoGain, breath, breathGain };
 }
 function stopPurr() {
+  // Always stop BOTH: a species swap mid-purr must not strand the old voice
+  // looping forever, and only one of them is ever running.
+  stopPant();
   if (!purrNodes) return;
   const p = purrNodes; purrNodes = null;
   try {
@@ -202,6 +391,7 @@ function stopPurr() {
 // A happy cat "chirrup"/trill (tap, body-pet, playful beat, agent done): a short
 // rising note with the fast rolled "r" flutter cats make — friendlier than a meow.
 function playChirp() {
+  if (voiceIsDog()) { playWhine(); return; }   // the dog equivalent: a soft asking whine
   const ac = audio(); if (!ac) return;
   const t0 = ac.currentTime, v = voiceFor();
   const g = ac.createGain(); g.connect(master);
@@ -221,6 +411,7 @@ function playChirp() {
 }
 // Startled "mrrp" - a short falling growl (sudden jolt / agent error).
 function playMrrp() {
+  if (voiceIsDog()) { playHuff(); return; }    // the dog equivalent: a chesty huff
   const ac = audio(); if (!ac) return;
   const t0 = ac.currentTime, g = ac.createGain(); g.connect(master);
   g.gain.setValueAtTime(0.0001, t0);

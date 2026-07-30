@@ -21,6 +21,10 @@ function populateCoats() {
   const lbl = $('coatLabel'); if (lbl) lbl.textContent = dog ? 'Breed' : 'Coat';
   if (cfg) sel.value = String(cfg[coatField()] || 0); else if (cur) sel.value = cur;
   const spSel = $('species'); if (spSel) spSel.value = curSpecies();
+  // The Sound row names the voices you will actually hear, which are not the same
+  // two sounds for both species.
+  const sub = $('soundSub');
+  if (sub) sub.textContent = dog ? 'bark & pant (synthesized)' : 'meow & purr (synthesized)';
   drawPreview();
 }
 function drawPreview() {

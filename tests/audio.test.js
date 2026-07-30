@@ -57,6 +57,79 @@ test('audio.js synth path runs for every breed + meow variant', () => {
   assert.ok(typeof s.playMeow === 'function');
 });
 
+// ---- dog voices -------------------------------------------------------------
+// audio.js had NO species awareness, so a dog used the cat's meow and purr. It now
+// resolves isDog() at call time, which means the harness can flip species just by
+// defining it in the sandbox.
+const DOG_BUILDS = ['retriever', 'spitz', 'dwarf', 'hound', 'working', 'spotted', 'shepherd',
+  'collie', 'longdog', 'brachy', 'labrador', 'poodle', 'merledog', 'toy'];
+
+// Top-level let/const in a classic script live in the vm's global LEXICAL scope, not
+// as sandbox properties, so purrNodes/pantNodes must be read through the context.
+const peek = (s, expr) => vm.runInContext(expr, s);
+
+function loadAsDog() {
+  const s = loadAudioJam();
+  s.isDog = () => true;
+  s.PATTERN_BUILD = DOG_BUILDS;
+  return s;
+}
+
+test('every dog breed barks, pants, whines and huffs without throwing', () => {
+  const s = loadAsDog();
+  for (let i = 0; i < DOG_BUILDS.length * 12; i++) {
+    s.patternIndex = i % DOG_BUILDS.length;
+    s.audio();
+    s.playMeow();                  // dispatches to the bark
+    s.playChirp();                 // to the whine
+    s.playMrrp();                  // to the huff
+    s.startPurr(); s.stopPurr();   // to the pant
+  }
+  assert.ok(typeof s.playMeow === 'function');
+});
+
+test('a dog barks instead of meowing, and pants instead of purring', () => {
+  const s = loadAsDog();
+  s.audio();
+  s.playMeow();
+  s.startPurr();
+  assert.strictEqual(peek(s, 'purrNodes'), null, 'the dog started the cat purr instead of panting');
+  assert.ok(peek(s, 'pantNodes'), 'the dog should be panting');
+  s.stopPurr();
+  assert.strictEqual(peek(s, 'pantNodes'), null, 'stopPurr should tear the pant down');
+});
+
+test('a cat still meows and purrs, unchanged', () => {
+  const s = loadAudioJam();   // isDog is not defined at all: the pre-existing cat path
+  s.audio();
+  s.playMeow();
+  s.startPurr();
+  assert.ok(peek(s, 'purrNodes'), 'the cat purr should still run');
+  assert.strictEqual(peek(s, 'pantNodes'), null, 'a cat must never pant');
+  s.stopPurr();
+  assert.strictEqual(peek(s, 'purrNodes'), null, 'stopPurr should tear the cat purr down');
+});
+
+test('a species swap mid-voice cannot strand the old one looping', () => {
+  const s = loadAudioJam();
+  s.audio();
+  s.isDog = () => true; s.PATTERN_BUILD = DOG_BUILDS;
+  s.startPurr();                            // panting
+  assert.ok(peek(s, 'pantNodes'));
+  s.isDog = () => false; s.PATTERN_BUILD = ['standard'];   // user switches to cat mid-pant
+  s.stopPurr();
+  assert.strictEqual(peek(s, 'pantNodes'), null, 'the pant kept running after a swap to cat');
+  assert.strictEqual(peek(s, 'purrNodes'), null);
+});
+
+test('breed size actually changes the voice', () => {
+  const s = loadAsDog();
+  s.PATTERN_BUILD = DOG_BUILDS;
+  const pitchOf = (build) => { s.PATTERN_BUILD = [build]; s.patternIndex = 0; return s.voiceFor().pitch; };
+  assert.ok(pitchOf('toy') > pitchOf('shepherd') * 1.8, 'a Chihuahua should yip far higher than a shepherd');
+  assert.ok(pitchOf('brachy') > pitchOf('retriever'), 'a pug should sit above a retriever');
+});
+
 test('jam.js starts/stops/changes mood for every shipped mood', () => {
   const s = loadAudioJam();
   assert.deepStrictEqual(Array.from(s.window.jamMoods), ['cozy', 'dreamy', 'upbeat', 'focus', 'rain', 'sleepy']);   // Array.from: cross-realm vm array
