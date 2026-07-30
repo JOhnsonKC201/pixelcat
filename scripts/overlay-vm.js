@@ -1,17 +1,21 @@
 // Loads the overlay's classic <script> stack (index.html order) into a vm context
-// with a mocked browser, so renderer.js state machines can be driven and asserted
-// from `node --test` - no Electron, no GPU, no real canvas.
+// with a mocked browser, so renderer.js state machines can be driven and inspected
+// with no Electron, no GPU and no real canvas.
 //
-// The mocks are deliberately dumb: the 2D context swallows every draw call, and
-// Image "decodes" instantly. What this harness is FOR is the logic layered on top
+// Two consumers: the pose/interaction tests under tests/, and pet-sheet.js, which
+// uses it to reach the pose composers that live inside renderer.js (the dog's live
+// in a module, the cat's do not) so the contact sheet can cover every activity.
+//
+// The mocks are deliberately dumb: the 2D context swallows every draw call and
+// Image "decodes" instantly. What this harness is FOR is everything layered on top
 // of the drawing - which frame gets picked, what a species swap does to cached
-// state, how an IPC event moves the animation vars. Pixel output is out of scope
-// (the contact sheet and --shot previews cover that).
+// state, how an IPC event moves the animation vars, what a pose's GRID looks like.
+// Actual pixel output is out of scope (the contact sheet and --shot cover that).
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const ROOT = path.join(__dirname, '..', '..');
+const ROOT = path.join(__dirname, '..');
 
 // Same order as src/index.html - these share ONE global scope in the browser, and
 // renderer.js reads bare identifiers defined by the files ahead of it.

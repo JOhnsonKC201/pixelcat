@@ -80,8 +80,67 @@ function encodePng(rgba, w, h) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ih), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
+// --all: every ACTIVITY, not just the poses this script can compose directly.
+//
+// The dog's composers live in a module, but the cat's live inside renderer.js,
+// which is Electron-coupled and cannot be required. Rather than move working code
+// out of the renderer, this reaches the composers where they are: scripts/overlay-vm.js
+// loads the whole overlay script stack in a vm with a mocked browser, and the pose
+// caches (climbSpriteFor / pawSpriteFor / batSpriteFor) hand back real sprite grids.
+// So one command now covers every activity x every coat, for either species.
+const ALL_POSES = [
+  ['sit', (i) => `sprites[${i}]`],
+  ['type', (i) => `typeSprites[${i}]`],
+  ['loaf', (i) => `loafSprites[${i}]`],
+  ['rear', (i) => `rearSprites[${i}]`],
+  ['hunt', (i) => `huntSpriteFor(${i})`],
+  ['climb up', (i) => `climbSpriteFor(${i}, 0, -1)`],
+  ['climb down', (i) => `climbSpriteFor(${i}, 1, 1)`],
+  ['groom', (i) => `pawSpriteFor(${i}, 1, 0)`],
+  ['ponder', (i) => `pawSpriteFor(${i}, 0.75, 0.1)`],
+  ['play', (i) => `pawSpriteFor(${i}, 0.6, 0.7)`],
+  ['bat', (i) => `batSpriteFor(${i}, -1, 1)`],
+];
+
+function allPoses(which) {
+  const species = which === 'dog' ? 'dog' : 'cat';
+  const { loadOverlay } = require('./overlay-vm.js');
+  const h = loadOverlay();
+  h.run(`setSpecies(${JSON.stringify(species)})`);
+  const pals = h.run('PATTERNS.map((p) => ({ name: p.name, coat: p.coat, mark: p.mark, white: p.white, patch: p.patch, inner: p.inner, nose: p.nose, eye: p.eye, outline: p.outline, tongue: p.tongue }))');
+
+  // Pull every grid first so the layout can size itself to what actually came back.
+  const cells = pals.map((_, i) => ALL_POSES.map(([, expr]) => {
+    const sp = h.run(`(() => { const s = ${expr(i)}; return s ? { grid: s.grid.map((r) => r.join('')), COLS: s.COLS, ROWS: s.ROWS } : null; })()`);
+    return sp ? { grid: sp.grid.map((r) => r.split('')), COLS: sp.COLS, ROWS: sp.ROWS } : null;
+  }));
+
+  const flat = cells.flat().filter(Boolean);
+  const maxW = Math.max(...flat.map((s) => s.COLS)) * SCALE;
+  const maxH = Math.max(...flat.map((s) => s.ROWS)) * SCALE;
+  const cellW = maxW + PAD, cellH = maxH + PAD;
+  const W = ALL_POSES.length * cellW + PAD, H = pals.length * cellH + PAD;
+
+  const buf = new Uint8ClampedArray(W * H * 4);
+  for (let i = 0; i < W * H; i++) { buf[i * 4] = BG[0]; buf[i * 4 + 1] = BG[1]; buf[i * 4 + 2] = BG[2]; buf[i * 4 + 3] = 255; }
+
+  cells.forEach((row, i) => row.forEach((sp, j) => {
+    if (!sp) return;
+    const ox = PAD + j * cellW + Math.floor((maxW - sp.COLS * SCALE) / 2);
+    const oy = PAD + i * cellH + (maxH - sp.ROWS * SCALE);   // bottom-align: every pet stands on one floor line
+    blitSprite(buf, W, sp, ox, oy, pals[i]);
+  }));
+
+  const out = path.join(__dirname, '..', 'previews', `${species}-poses.png`);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, encodePng(buf, W, H));
+  console.log(`${out}  (${W}x${H})  ${pals.length} coats x ${ALL_POSES.length} activities`);
+  console.log(`  columns: ${ALL_POSES.map((p) => p[0]).join(', ')}`);
+}
+
 function main() {
   const which = (process.argv[2] || 'dog').toLowerCase();
+  if (process.argv.includes('--all')) return allPoses(which);
   const S = SPECIES[which];
   if (!S) { console.error(`unknown species "${which}" (expected cat|dog)`); process.exit(1); }
 

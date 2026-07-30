@@ -8,7 +8,7 @@
 // the whole thing composes for every coat and both species.
 const test = require('node:test');
 const assert = require('node:assert');
-const { loadOverlay } = require('./helpers/renderer-vm.js');
+const { loadOverlay } = require('../scripts/overlay-vm.js');
 
 // Topmost row carrying any body cell, and the topmost row carrying a paw mitt.
 function extents(h, expr) {

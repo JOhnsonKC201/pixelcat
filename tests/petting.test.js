@@ -11,7 +11,7 @@
 // drawCat was actually called with.
 const test = require('node:test');
 const assert = require('node:assert');
-const { loadOverlay } = require('./helpers/renderer-vm.js');
+const { loadOverlay } = require('../scripts/overlay-vm.js');
 
 // Load the overlay with drawCat wrapped so every frame's eyeMode is recorded, and
 // the ambient idle behaviours (loaf / groom / play / yawn) disarmed - those also

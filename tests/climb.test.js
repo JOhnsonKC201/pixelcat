@@ -10,7 +10,7 @@
 // species swap. These tests pin both the direction behaviour and the cache lifetime.
 const test = require('node:test');
 const assert = require('node:assert');
-const { loadOverlay } = require('./helpers/renderer-vm.js');
+const { loadOverlay } = require('../scripts/overlay-vm.js');
 
 // Drive the real rAF loop by hand. Steps are >48ms so the idle-fps throttle in
 // draw() never skips a frame we are counting on.

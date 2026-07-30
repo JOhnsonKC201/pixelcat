@@ -8,7 +8,7 @@
 // the face survives having a paw held in front of it.
 const test = require('node:test');
 const assert = require('node:assert');
-const { loadOverlay } = require('./helpers/renderer-vm.js');
+const { loadOverlay } = require('../scripts/overlay-vm.js');
 
 const grid = (h, expr) => h.run(`${expr}.grid.map((r) => r.join(''))`);
 
