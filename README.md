@@ -491,13 +491,25 @@ isolated worker processes. Your IMAP app password is stored encrypted at rest
 
 ```powershell
 npm start                 # run the cat
-npm test                  # 52 tests: config, poses, petting, audio, site drift
+npm test                  # 81 tests: config, poses, petting, audio, art frames, site drift
 npm run poses:cat         # previews/cat-poses.png (every activity x every coat)
 npm run poses:dog         # the same for all 14 breeds
+npm run frames:import -- <dir>   # import painted PNGs as baked poses
 npm run demo:all          # regenerate the README media (hero, gallery, carousel)
 npm run hook -- cursor    # print a path-filled agent hook config
 npm run icon              # regenerate the tray + app-tile icons
 ```
+
+**Painting a pose by hand.** Every pose is composed in code, which is why one
+`sit` covers 28 coats and a new coat costs nine hex values instead of an art pass.
+The trade is that changing how the pet looks means editing geometry.
+`npm run frames:import` is the escape hatch: paint a pose against a placeholder
+palette, import it, and it wins over the composer for exactly the coats you name
+while everything else keeps composing. Five held poses can be baked (`sit`,
+`type`, `loaf`, `rear`, `hunt`); the six raised-limb activities are parameterised
+rigs whose limbs sweep through quantised frames, so a still would freeze them.
+Palette, naming and the checks the importer runs are in
+[docs/frame-pack.md](docs/frame-pack.md).
 
 **Visual QA.** The overlay is GPU-composited, so ordinary screenshots cannot
 capture it. Poses are reviewed with a one-command contact sheet instead:
