@@ -32,7 +32,17 @@ const sharedOverlay = {
 const CONSUMER_OVERLAY = ['src/renderer.js', 'src/settings-renderer.js', 'src/cat-preview.js'];
 
 module.exports = [
-  { ignores: ['node_modules/**', 'dist/**', 'site/**', 'src/climb-frames.js', '_*/**'] },
+  // Keep this in step with .gitignore. Without the local-only entries, a working
+  // copy that has picked up scratch files or the unrelated coursework folder sends
+  // `npm run lint` walking a vendored python venv, and the one command that should
+  // surface real bugs drowns in ~1.5k phantom errors. CI checks out a clean tree
+  // and never sees them, which is exactly why this rots unnoticed.
+  {
+    ignores: [
+      'node_modules/**', 'dist/**', 'out/**', 'site/**', 'src/climb-frames.js',
+      '_*', '_*/**', 'previews/**', '.playwright-mcp/**', '.codegraph/**', 'CODEPATH Proj/**',
+    ],
+  },
 
   js.configs.recommended,
 
