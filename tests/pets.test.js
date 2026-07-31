@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const cat = require('../src/cat-sprite.js');
 const dog = require('../src/dog-sprite.js');
@@ -77,6 +79,33 @@ test('species registry agrees with the sprite modules', () => {
   assert.equal(pets.speciesOf('nonsense').id, 'cat', 'unknown species must fall back to cat');
   assert.ok(pets.defaultCoatIndex('dog') >= 0);
   assert.ok(pets.defaultCoatIndex('cat') >= 0);
+});
+
+test('every species describes its give slot and its self-play companion', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
+  for (const id of pets.SPECIES_IDS) {
+    const sp = pets.speciesOf(id);
+    for (const k of ['giveLabel', 'giveChannel', 'playNoun', 'playToggleLabel']) {
+      assert.ok(sp[k], `${id} is missing ${k}, so the tray would render "undefined"`);
+    }
+    // main.js sends sp.giveChannel verbatim. If preload never subscribes to that
+    // channel the tray item is a no-op with nothing in the log to explain it.
+    assert.ok(preload.includes(`sub('${sp.giveChannel}')`),
+      `preload.js never subscribes to '${sp.giveChannel}', so ${id}'s give slot would do nothing`);
+  }
+});
+
+test('the give-slot wording matches the payload it actually sends', () => {
+  // Regression: the dog's slot read "Give a treat" (with a bone) while the app
+  // threw a tennis ball, because the label and the channel were picked in two
+  // different files. They now come from one registry entry.
+  const dogSp = pets.speciesOf('dog');
+  assert.equal(dogSp.giveChannel, 'ball');
+  assert.match(dogSp.giveLabel, /ball/i, 'a dog that gets a ball must not be offered a "treat"');
+  const catSp = pets.speciesOf('cat');
+  assert.equal(catSp.giveChannel, 'treat');
+  assert.match(catSp.giveLabel, /treat/i);
+  assert.notEqual(dogSp.playNoun, catSp.playNoun, 'each species plays with its own thing');
 });
 
 test('config normalises species and keeps a coat per species', () => {

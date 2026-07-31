@@ -401,7 +401,7 @@ function rebuildTrayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Settings…', click: openSettings },
     { label: 'Start break now', click: triggerBreak },
-    { label: sp.treatLabel, click: giveTreat },
+    { label: sp.giveLabel, click: giveTreat },
     { label: 'Recent notifications', submenu: recentItems },
     { label: 'Snooze last reminder', submenu: [
       { label: '5 minutes', click: () => snoozeLast(5) },
@@ -413,7 +413,7 @@ function rebuildTrayMenu() {
     { label: sp.coatNoun, submenu: coatItems },
     { label: 'Follow cursor', type: 'checkbox', checked: !!(cfg && cfg.followCursor), click: () => persistAndBroadcast({ ...cfg, followCursor: !cfg.followCursor }) },
     { label: 'Mouse hunt', type: 'checkbox', checked: !!(cfg && cfg.huntOn), click: () => persistAndBroadcast({ ...cfg, huntOn: !cfg.huntOn }) },
-    { label: 'Butterfly visits', type: 'checkbox', checked: !(cfg && cfg.butterflyOn === false), click: () => persistAndBroadcast({ ...cfg, butterflyOn: !(cfg && cfg.butterflyOn !== false) }) },
+    { label: sp.playToggleLabel, type: 'checkbox', checked: !(cfg && cfg.butterflyOn === false), click: () => persistAndBroadcast({ ...cfg, butterflyOn: !(cfg && cfg.butterflyOn !== false) }) },
     { label: 'Mood reactions', type: 'checkbox', checked: !(cfg && cfg.moodOn === false), click: () => persistAndBroadcast({ ...cfg, moodOn: !(cfg && cfg.moodOn !== false) }) },
     { label: 'Startle at cursor', type: 'checkbox', checked: !(cfg && cfg.startleOn === false), click: () => persistAndBroadcast({ ...cfg, startleOn: !(cfg && cfg.startleOn !== false) }) },
     { label: 'Mood', submenu: [
@@ -433,7 +433,7 @@ function rebuildTrayMenu() {
     ] },
     { label: 'Always on top', type: 'checkbox', checked: !(cfg && cfg.onTop === false), click: () => persistAndBroadcast({ ...cfg, onTop: !(cfg && cfg.onTop !== false) }) },
     { label: 'Wander', type: 'checkbox', checked: !(cfg && cfg.roamOn === false), click: () => persistAndBroadcast({ ...cfg, roamOn: !(cfg && cfg.roamOn !== false) }) },
-    { label: 'Work mode (stay put, no butterfly)', type: 'checkbox', checked: !!(cfg && cfg.workMode), click: () => persistAndBroadcast({ ...cfg, workMode: !(cfg && cfg.workMode) }) },
+    { label: `Work mode (stay put, no ${sp.playNoun})`, type: 'checkbox', checked: !!(cfg && cfg.workMode), click: () => persistAndBroadcast({ ...cfg, workMode: !(cfg && cfg.workMode) }) },
     { label: 'Rest corner', submenu: [
       { label: 'Bottom-left', type: 'radio', checked: !!(cfg && cfg.restSide === 'left'), click: () => persistAndBroadcast({ ...cfg, restSide: 'left' }) },
       { label: 'Bottom-right', type: 'radio', checked: !(cfg && cfg.restSide === 'left'), click: () => persistAndBroadcast({ ...cfg, restSide: 'right' }) },
@@ -487,8 +487,9 @@ function triggerBreak() {
 function giveTreat() {
   if (!win || win.isDestroyed()) return;
   // Same tray slot, species-appropriate payload: a cat is handed a fish, a dog
-  // gets a tennis ball thrown for it to chase down and bring back.
-  win.webContents.send(speciesOf(cfg && cfg.species).id === 'dog' ? 'ball' : 'treat');
+  // gets a tennis ball thrown for it to chase down and bring back. The channel
+  // comes from the same registry entry as the menu label, so the two cannot drift.
+  win.webContents.send(speciesOf(cfg && cfg.species).giveChannel);
 }
 
 // ---- Pomodoro: focus/break loops. Main owns the phase clock (the renderer may

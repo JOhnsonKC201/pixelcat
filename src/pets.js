@@ -29,10 +29,15 @@ const SPECIES = {
     coats: CAT_COATS,
     coatNoun: 'Coat',
     defaultCoat: 'Tuxedo',
-    // tray/menu wording differs per species so the app never says "treat" at a dog
-    // that is actually being handed a ball
-    treatLabel: 'Give a treat 🐟',
-    playLabel: 'Send a butterfly 🦋',
+    // The tray's single "give" slot: what it is called AND which payload it sends.
+    // They live together so the menu can never say "treat" at a dog that is actually
+    // being handed a ball, which is precisely what happened while the label and the
+    // channel were chosen in two different files.
+    giveLabel: 'Give a treat 🐟',
+    giveChannel: 'treat',
+    // The companion the pet plays with on its own once you step away.
+    playNoun: 'butterfly',
+    playToggleLabel: 'Butterfly visits',
   },
   dog: {
     id: 'dog',
@@ -41,8 +46,10 @@ const SPECIES = {
     coats: DOG_COATS,
     coatNoun: 'Breed',
     defaultCoat: 'Golden Retriever',
-    treatLabel: 'Give a treat 🦴',
-    playLabel: 'Throw the ball 🎾',
+    giveLabel: 'Throw the ball 🎾',
+    giveChannel: 'ball',
+    playNoun: 'ball',
+    playToggleLabel: 'Ball to chase',
   },
 };
 
