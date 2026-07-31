@@ -31,7 +31,8 @@
     "demo:hero": "node scripts/make-demo-gif.js hero mp4",
     "demo:gallery": "node scripts/make-demo-gif.js gallery",
     "demo:carousel": "node scripts/make-demo-gif.js carousel",
-    "demo:all": "node scripts/make-demo-gif.js all mp4"
+    "demo:all": "node scripts/make-demo-gif.js all mp4",
+    "frames:import": "node scripts/import-frames.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

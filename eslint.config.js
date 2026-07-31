@@ -18,6 +18,8 @@ const sharedOverlay = {
   PET_SPECIES: 'readonly', SPECIES_IDS: 'readonly', speciesOf: 'readonly', coatsFor: 'readonly',
   isSpecies: 'readonly', defaultCoatIndex: 'readonly', CAT_COATS: 'readonly', DOG_COATS: 'readonly',
   BUILDS: 'readonly', TABBY: 'readonly', PATTERN_BUILD: 'readonly',
+  // art-frames.js provides the generated baked-pose table:
+  ART_FRAMES: 'readonly',
   BODY: 'readonly', G: 'readonly', GC: 'readonly', GR: 'readonly', HALO: 'readonly',
   rgbStr: 'readonly', toRgb: 'readonly', shadeStr: 'readonly', lerpHex: 'readonly',
   fillPlaceholders: 'readonly', CLIMB_FRAMES: 'readonly',
@@ -49,7 +51,7 @@ module.exports = [
   {
     // Node / CommonJS: main process, workers, scripts, tests, configs, template.js
     files: ['**/*.js'],
-    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/dog-sprite.js', 'src/patterns.js', 'src/pets.js', 'src/audio.js', 'src/effects.js', 'src/jam.js'],
+    ignores: [...CONSUMER_OVERLAY, 'src/cat-sprite.js', 'src/dog-sprite.js', 'src/patterns.js', 'src/pets.js', 'src/art-frames.js', 'src/audio.js', 'src/effects.js', 'src/jam.js'],
     languageOptions: { sourceType: 'commonjs', ecmaVersion: 2023, globals: { ...globals.node } },
   },
   {
@@ -76,7 +78,7 @@ module.exports = [
   {
     // cat-sprite.js / patterns.js are dual-loaded: classic <script> in the overlay AND
     // CommonJS modules in Node (make-app-icon.js / main.js). They DEFINE shared globals.
-    files: ['src/cat-sprite.js', 'src/dog-sprite.js', 'src/patterns.js', 'src/pets.js'],
+    files: ['src/cat-sprite.js', 'src/dog-sprite.js', 'src/patterns.js', 'src/pets.js', 'src/art-frames.js'],
     languageOptions: { sourceType: 'commonjs', ecmaVersion: 2023, globals: { ...globals.node, ...globals.browser } },
   },
   {

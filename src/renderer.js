@@ -484,12 +484,14 @@ function climbSpriteFor(i, hand, dir) {
   }
   return sp;
 }
-let spriteHunt = buildSprite(SPECIES_DEFS.huntCols, SPECIES_DEFS.huntRows, () => SPECIES_DEFS.hunt(buildFor(0, SPECIES_DEFS)));
+// Cats share ONE crouch across every coat, so its baked override is looked up at
+// index 0: name a coat and only that coat's key can ever match, so key it '*'.
+let spriteHunt = posed('hunt', 0, SPECIES_DEFS.huntCols, SPECIES_DEFS.huntRows, () => SPECIES_DEFS.hunt(buildFor(0, SPECIES_DEFS)));
 let huntSprites = null;   // dogs vary the bow by breed (markings); cats share one crouch
 function huntSpriteFor(i) { return (huntSprites && huntSprites[i]) || spriteHunt; }
 function buildHuntSprites(D) {
   return D === null || !isDog() ? null
-    : D.build.map((b, i) => buildSprite(D.huntCols, D.huntRows, () => D.hunt(buildFor(i, D))));
+    : D.build.map((b, i) => posed('hunt', i, D.huntCols, D.huntRows, () => D.hunt(buildFor(i, D))));
 }
 const TW = 24 * CELL, TH = 24 * CELL;            // front-facing kneading-cat dims (per-coat sprites built below)
 // Sit grid is always 24x30, so SW/SH and the mochi bands stay constant across the
@@ -568,14 +570,46 @@ const octx = oc.getContext('2d'); octx.imageSmoothingEnabled = false;
 const HEAD_SRC = 14 * CELL, FEET_SRC = 7 * CELL, MID_SRC = SH - HEAD_SRC - FEET_SRC;
 
 
-const sprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => SPECIES_DEFS.sit(buildFor(i, SPECIES_DEFS))));
+// --- baked frames (src/art-frames.js) ---------------------------------------
+// A painted frame beats the composer for the pose and the coat it names, and
+// everything else keeps composing, so a half finished art pack still runs. Only
+// the five HELD poses can be baked: the raised-limb activities are parameterised
+// rigs (pawSpriteFor / batSpriteFor / climbSpriteFor quantise a limb angle into a
+// handful of frames) and one still would freeze them mid swing. A grid that does
+// not match the pose's canvas is ignored rather than trusted, because the layout
+// maths around it is built on those constants.
+function artGrid(pose, i, cols, rows) {
+  const all = typeof ART_FRAMES !== 'undefined' ? ART_FRAMES : null;
+  const byPose = all && all[species] && all[species][pose];
+  if (!byPose) return null;
+  const name = (PATTERNS[i] && PATTERNS[i].name) || '';
+  const g = byPose[name] || byPose[PATTERN_BUILD[i]] || byPose['*'] || null;
+  if (!g || g.COLS !== cols || g.ROWS !== rows || !Array.isArray(g.rows) || g.rows.length !== rows) return null;
+  return g;
+}
+
+// Stamp a baked grid THROUGH buildSprite so it picks up outlineHalo(), the eye
+// boxes and the muzzle anchor exactly as a composed pose does - the halo is never
+// painted by hand, and a patchy outline gets its gaps filled for free.
+function posed(pose, i, cols, rows, compose) {
+  const g = artGrid(pose, i, cols, rows);
+  if (!g) return buildSprite(cols, rows, compose);
+  return buildSprite(cols, rows, () => {
+    for (let r = 0; r < rows; r++) {
+      const row = g.rows[r];
+      for (let c = 0; c < cols && c < row.length; c++) if (row[c] !== '.') setCell(c, r, row[c]);
+    }
+  });
+}
+
+const sprites = PATTERN_BUILD.map((b, i) => posed('sit', i, 24, 30, () => SPECIES_DEFS.sit(buildFor(i, SPECIES_DEFS))));
 // each coat also gets its own typing (kneading) body, so every breed types differently
 // one shared front "kneading cat" shape, recoloured per coat (+ tabby stripes / fluffy tufts)
-const typeSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 24, () => SPECIES_DEFS.type(buildFor(i, SPECIES_DEFS))));
+const typeSprites = PATTERN_BUILD.map((b, i) => posed('type', i, 24, 24, () => SPECIES_DEFS.type(buildFor(i, SPECIES_DEFS))));
 // and a dedicated loaf (resting) body per coat - same 24x30 size as the sit sprite
-const loafSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => SPECIES_DEFS.loaf(buildFor(i, SPECIES_DEFS))));
+const loafSprites = PATTERN_BUILD.map((b, i) => posed('loaf', i, 24, 30, () => SPECIES_DEFS.loaf(buildFor(i, SPECIES_DEFS))));
 // and a rear-up "bat the butterfly" body per coat - same 24x30 size as the sit sprite
-const rearSprites = PATTERN_BUILD.map((b, i) => buildSprite(24, 30, () => SPECIES_DEFS.rear(buildFor(i, SPECIES_DEFS))));
+const rearSprites = PATTERN_BUILD.map((b, i) => posed('rear', i, 24, 30, () => SPECIES_DEFS.rear(buildFor(i, SPECIES_DEFS))));
 huntSprites = buildHuntSprites(SPECIES_DEFS);
 const DEFAULT_PATTERN = Math.max(0, PATTERNS.findIndex((p) => p.name === (species === 'dog' ? 'Golden Retriever' : 'Tuxedo')));
 const coatKey = (sp) => (sp === 'dog' ? 'dogPattern' : 'pattern');
@@ -606,11 +640,12 @@ function applyThemes(list) {
     PATTERN_BUILD.push(build);
     TABBY.push(!!th.tabby);
     const D = SPECIES_DEFS, tb = { ...(D.builds[build] || BUILDS[build] || {}), tabby: !!th.tabby };
-    sprites.push(buildSprite(24, 30, () => D.sit(tb)));
-    typeSprites.push(buildSprite(24, 24, () => D.type(tb)));
-    loafSprites.push(buildSprite(24, 30, () => D.loaf(tb)));
-    rearSprites.push(buildSprite(24, 30, () => D.rear(tb)));
-    if (huntSprites) huntSprites.push(buildSprite(D.huntCols, D.huntRows, () => D.hunt(tb)));
+    const at = PATTERNS.length - 1;   // this custom coat's index, for the baked-frame lookup
+    sprites.push(posed('sit', at, 24, 30, () => D.sit(tb)));
+    typeSprites.push(posed('type', at, 24, 24, () => D.type(tb)));
+    loafSprites.push(posed('loaf', at, 24, 30, () => D.loaf(tb)));
+    rearSprites.push(posed('rear', at, 24, 30, () => D.rear(tb)));
+    if (huntSprites) huntSprites.push(posed('hunt', at, D.huntCols, D.huntRows, () => D.hunt(tb)));
   }
   if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
   if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
@@ -629,15 +664,15 @@ function setSpecies(next, coatIdx) {
     installTables(SPECIES_DEFS);
     BASE_PATTERNS = PATTERNS.length;
     const D = SPECIES_DEFS;
-    const rebuild = (arr, cols, rows, fn) => {
+    const rebuild = (pose, arr, cols, rows, fn) => {
       arr.length = 0;
-      for (let i = 0; i < D.build.length; i++) arr.push(buildSprite(cols, rows, () => fn(buildFor(i, D))));
+      for (let i = 0; i < D.build.length; i++) arr.push(posed(pose, i, cols, rows, () => fn(buildFor(i, D))));
     };
-    rebuild(sprites, 24, 30, D.sit);
-    rebuild(typeSprites, 24, 24, D.type);
-    rebuild(loafSprites, 24, 30, D.loaf);
-    rebuild(rearSprites, 24, 30, D.rear);
-    spriteHunt = buildSprite(D.huntCols, D.huntRows, () => D.hunt(buildFor(0, D)));
+    rebuild('sit', sprites, 24, 30, D.sit);
+    rebuild('type', typeSprites, 24, 24, D.type);
+    rebuild('loaf', loafSprites, 24, 30, D.loaf);
+    rebuild('rear', rearSprites, 24, 30, D.rear);
+    spriteHunt = posed('hunt', 0, D.huntCols, D.huntRows, () => D.hunt(buildFor(0, D)));
     huntSprites = buildHuntSprites(D);
     _palKey = -1;                        // force a cold-palette rebuild for the new coats
     // climbImgs is deliberately NOT cleared: those frames decode once at startup and
