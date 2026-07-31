@@ -1756,6 +1756,35 @@ function startBflyVisit(t) {
   bfDriftCx = pos.x; bfDriftCy = clamp(pos.y - SH - 30, BF_TOP, viewH - BF_EDGE);
   bfDriftTX = bfDriftCx; bfDriftTY = bfDriftCy; bfPhase = Math.random() * Math.PI * 2; bfNextDrift = t + 500;
 }
+// --- Self-play: what the pet does with itself once you step away. A cat gets a
+//     butterfly to stalk. A dog would rather have something thrown, and it already
+//     knows how to fetch, so it noses its own ball out and carries it back. Both
+//     species run off the same idle gates and the same tray toggle, so switching
+//     play off switches all of it off.
+function updateSelfPlay(t, dt, step, f) {
+  if (!isDog()) { updateButterflyDesk(t, dt, step, f); return; }
+  // Swapped to a dog mid-visit: the butterfly is still DRAWN for as long as bfOn is
+  // set, so it has to be flown off properly rather than abandoned frozen in mid-air.
+  if (bfOn) { bfMode = 'out'; updateButterflyDesk(t, dt, step, f); return; }
+  updateDogFetchUrge(t, f);
+}
+// A dog with nothing to chase talks itself into a game of fetch, on the same
+// schedule that earns a cat a butterfly visit. There is no separate "leaving"
+// phase: updateBall() forgets an untouched ball after 45s, which re-arms this.
+function updateDogFetchUrge(t, f) {
+  if (SHOT || ball || !pos) return;                          // already something in play
+  const allow = f.follow && !lowPower && !(config && config.reducedMotion)
+    && !(config && config.butterflyOn === false) && !workModeOn() && !f.grabbing && !f.typing;
+  if (!allow || !f.calm) return;
+  if ((t - lastCursorMove) < BF_MOUSE_QUIET_MS) return;       // never while the mouse is in use
+  const idleMs = t - Math.max(lastCursorMove, lastKeyAt);
+  if (!(t > bfNextVisit || (idleMs > IDLE_BUTTERFLY_MS && t > bfIdleNextVisit))) return;
+  throwBall();
+  // Re-arm on the cadence a departing butterfly uses, so the dog does not start a
+  // fresh game the instant the last ball is forgotten.
+  bfNextVisit = t + 50000 + Math.random() * 50000;
+  bfIdleNextVisit = t + 14000 + Math.random() * 10000;
+}
 // Flight + cat reaction. f = { follow, grabbing, hunting, typing, petting, startleActive, calm }.
 function updateButterflyDesk(t, dt, step, f) {
   const force = SHOT && qp.get('bfly') === '1';
@@ -2305,7 +2334,7 @@ function draw(t) {
     if (lookTarget && t > lookTargetUntil) lookTarget = null;
     if (t > leanUntil) leanTarget = 0;
     lean += (leanTarget - lean) * 0.09 * step;
-    updateButterflyDesk(t, dt, step, { follow, grabbing, hunting, typing, petting, startleActive, calm });
+    updateSelfPlay(t, dt, step, { follow, grabbing, hunting, typing, petting, startleActive, calm });
     updateTreat(t, { grabbing, hunting, typing, startleActive });
     updateBall(t, dt, { grabbing, hunting, typing, startleActive });
     updateDogVitals(t, dt);

@@ -32,7 +32,10 @@ function runFetch(h, ms) {
 function dogOverlay() {
   const h = loadOverlay();
   h.run('setSpecies("dog")');
-  h.ipc('onConfig', { species: 'dog', soundOn: false, followCursor: true, floorLock: true });
+  // Self-play off, so these tests see exactly one ball: the one they throw. An idle
+  // dog otherwise starts a game of its own partway through the longer runs here and
+  // the counts stop meaning anything. Who STARTS a game is self-play.test.js's job.
+  h.ipc('onConfig', { species: 'dog', soundOn: false, followCursor: true, floorLock: true, butterflyOn: false });
   // Count the celebration bursts: one per delivery is right, one per frame is the bug.
   h.run('var __love = 0; var __popLove = popLove; popLove = function () { __love++; return __popLove.apply(null, arguments); };');
   return h;
