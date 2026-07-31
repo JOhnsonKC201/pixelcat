@@ -1290,7 +1290,7 @@ function updateBall(t, dt, f) {
         roamTo = { x: home, y: floorLockOn() ? restingY() : pos.y };
         roamDur = clamp(Math.abs(pos.x - home) * 2.4, 400, 1700); roamUntil = t + roamDur; nextRoam = t + 20000;
       } else {                                    // delivered: drop it, wag, pant, ask for another
-        ball.phase = 'rest'; ball.restAt = t; ball.y = floor - BALL_R;
+        ball.phase = 'rest'; ball.delivered = true; ball.restAt = t; ball.y = floor - BALL_R;
         wagBoost = 1.2; pantUntil = t + 4200; addEnergy(10);
         popLove(t, pos.x, pos.y - SH * 0.8, 2, 16);
         if (config && config.soundOn) playChirp();
@@ -1301,6 +1301,12 @@ function updateBall(t, dt, f) {
   // 'rest': lying on the floor. The dog goes and gets it.
   if (f.grabbing || f.hunting || f.startleActive || f.typing || paperLen > 1) return;
   if (t - ball.restAt > 45000) { ball = null; return; }        // forgotten after a while
+  // A ball the dog has already carried home stays where it was dropped, waiting for
+  // you to throw it again. Without this the dog drops it at its own feet, is back
+  // inside FETCH_GRAB on the very next frame, picks it up, walks nowhere, "delivers"
+  // again... looping pickup/deliver every frame and spraying hearts, chirps and a
+  // permanently refreshed pant. The first throw looks perfect, which is why it shipped.
+  if (ball.delivered) return;
   const dist = Math.abs(pos.x - ballApproachX());
   if (dist <= FETCH_GRAB) {
     ball.phase = 'carry'; ball.side = Math.sign(ball.x - pos.x) || 1;
