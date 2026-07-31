@@ -2,6 +2,16 @@
 
 Notable changes to **pixelcat**. All art and sound are original/procedural (no asset files).
 
+## [Unreleased]
+
+### Dog
+- **Fetch on its own** - step away and a dog starts its own game rather than waiting on a butterfly: it noses a ball out, chases it down and carries it home. Cats still get the butterfly. One toggle governs both, and work mode, reduced motion and low power suppress both.
+
+### Fixes
+- **The dog stops re-fetching the ball it just delivered.** It dropped the ball at its own feet, was back inside the grab radius on the next frame, and looped pickup/deliver at frame rate: 254 heart-and-chirp bursts in 72 seconds and a pant timer that never expired. Only the first throw ever looked right.
+- **Tray wording matches what the tray actually does.** A dog was offered "Give a treat 🦴" and then thrown a tennis ball; it now reads "Throw the ball 🎾", alongside "Ball to chase" and "Work mode (stay put, no ball)".
+- **`npm run lint` works on a real working copy again** - it was walking local-only paths that `.gitignore` already excludes and reporting ~1.5k errors from code this repo does not own.
+
 ## [0.2.0] - 2026-07-25
 
 ### Stay on track
