@@ -48,7 +48,8 @@ coat choice, so switching back and forth never loses your pick.
 | Resting | loafs into a "cat bread" | curls nose-to-tail into a ring |
 | Excited | hunting crouch, ears back | **play bow**: chest down, rump up, tail flagged |
 | Tail | slow rolling S-curve, tip flicks | fast wag from the base, shaped per breed (curl / plume / feather / stub / straight) |
-| Play | bats a butterfly | **fetch**: chases the thrown ball, carries it home, drops it |
+| Play | bats a butterfly | **fetch**: chases the ball down, carries it home, drops it |
+| Left alone | a butterfly flutters in | starts its own game of fetch |
 | After exertion | grooms | pants, tongue out |
 | Scroll | climbs the yarn rope hand over hand | hauls itself up the same rope, ears and snout intact |
 | Reward | a fish treat | a tennis ball |
@@ -165,7 +166,7 @@ to your cursor, to your typing, and to its own internal mood.
 | **Move your cursor** | The cat watches it and blinks now and then. Flick the cursor fast and it crouches, stalks, and pounces. A sudden jolt startles it: it puffs up, freezes, then bolts or creeps back. |
 | **Type in any app** | It leans onto two big keys and kneads them with its paws. Type fast enough and it overheats, turning red with steam, then cools down. |
 | **Scroll anywhere** | Grabs a yarn rope and climbs it hand over hand, up when you scroll up and down when you scroll down, with a ball of yarn anchored on the floor. |
-| **Wait for a visitor** | Once in a while a butterfly flutters in. The cat tracks it, swats at it, and occasionally pounces and catches it between its paws before it flutters off. Step away from the keyboard and a butterfly comes out on its own, so the cat always has something to play with. |
+| **Wait for a visitor** | Once in a while a butterfly flutters in. The cat tracks it, swats at it, and occasionally pounces and catches it between its paws before it flutters off. Step away from the keyboard and one comes out on its own, so the pet always has something to play with. Keep a dog instead and it starts its own game of fetch rather than waiting on a butterfly. |
 | **Leave it be** | Left alone it keeps itself busy: it bats a drifting leaf with a paw, washes its face, loafs, and its whiskers twitch. Lively without ever getting in your way. |
 | **Come back** | Return after being away and the cat notices you: happy eyes, a little heart, and a friendly chirp hello. |
 | **Give it a treat** | Pick "Give a treat" from the tray and a little fish drops in. The cat trots over and noms it with hearts and a happy chirp. |
