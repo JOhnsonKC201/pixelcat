@@ -17,6 +17,27 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 
+// renderer.js leans on Math.random() everywhere - butterfly spawn side and flight,
+// roam targets, idle picks - so the same script of draw() calls used to play out
+// differently on every run, which is what made the timing-sensitive tests flaky.
+// The vm gets its OWN Math whose random() is a seeded PRNG, so a driven simulation
+// is reproducible. Pass { seed: null } to loadOverlay for real randomness.
+const DEFAULT_SEED = 0x9e3779b9;
+
+// mulberry32: small, fast, good enough spread for driving an animation.
+function seededMath(seed) {
+  let a = seed >>> 0;
+  const m = {};
+  for (const k of Object.getOwnPropertyNames(Math)) m[k] = Math[k];   // Math methods ignore `this`
+  m.random = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let x = Math.imul(a ^ (a >>> 15), 1 | a);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+  return m;
+}
+
 // Same order as src/index.html - these share ONE global scope in the browser, and
 // renderer.js reads bare identifiers defined by the files ahead of it.
 const SCRIPTS = ['cat-sprite.js', 'dog-sprite.js', 'pets.js', 'art-frames.js', 'template.js',
@@ -50,7 +71,11 @@ function mockEl() {
 //   run(expr)   - evaluate an expression against the overlay's globals
 //   ipc(name, payload) - fire a preload bridge event ('onScroll', 'onConfig', ...)
 //   images      - every Image the renderer created, in creation order (src recorded)
-function loadOverlay() {
+// opts.seed picks the PRNG stream behind the overlay's Math.random (null = real
+// randomness); every context gets a fresh stream, so load order cannot leak between
+// two overlays in the same test file.
+function loadOverlay(opts = {}) {
+  const seed = opts.seed === undefined ? DEFAULT_SEED : opts.seed;
   const store = {};
   const images = [];
   const handlers = {};
@@ -66,7 +91,7 @@ function loadOverlay() {
   }
 
   const sandbox = {
-    console, Math, Date, JSON, URLSearchParams,
+    console, Math: seed === null ? Math : seededMath(seed), Date, JSON, URLSearchParams,
     Uint8ClampedArray, Uint8Array, Float32Array, Image: MockImage,
     setTimeout, clearTimeout, setInterval, clearInterval,
     performance: { now: () => 0 },

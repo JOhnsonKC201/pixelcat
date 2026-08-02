@@ -29,6 +29,16 @@ function idle(h, ms, from = 0) {
   return { ball, bfly };
 }
 
+// Idle the same way, but stop as soon as `expr` reads true and report how long that
+// took. Returns null if it never did inside `cap`, so a caller still gets a failure.
+function idleUntil(h, expr, cap, from = 0) {
+  for (let t = from + STEP; t <= from + cap; t += STEP) {
+    h.run(`draw(${t})`);
+    if (h.run(expr)) return t - from;
+  }
+  return null;
+}
+
 test('a dog left alone starts its own game of fetch', () => {
   const { ball, bfly } = idle(petOverlay('dog'), 30000);
   assert.ok(ball, 'an idle dog should nose a ball out on its own');
@@ -65,13 +75,25 @@ test('work mode and reduced motion both stop a dog starting a game', () => {
 test('a butterfly in flight leaves properly when the pet becomes a dog', () => {
   // The butterfly is DRAWN for as long as bfOn is set. Routing dogs straight to
   // fetch without flying it off would freeze it mid-air on screen forever.
+  const SWAP_AT = 9000;
+  // How long the flight out takes is geometry, not a constant: a butterfly on the far
+  // side of a cat that is itself parked against a screen edge has the whole 1920px to
+  // cross at its leaving speed (~4.5s), while a near-edge exit is done inside a second.
+  // So drive the frames and record WHEN it left rather than sampling one fixed moment.
+  // The cap stays well under renderer.js's bfUntil + 6000ms despawn failsafe, so
+  // passing here means it actually flew off, not that a safety net swept it up.
+  const LEAVE_CAP = 12000;
+
   const h = petOverlay('cat');
-  idle(h, 9000);
+  idle(h, SWAP_AT);
   assert.strictEqual(h.run('bfOn'), true, 'expected a butterfly mid-visit before the swap');
 
   h.run('setSpecies("dog")');
   h.ipc('onConfig', { species: 'dog', soundOn: false, followCursor: true, floorLock: true });
-  idle(h, 4000, 9000);
 
-  assert.strictEqual(h.run('bfOn'), false, 'the butterfly should fly off, not freeze on screen');
+  // Clearing bfOn is reachable from exactly one place in renderer.js, and only under
+  // bfMode 'out', so leaving inside the cap IS the graceful departure. Abandoning the
+  // butterfly instead leaves bfOn set forever and this fails.
+  const leftAfter = idleUntil(h, '!bfOn', LEAVE_CAP, SWAP_AT);
+  assert.ok(leftAfter !== null, `the butterfly should fly off, not freeze on screen (still up ${LEAVE_CAP}ms after the swap)`);
 });
