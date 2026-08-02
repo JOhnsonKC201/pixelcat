@@ -4,11 +4,11 @@ pixelcat runs as a desktop overlay with a global keyboard hook, and it can optio
 
 ## Supported versions
 
-Only the [latest release](https://github.com/JOhnsonKC201/pixelcat/releases/latest) is supported.
+Only the [latest release](https://github.com/JOhnsonKC201/pixelpets/releases/latest) is supported.
 
 ## Reporting a vulnerability
 
-Please use [GitHub private vulnerability reporting](https://github.com/JOhnsonKC201/pixelcat/security/advisories/new) rather than a public issue, so a fix can ship before details are public. Include steps to reproduce and what an attacker gains. You should hear back within a week.
+Please use [GitHub private vulnerability reporting](https://github.com/JOhnsonKC201/pixelpets/security/advisories/new) rather than a public issue, so a fix can ship before details are public. Include steps to reproduce and what an attacker gains. You should hear back within a week.
 
 ## What is already in place
 

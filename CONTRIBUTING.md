@@ -5,8 +5,8 @@ Thanks for wanting to make the cat better. Issues, mac test reports, coat design
 ## Quick start
 
 ```powershell
-git clone https://github.com/JOhnsonKC201/pixelcat.git
-cd pixelcat
+git clone https://github.com/JOhnsonKC201/pixelpets.git
+cd pixelpets
 npm install
 npm start        # the cat appears
 ```
@@ -32,7 +32,7 @@ The [Development section of the README](README.md#development) covers the day-to
 
 - **Own a Mac?** The macOS port is code-complete but untested on real hardware. Running the [beta checklist](README.md#build-a-standalone-app) and reporting what happened is the single most useful contribution right now.
 - **Design a coat** and share it (Settings → Custom coats → Export). Great ones can become built-ins.
-- Anything labeled [good first issue](https://github.com/JOhnsonKC201/pixelcat/labels/good%20first%20issue) or [help wanted](https://github.com/JOhnsonKC201/pixelcat/labels/help%20wanted).
+- Anything labeled [good first issue](https://github.com/JOhnsonKC201/pixelpets/labels/good%20first%20issue) or [help wanted](https://github.com/JOhnsonKC201/pixelpets/labels/help%20wanted).
 
 ## Ground rules for the art and sound
 

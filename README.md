@@ -15,10 +15,10 @@ scratch: nearly every sprite, animation, and sound is original and procedural.
 
 <br />
 
-[![CI](https://img.shields.io/github/actions/workflow/status/JOhnsonKC201/pixelcat/ci.yml?style=flat-square&labelColor=15161d&label=CI)](https://github.com/JOhnsonKC201/pixelcat/actions/workflows/ci.yml)
-&nbsp;[![release](https://img.shields.io/github/v/release/JOhnsonKC201/pixelcat?style=flat-square&labelColor=15161d&color=E8930C)](https://github.com/JOhnsonKC201/pixelcat/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/JOhnsonKC201/pixelpets/ci.yml?style=flat-square&labelColor=15161d&label=CI)](https://github.com/JOhnsonKC201/pixelpets/actions/workflows/ci.yml)
+&nbsp;[![release](https://img.shields.io/github/v/release/JOhnsonKC201/pixelpets?style=flat-square&labelColor=15161d&color=E8930C)](https://github.com/JOhnsonKC201/pixelpets/releases/latest)
 &nbsp;![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20(beta)-4C566A?style=flat-square&labelColor=15161d)
-&nbsp;[![license](https://img.shields.io/github/license/JOhnsonKC201/pixelcat?style=flat-square&labelColor=15161d&color=22C55E)](LICENSE)
+&nbsp;[![license](https://img.shields.io/github/license/JOhnsonKC201/pixelpets?style=flat-square&labelColor=15161d&color=22C55E)](LICENSE)
 
 <br />
 
@@ -29,7 +29,7 @@ scratch: nearly every sprite, animation, and sound is original and procedural.
 <br />
 <br />
 
-[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-E8930C?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/JOhnsonKC201/pixelcat/releases/latest)
+[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-E8930C?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/JOhnsonKC201/pixelpets/releases/latest)
 &nbsp;
 [![Play in your browser](https://img.shields.io/badge/Play_in_your_browser-15161d?style=for-the-badge)](https://pixelcat-jet.vercel.app)
 
@@ -114,15 +114,15 @@ pet draws with, generated headlessly by one script. Nothing is a screen recordin
 
 The Windows installer is the easy path. No git, no Node, just run it:
 
-### [Download for Windows](https://github.com/JOhnsonKC201/pixelcat/releases/latest)
+### [Download for Windows](https://github.com/JOhnsonKC201/pixelpets/releases/latest)
 
 You can also [play with the cat in your browser](https://pixelcat-jet.vercel.app) before installing anything.
 
 To run from source (for development, or on macOS) you need git and Node 20 or newer:
 
 ```powershell
-git clone https://github.com/JOhnsonKC201/pixelcat.git
-cd pixelcat
+git clone https://github.com/JOhnsonKC201/pixelpets.git
+cd pixelpets
 npm install
 npm start
 ```
@@ -459,7 +459,7 @@ bar), the tray menu works in the menu bar, and login launch works.
 ### Project layout
 
 ```
-pixelcat/
+pixelpets/
   src/
     main.js                # overlay window, global hooks, tray + menu, settings,
                            #  break/reminder scheduler, config IPC
@@ -543,9 +543,9 @@ Bug reports, ideas, and PRs are all welcome. Start with the
 [contributing guide](CONTRIBUTING.md); the [security policy](SECURITY.md)
 covers reporting a vulnerability privately. If you own a Mac, running the
 [beta checklist](#build-a-standalone-app) and reporting back on
-[the mac testers issue](https://github.com/JOhnsonKC201/pixelcat/issues/20) is
+[the mac testers issue](https://github.com/JOhnsonKC201/pixelpets/issues/20) is
 the single most useful contribution right now. Custom coats and desk setups
-belong in [Discussions](https://github.com/JOhnsonKC201/pixelcat/discussions),
+belong in [Discussions](https://github.com/JOhnsonKC201/pixelpets/discussions),
 and release history lives in the [changelog](CHANGELOG.md).
 
 ---
