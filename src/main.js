@@ -15,6 +15,14 @@ const { SPECIES, SPECIES_IDS, speciesOf, coatsFor, defaultCoatIndex } = require(
 // otherwise blocks autoplay until a user gesture.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
+// The two bridge filenames below keep the old pixelcat name on purpose. They are a
+// published contract, not branding: users have already pasted these paths into agent
+// hooks and CI scripts, and `scripts/install-hook.js` printed them into config files
+// we cannot reach in to edit. Renaming either one would break every installation that
+// exists, silently, because the writer would still succeed against a file nobody
+// reads. Each name is spelled out again in the writer (agent-hook.js, notify.js);
+// tests/bridge-paths.test.js fails if the two sides ever drift apart.
+//
 // AI-agent status file: hooks (e.g. Claude Code) write 'thinking' | 'done' here
 // and the cat reacts. See README "AI agent reactions".
 const AGENT_FILE = path.join(os.tmpdir(), 'pixelcat-agent.state');
@@ -751,6 +759,11 @@ handleSecure('themes:import', async () => {
 
 app.whenReady().then(() => {
   if (isSecondary) return;
+  // Frozen at the old name deliberately, like the bridge paths above. On Windows this
+  // string is the toast identity, the name of the HKCU..\Run autostart value Electron
+  // writes, and the key the NSIS installer matches to upgrade in place rather than
+  // installing a second copy alongside. Changing it to match the new product name
+  // would strand the existing autostart entry and split upgrades into two installs.
   try { app.setAppUserModelId('com.johnsonkc.pixelcat'); } catch (e) { /* Windows toast identity */ }
   // Must run before the first read of settings/themes/mail: the pixelcat -> pixelpets
   // rename moved userData, so on an upgrade the files are still under the old name.
