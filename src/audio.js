@@ -268,7 +268,7 @@ function playMeow() {
   // open "ee" and back down through the closing "ow", a fixed vocal peak so it reads
   // as a voice (not a bleep), gentle vibrato, and a breath of air on the onset.
   // Each call randomly picks a short "mew", a two-syllable "meow", or a drawn-out
-  // "meeow" — and detunes a hair — so repeated meows vary like a real cat.
+  // "meeow" - and detunes a hair - so repeated meows vary like a real cat.
   // Still 100% synthesized; voiceFor() keeps each breed's own pitch/length.
   const ac = audio(); if (!ac) return;
   if (voiceIsDog()) { playBark(); return; }      // a dog does not meow
@@ -389,7 +389,7 @@ function stopPurr() {
   } catch (e) { /* ignore */ }
 }
 // A happy cat "chirrup"/trill (tap, body-pet, playful beat, agent done): a short
-// rising note with the fast rolled "r" flutter cats make — friendlier than a meow.
+// rising note with the fast rolled "r" flutter cats make - friendlier than a meow.
 function playChirp() {
   if (voiceIsDog()) { playWhine(); return; }   // the dog equivalent: a soft asking whine
   const ac = audio(); if (!ac) return;

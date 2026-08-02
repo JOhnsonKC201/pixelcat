@@ -1,4 +1,4 @@
-/* cat-live.js — a live, interactive pixel cat for the marketing site.
+/* cat-live.js - a live, interactive pixel cat for the marketing site.
  *
  * Drives a single <canvas> with the real desktop-pet sprite geometry (from
  * cat-sprite.js, the single source of truth) and the cat's full repertoire,
@@ -43,7 +43,7 @@
   function composeTypeFront(B) {
     B = B || {};
     const CX = 12, fluff = !!B.fluff;
-    // tail sweeps low to the right (a resting tail) — NOT curled up beside the chest,
+    // tail sweeps low to the right (a resting tail) - NOT curled up beside the chest,
     // where its pale tip used to read as a third, raised paw.
     [[20.5, 20.4], [22.2, 20.9], [23.2, 21.8], [22.6, 22.8]].forEach(([c, r]) => ellipse(c, r, 1.5, 1.5, 'C'));
     ellipse(21.8, 23.2, 1.0, 1.0, 'W', ['C']);
@@ -445,7 +445,7 @@
   function init(canvas, options) {
     options = options || {};
     if (typeof buildSprite !== 'function' || typeof composeSit !== 'function' || typeof PATTERNS === 'undefined') {
-      console.error('[cat-live] cat-sprite.js globals missing — load cat-sprite.js before cat-live.js');
+      console.error('[cat-live] cat-sprite.js globals missing - load cat-sprite.js before cat-live.js');
       return { start() {}, stop() {}, setCoat() {}, nextCoat() {}, destroy() {}, type() {}, climb() {}, setButterfly() {}, setName() {}, _debug() {} };
     }
 
@@ -566,7 +566,7 @@
         smoothLook.y += (ty - smoothLook.y) * 0.16;
       }
     }
-    // which body zone is the cursor over? (canvas-CSS-px) — head/ear/cheek/belly/tailbase,
+    // which body zone is the cursor over? (canvas-CSS-px) - head/ear/cheek/belly/tailbase,
     // mirroring the desktop pet box in src/renderer.js
     function zoneAt(cx, cy) {
       if (!rect) return null;
@@ -601,7 +601,7 @@
     const GRAB_DWELL_MS = 220, GRAB_MS = 2400, SCRATCH_MS = 700;
     let drowse = 0, asleep = false, bonkUntil = 0, lastKissAt = -1e9, lastFrameT = 0;   // cuddle arc: sleep + head-bonk + slow-blink kiss
     let giftUntil = 0;   // "the cat brings you a gift" beat (Phase C trust payoff)
-    // butterfly cadence — a brief, occasional cameo (not a constant companion)
+    // butterfly cadence - a brief, occasional cameo (not a constant companion)
     const BFLY_VISIT_MS = [9000, 4000], BFLY_FIRST_GAP_MS = [25000, 20000], BFLY_GAP_MS = [70000, 60000];
     // auto-showcase reel
     // TYPE + CLIMB are showcased automatically too (no manual input on the site)
@@ -648,7 +648,7 @@
       if (t > nextBlink) { blinkUntil = t + 110; nextBlink = t + 2500 + Math.random() * 3500; }
       if (state === 'IDLE') {
         if (t > nextFlick) { flickT0 = t; nextFlick = t + 4000 + Math.random() * 5000; }
-        // while a butterfly is visiting, the chase IS the show — pause the random reel so the cat is free to stalk
+        // while a butterfly is visiting, the chase IS the show - pause the random reel so the cat is free to stalk
         if (autoShow && t > nextAuto && !(bflyActive() && bf.present)) {
           let pick = REEL[reelIdx % REEL.length]; reelIdx++;
           if (night && (pick === 'HUNT' || pick === 'ZOOMIES' || pick === 'CLIMB') && Math.random() < 0.6) pick = 'LOAF';   // wind down at night
@@ -695,7 +695,7 @@
       // "the chase": ease the foot anchor toward travelTX (the stalk brain sets it just below)
       footX += (travelTX - footX) * TRAVEL_EASE * Math.min(1, dt / 16);
       footX = clamp(footX, travelMinX, travelMaxX);
-      updateButterfly(t, dt, state);   // sets lookOverride / may trigger swat — run before updateLook
+      updateButterfly(t, dt, state);   // sets lookOverride / may trigger swat - run before updateLook
       // stalk brain: in IDLE, travel toward a drifting butterfly; otherwise saunter home to restX
       if (state === 'HUNT' || state === 'CATCH' || state === 'SWAT' || state === 'GRAB') {
         travelTX = footX;   // freeze travel; the pounce/catch pose owns the motion
@@ -723,7 +723,7 @@
       // costume-lap sparkle poof at the screen edge where the butterfly ducked out
       if (lapPoofT0 >= 0 && t - lapPoofT0 < 360) catchSparkle(lapPoofX, lapPoofY, t, (t - lapPoofT0) / 360);
 
-      // shadow (skip while climbing — feet leave the floor)
+      // shadow (skip while climbing - feet leave the floor)
       if (state !== 'CLIMB') {
         ctx.save(); ctx.translate(footX, footY); ctx.scale(scale, scale);
         drawShadow(ctx, 0, 0, (state === 'NUZZLE' ? 0.14 + Math.sin(t / 800) * 0.05 : 0.17), SW * 0.30);
@@ -773,7 +773,7 @@
         fx += Math.sin(t / 24) * 1.6 * intensity * (0.4 + aff * 0.6) * scale; // ~21Hz purr tremble (felt, not seen)
         if (aff > 0.5) lean += Math.sin(t / 120) * 0.03 * aff;               // blissful wiggle once warmed up
         if (aff > 0.6 && t > meltSparkleAt + 1200 && t > lastKissAt + 1100) say('purrrr ♥♥', 400);   // yields to melt + kiss captions
-        // a steady stream of hearts while petting — faster the longer you pet
+        // a steady stream of hearts while petting - faster the longer you pet
         if (rect && t - lastPetHeart > 820 - aff * 380) {
           lastPetHeart = t;
           onHearts(rect.left + footX + (Math.random() * 2 - 1) * 14, rect.top + (footY - SH * 0.72 * scale) - 6);
@@ -811,7 +811,7 @@
       const faceLeft = traveling ? (travelTX < footX) : (state === 'ZOOMIES' && Math.cos(t / 165) < 0);
       const stalking = state === 'IDLE' && t < stalkUntil;
       if (stalking) { bob += Math.round(Math.sin(t / STALK_GAIT_MS) * 1.0); sqY *= 0.92; sqX *= 1.04; }   // low, deliberate creep
-      // overstimulated "enough!" — a brief turn-away shake after a very long pet
+      // overstimulated "enough!" - a brief turn-away shake after a very long pet
       if (state === 'IDLE' && overstimT0 >= 0 && t - overstimT0 < WITHDRAW_MS) {
         const w = 1 - (t - overstimT0) / WITHDRAW_MS;
         lean += Math.sin(t / 40) * 0.05 * w; fx += Math.sin(t / 70) * 6 * scale * w;
@@ -1018,7 +1018,7 @@
         drawCat(ctx, huntSprite, palRGB, { bob: 0, blinking, look: { x: Math.abs(dirX), y: 0.2 }, dilate: dil });
         ctx.restore();
       } else if (prog < 0.56) {
-        // IMPACT — at the bug: squash, eyes shut, sparkle poof
+        // IMPACT - at the bug: squash, eyes shut, sparkle poof
         const e = (prog - 0.40) / 0.16;
         const dx = tgtDX * 0.62, up = tgtUp * 0.72 * (1 - e * 0.7);
         ctx.save();
@@ -1027,7 +1027,7 @@
         ctx.restore();
         catchSparkle(footX + dx, footY - up - HH * scale * 0.45, t, e);
       } else {
-        // SUCCESS — settle into a sit, happy, butterfly held between the front paws
+        // SUCCESS - settle into a sit, happy, butterfly held between the front paws
         const e = (prog - 0.56) / 0.44;
         const land = Math.sin(Math.min(1, e * 2.2) * Math.PI) * 0.06;
         ctx.save();
@@ -1099,7 +1099,7 @@
       }
       const dtf = Math.min(dt, 50) / 16.67;
       if (bf.jinkAt >= 0 && t >= bf.jinkAt) { bf.vx = bf.jinkVx; bf.vy = bf.jinkVy; bf.jinkAt = -1; }   // delayed near-miss escape
-      // cursor speed (px/ms), smoothed — used to tell a still cursor (lure) from a fast flick (flee)
+      // cursor speed (px/ms), smoothed - used to tell a still cursor (lure) from a fast flick (flee)
       if (rect) { const ddt = Math.max(1, t - lastCurT); curSpeed += (Math.min(3, Math.hypot(curX - lastCurX, curY - lastCurY) / ddt) - curSpeed) * 0.3; lastCurX = curX; lastCurY = curY; lastCurT = t; }
 
       const headX = footX, headY = footY - SH * 0.72 * scale;
@@ -1152,7 +1152,7 @@
       bf.vx += (tx - bf.x) * accel * dtf; bf.vy += (ty - bf.y) * accel * dtf;
       bf.vx += Math.sin(t / 130 + 1.3) * 0.5 * dtf; bf.vy += Math.sin(t / 90) * 0.6 * dtf;   // organic flutter
 
-      // a fast cursor flick scares it off (a still cursor lures it instead — handled in steering)
+      // a fast cursor flick scares it off (a still cursor lures it instead - handled in steering)
       if (rect && t - lastMove < 1500 && curSpeed > 0.6) {
         const dx = bf.x - (curX - rect.left), dy = bf.y - (curY - rect.top), d = Math.hypot(dx, dy);
         if (d < 80 && d > 0.1) { const f = (80 - d) / 80 * 3.8; bf.vx += dx / d * f * dtf; bf.vy += dy / d * f * dtf; }

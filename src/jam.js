@@ -1,7 +1,7 @@
-// src/jam.js — "Lobby Jam": a synthesized, improvising lo-fi study-music loop the cat
+// src/jam.js - "Lobby Jam": a synthesized, improvising lo-fi study-music loop the cat
 // plays. 100% Web Audio (no asset files): Karplus-Strong plucked guitar over lazy jazzy
 // voicings + soft bass + brushed percussion, tape-warmed. Classic overlay <script>
-// loaded after audio.js — it REUSES that file's shared AudioContext (audio()) and routes
+// loaded after audio.js - it REUSES that file's shared AudioContext (audio()) and routes
 // through the shared `master` gain, so it respects the Volume slider and mixes with
 // meow/purr. Exposes window.jamStart(mood) / jamStop() / jamSetMood(mood) / jamBeatPhase().
 (() => {
@@ -33,7 +33,7 @@
     focus: { bpm: 80, swing: 0.05, mel: 0.14, rev: 0.18, bright: 0.55 },
     // "study with rain": a cozy, slow loop laid over a soft rain bed (see rainBed).
     rain: { bpm: 70, swing: 0.13, mel: 0.32, rev: 0.40, bright: 0.42, rain: 0.9 },
-    // wind-down/night: very slow, warm and dark, washed in reverb — for late study.
+    // wind-down/night: very slow, warm and dark, washed in reverb - for late study.
     sleepy: { bpm: 54, swing: 0.10, mel: 0.20, rev: 0.52, bright: 0.30 },
   };
   const MOOD_NAMES = Object.keys(MOODS);
@@ -201,7 +201,7 @@
   };
   // expose the mood list so the UI/tray can build pickers from one source of truth
   window.jamMoods = MOOD_NAMES;
-  // 0..1 phase within the current beat — lets the cat bob/strum in time with the music.
+  // 0..1 phase within the current beat - lets the cat bob/strum in time with the music.
   window.jamBeatPhase = function () {
     if (!running || !ac) return 0;
     const spb = 60 / mood.bpm;

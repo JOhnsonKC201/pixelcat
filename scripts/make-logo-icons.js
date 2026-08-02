@@ -95,7 +95,7 @@ function onTile(size) {
     const ry = Math.max(0, radius - y, y - (size - 1 - radius));
     return !(rx > 0 && ry > 0 && rx * rx + ry * ry > radius * radius);
   };
-  // 1) Domed base — warm vertical gradient shaded by a light source in the upper-left,
+  // 1) Domed base - warm vertical gradient shaded by a light source in the upper-left,
   //    so the surface looks curved (bright near the light, darker toward the far corner).
   const lx = size * 0.36, ly = size * 0.28, maxd = Math.hypot(size, size);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
@@ -106,7 +106,7 @@ function onTile(size) {
     out[o] = lerp(TILE_TOP[0], TILE_BOT[0], t) * k; out[o + 1] = lerp(TILE_TOP[1], TILE_BOT[1], t) * k;
     out[o + 2] = lerp(TILE_TOP[2], TILE_BOT[2], t) * k; out[o + 3] = 255;
   }
-  // 2) Glassy specular sheen — a soft bright ellipse across the top.
+  // 2) Glassy specular sheen - a soft bright ellipse across the top.
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     if (!inside(x, y)) continue;
     const ex = (x - size * 0.5) / (size * 0.46), ey = (y - size * 0.24) / (size * 0.26);
@@ -115,7 +115,7 @@ function onTile(size) {
     const o = (y * size + x) * 4;
     out[o] += (255 - out[o]) * a; out[o + 1] += (255 - out[o + 1]) * a; out[o + 2] += (255 - out[o + 2]) * a;
   }
-  // 2b) Beveled rim — bright on top-facing edges, dark on bottom-facing edges (raised-button look).
+  // 2b) Beveled rim - bright on top-facing edges, dark on bottom-facing edges (raised-button look).
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     if (!inside(x, y)) continue;
     const top = !inside(x, y - 1) || !inside(x, y - 2), bot = !inside(x, y + 1) || !inside(x, y + 2);
@@ -124,7 +124,7 @@ function onTile(size) {
     if (top) { out[o] += (255 - out[o]) * 0.6; out[o + 1] += (255 - out[o + 1]) * 0.6; out[o + 2] += (255 - out[o + 2]) * 0.6; }
     else { out[o] *= 0.68; out[o + 1] *= 0.68; out[o + 2] *= 0.68; }
   }
-  // 3) Soft drop shadow under the cat — blurred, offset down, so the cat lifts off the tile.
+  // 3) Soft drop shadow under the cat - blurred, offset down, so the cat lifts off the tile.
   const shadow = new Float32Array(size * size), dyShadow = Math.round(size * 0.06);
   for (let y = 0; y < catSz; y++) for (let x = 0; x < catSz; x++) {
     if (cat[(y * catSz + x) * 4 + 3] < 40) continue;
@@ -163,7 +163,7 @@ fs.writeFileSync(path.join(outDir, 'icon-512.png'), encodePng(onTile(512), 512))
 // Transparent 512 mascot mark for the README hero (no tile).
 fs.writeFileSync(path.join(outDir, 'logo-mark.png'), encodePng(rgbaAt(512), 512));
 
-// Tray glyph (16 + retina 32) and the legacy tray .ico — on the same warm tile as the app
+// Tray glyph (16 + retina 32) and the legacy tray .ico - on the same warm tile as the app
 // icon so the dark mascot is clearly visible on a dark system tray.
 fs.writeFileSync(path.join(outDir, 'tray.png'), encodePng(onTile(16), 16));
 fs.writeFileSync(path.join(outDir, 'tray@2x.png'), encodePng(onTile(32), 32));

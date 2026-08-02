@@ -715,7 +715,7 @@ npm run dist   <span class="c">// windows installer</span></pre>
 <script>
 /* run after the deferred cat-sprite/cat-preview/cat-live scripts have executed */
 document.addEventListener('DOMContentLoaded', function(){
-/* coat thumbnails — the REAL project sprite, drawn per coat from the shared
+/* coat thumbnails - the REAL project sprite, drawn per coat from the shared
    geometry + palettes (PixelcatPreview), so the gallery matches the live cat. */
 const grid = document.getElementById('coatGrid');
 if(grid){ grid.setAttribute('role','group'); grid.setAttribute('aria-label','Choose a coat for the live cat'); }
@@ -860,7 +860,7 @@ function stopPurr(){
 const perch=document.getElementById('perchCat');
 perch?.addEventListener('click',(e)=>{ meow(); const r=perch.getBoundingClientRect(); heartBurst(r.left+r.width/2,r.top); });
 
-/* live cat inside the CRT screen — defaults to Tuxedo (the out-of-box coat) and
+/* live cat inside the CRT screen - defaults to Tuxedo (the out-of-box coat) and
    auto-demos its behaviours (typing, climbing, hunting…) with no manual controls.
    Click still pets; right-click still cycles coats. */
 const liveCanvas=document.getElementById('liveCat');

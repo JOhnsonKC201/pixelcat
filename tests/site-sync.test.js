@@ -4,7 +4,7 @@
 // at runtime), so a couple of files are DUPLICATED out of `src/` by hand. That
 // duplication is a known drift surface: if someone changes the desktop sprite in
 // `src/` and forgets to mirror it, the website cat silently renders differently
-// from the real app — with nothing to catch it. These tests turn that "remember
+// from the real app - with nothing to catch it. These tests turn that "remember
 // to re-copy" convention into a failure.
 //
 // Parity is compared EOL-normalized (CRLF -> LF) on purpose: the invariant is
@@ -37,7 +37,7 @@ test('site/cat-sprite.js is a verbatim copy of src/cat-sprite.js', () => {
   const site = norm('site/cat-sprite.js');
   assert.strictEqual(
     site, src,
-    'site/cat-sprite.js has drifted from src/cat-sprite.js — the website cat will ' +
+    'site/cat-sprite.js has drifted from src/cat-sprite.js - the website cat will ' +
     'not match the desktop app.\nFirst divergence at ' + firstDivergence(src, site) +
     "\nRe-sync with:  node -e \"fs.copyFileSync('src/cat-sprite.js','site/cat-sprite.js')\"",
   );
@@ -54,8 +54,8 @@ test('site/cat-preview.js shares the code body of src/cat-preview.js (only the h
   // ever refactored away, fail loudly rather than silently compare whole files.
   const si = src.indexOf(MARKER);
   const ti = site.indexOf(MARKER);
-  assert.ok(si >= 0, `src/cat-preview.js no longer contains ${JSON.stringify(MARKER)} — update this drift guard.`);
-  assert.ok(ti >= 0, `site/cat-preview.js no longer contains ${JSON.stringify(MARKER)} — update this drift guard.`);
+  assert.ok(si >= 0, `src/cat-preview.js no longer contains ${JSON.stringify(MARKER)} - update this drift guard.`);
+  assert.ok(ti >= 0, `site/cat-preview.js no longer contains ${JSON.stringify(MARKER)} - update this drift guard.`);
 
   const srcBody = src.slice(si);
   const siteBody = site.slice(ti);

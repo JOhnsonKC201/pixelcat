@@ -1898,10 +1898,10 @@ function updateButterflyDesk(t, dt, step, f) {
   if (sp > maxv) { bfVx *= maxv / sp; bfVy *= maxv / sp; }
   bfX += bfVx * dtf; bfY += bfVy * dtf;
   bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
-  // despawn once it has flown off-screen — or, as a failsafe, if it has been leaving too long
+  // despawn once it has flown off-screen - or, as a failsafe, if it has been leaving too long
   // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
   if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; bfIdleNextVisit = t + 14000 + Math.random() * 10000; return; }
-  // keep the sprite on-screen — but NOT while leaving, or the clamp pins it at the edge and it
+  // keep the sprite on-screen - but NOT while leaving, or the clamp pins it at the edge and it
   // can never reach the off-screen despawn threshold above (it would flutter there forever).
   if (bfMode !== 'out') {
     const m = 10;

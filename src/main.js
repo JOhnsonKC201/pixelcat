@@ -11,7 +11,7 @@ const themes = require('./themes');
 const { PATTERN_NAMES } = require('./patterns');
 const { SPECIES, SPECIES_IDS, speciesOf, coatsFor, defaultCoatIndex } = require('./pets');
 
-// Let the overlay auto-resume the Lobby Jam music at launch without a click — Chromium
+// Let the overlay auto-resume the Lobby Jam music at launch without a click - Chromium
 // otherwise blocks autoplay until a user gesture.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 

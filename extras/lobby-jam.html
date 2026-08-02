@@ -63,7 +63,7 @@
   <main class="card">
     <div class="eyebrow">PixelCat</div>
     <h1>Lobby <span class="accent">Jam</span></h1>
-    <p class="sub">An endless, improvised lo-fi guitar — every note synthesized live in code.<br>No samples, no loops. It never plays the same thing twice.</p>
+    <p class="sub">An endless, improvised lo-fi guitar - every note synthesized live in code.<br>No samples, no loops. It never plays the same thing twice.</p>
 
     <canvas id="viz" width="760" height="192" aria-hidden="true"></canvas>
 
@@ -79,7 +79,7 @@
       <button class="chip" data-mood="upbeat" aria-pressed="false">🎐 Upbeat</button>
     </div>
 
-    <footer><span class="foot-note">Karplus–Strong plucked strings · improvised ii–V–I voicings · tape-warmed Web Audio</span></footer>
+    <footer><span class="foot-note">Karplus-Strong plucked strings · improvised ii-V-I voicings · tape-warmed Web Audio</span></footer>
   </main>
 
 <script>
@@ -317,7 +317,7 @@
     if (master) master.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 0.4);
     setTimeout(() => { if (!running && master) master.gain.value = 0.9; }, 500);
     btn.classList.remove("playing"); icon.setAttribute("d", PLAY); btn.setAttribute("aria-label", "Play");
-    statusEl.textContent = "paused — tap to keep jamming";
+    statusEl.textContent = "paused - tap to keep jamming";
     g2.clearRect(0, 0, canvas.width, canvas.height);
   }
   btn.addEventListener("click", () => running ? stop() : start());
