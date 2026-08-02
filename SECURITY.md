@@ -1,6 +1,6 @@
 # Security Policy
 
-pixelcat runs as a desktop overlay with a global keyboard hook, and it can optionally hold an IMAP app-password (encrypted at rest via Electron `safeStorage`) and fetch a calendar URL. Security reports are taken seriously.
+pixelpets runs as a desktop overlay with a global keyboard hook, and it can optionally hold an IMAP app-password (encrypted at rest via Electron `safeStorage`) and fetch a calendar URL. Security reports are taken seriously.
 
 ## Supported versions
 

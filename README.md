@@ -22,7 +22,7 @@ scratch: nearly every sprite, animation, and sound is original and procedural.
 
 <br />
 
-<img src="assets/hero-banner.gif" alt="pixelcat on your desktop: it sits and watches your cursor, kneads the keyboard when you type, and purrs when you pet it" width="880" />
+<img src="assets/hero-banner.gif" alt="pixelpets on your desktop: it sits and watches your cursor, kneads the keyboard when you type, and purrs when you pet it" width="880" />
 
 <sub>Every frame above is rendered from code, not screen capture. <a href="assets/hero-banner.mp4">MP4 version</a>.</sub>
 
@@ -98,15 +98,15 @@ pet draws with, generated headlessly by one script. Nothing is a screen recordin
 - 14 coat patterns ship built in, all recolored at draw time from one role-coded sprite, and you can design, import, and export your own.
 - Every animation is composed into that sprite, limbs included, so all 28 coats across both species get every pose in their own colours without shipping a single extra frame.
 - Every sound is synthesized live with Web Audio: the meow, the purr, the chirp, and an endlessly improvising lo-fi jam. The app ships zero audio files.
-- It keeps you on track. Break and Pomodoro timers, repeating reminders, a pinned note, IMAP unread-mail alerts, and calendar nudges, all delivered by the cat.
+- It keeps you on track. Break and Pomodoro timers, repeating reminders, a pinned note, IMAP unread-mail alerts, and calendar nudges, all delivered by your pet.
 - It knows when your coding agent is thinking, working, or done, and reacts with its paws. Hook configs ship for five agents.
-- The whole thing is a transparent, click-through overlay that stays above every window. Only the cat is clickable.
+- The whole thing is a transparent, click-through overlay that stays above every window. Only your pet is clickable.
 
 <div align="center">
 
 <img src="assets/showcase.png" alt="all 14 coats across the sit, typing, hunt, and loaf poses" width="100%" />
 
-<sub><b>Fourteen breeds, one shape.</b> Every pose in every coat, recolored from a single role-coded sprite at draw time.</sub>
+<sub><b>Fourteen coats, one shape.</b> Every pose in every coat, recolored from a single role-coded sprite at draw time.</sub>
 
 </div>
 
@@ -127,12 +127,12 @@ npm install
 npm start
 ```
 
-Either way the cat appears in the corner and registers itself to start at login.
+Either way your pet appears in the corner and registers itself to start at login.
 `npm run autostart:off` turns that off, and the installed version uninstalls like
 any other program, from Windows Settings > Apps.
 
 > **macOS (beta):** same commands. On first run, grant Accessibility permission
-> (System Settings > Privacy & Security > Accessibility) so the cat can react to your
+> (System Settings > Privacy & Security > Accessibility) so your pet can react to your
 > typing and cursor. Input is only detected, never logged or sent anywhere. The mac
 > port is code-complete but not yet smoke-tested on real hardware; see the
 > [build checklist](#build-a-standalone-app). Issues welcome.
@@ -236,8 +236,9 @@ play area). It starts at login by registering itself in Windows startup.
 
 ## Stay on track
 
-pixelcat doubles as a quiet productivity companion. Every alert comes through
-the cat, as a meow and a speech bubble, with an optional real desktop notification.
+pixelpets doubles as a quiet productivity companion. Every alert comes through
+your pet, as a meow or a bark and a speech bubble, with an optional real
+desktop notification.
 
 <details open>
 <summary><b>Timers</b>: break reminders and Pomodoro</summary>
@@ -316,8 +317,8 @@ echo "anything" | node scripts/notify.js "Deploy done"   # hook-safe (drains std
 
 Flags: `--title <T>`, `--level info|success|warn|alert`, `--ttl <ms>`,
 `--no-sound`. The script appends one JSON line to `%TEMP%/pixelcat-notify.jsonl`
-and the running cat tails the file. Lines written before the cat launched are
-ignored (no backlog replay), and calling it while the cat is closed is harmless.
+and the running pet tails the file. Lines written before the pet launched are
+ignored (no backlog replay), and calling it while the pet is closed is harmless.
 
 </details>
 
@@ -337,7 +338,7 @@ ignored (no backlog replay), and calling it while the cat is closed is harmless.
 
 Settings persist to `settings.json` in your per-user app-data folder
 (`%APPDATA%/pixelcat/` on Windows). Timers and reminders only fire while
-pixelcat is running, and reminder times use your local clock.
+pixelpets is running, and reminder times use your local clock.
 
 ## AI agent reactions
 
@@ -379,7 +380,7 @@ replies `{"continue": true}`, so it never blocks or alters your agent.
 <sub>The richer status reactions were inspired by the open-source AI desktop pets
 [openpets](https://github.com/alvinunreal/openpets) (MIT) and
 [clawd-on-desk](https://github.com/rullerzhou-afk/clawd-on-desk) (AGPL-3.0).
-Ideas only; all code here is original to pixelcat.</sub>
+Ideas only; all code here is original to pixelpets.</sub>
 
 ## Custom coats
 
@@ -465,7 +466,7 @@ pixelpets/
                            #  break/reminder scheduler, config IPC
     config.js              # settings.json load/save/normalize (per-user app data)
     patterns.js            # shared coat-name list (renderer + main + settings UI)
-    renderer.js            # the cat: sprites, palettes, physics, reactions, sound
+    renderer.js            # the pet: sprites, palettes, physics, reactions, sound
     mail.js / mail-worker.js   # IMAP unread-mail checks (isolated worker)
     cal.js  / cal-worker.js    # .ics calendar feed (isolated worker)
     themes.js              # custom-coat load/validate
@@ -478,7 +479,7 @@ pixelpets/
 
 ## Privacy
 
-The cat reacts to your typing and scrolling, which means it listens to global
+Your pet reacts to your typing and scrolling, which means it listens to global
 input events, so here is the plain statement: input is used only to trigger
 animations, in the moment, on your machine. Keystrokes are never logged,
 stored, or sent anywhere. There is no telemetry and no auto-update. The app
@@ -490,7 +491,7 @@ isolated worker processes. Your IMAP app password is stored encrypted at rest
 ## Development
 
 ```powershell
-npm start                 # run the cat
+npm start                 # run the app
 npm test                  # 81 tests: config, poses, petting, audio, art frames, site drift
 npm run poses:cat         # previews/cat-poses.png (every activity x every coat)
 npm run poses:dog         # the same for all 14 breeds
@@ -553,7 +554,7 @@ and release history lives in the [changelog](CHANGELOG.md).
 <div align="center">
 
 Made for fun. All art, code, and sound are original; the meow and purr are
-synthesized in code, with no audio files. pixelcat is inspired by, not copied
+synthesized in code, with no audio files. pixelpets is inspired by, not copied
 from, Comnyang: no Comnyang assets, sprites, audio, or branding are used.
 
 [**MIT**](LICENSE) © [JOhnsonKC201](https://github.com/JOhnsonKC201)

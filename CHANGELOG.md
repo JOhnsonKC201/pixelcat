@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to **pixelcat**. All art and sound are original/procedural (no asset files).
+Notable changes to **pixelpets**. All art and sound are original/procedural (no asset files).
 
 ## [Unreleased]
 

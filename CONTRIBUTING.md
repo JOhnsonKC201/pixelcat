@@ -1,6 +1,6 @@
-# Contributing to pixelcat
+# Contributing to pixelpets
 
-Thanks for wanting to make the cat better. Issues, mac test reports, coat designs, and PRs are all welcome.
+Thanks for wanting to make pixelpets better. Issues, mac test reports, coat designs, and PRs are all welcome.
 
 ## Quick start
 
@@ -8,7 +8,7 @@ Thanks for wanting to make the cat better. Issues, mac test reports, coat design
 git clone https://github.com/JOhnsonKC201/pixelpets.git
 cd pixelpets
 npm install
-npm start        # the cat appears
+npm start        # your pet appears
 ```
 
 The [Development section of the README](README.md#development) covers the day-to-day commands. The short version:
@@ -36,4 +36,4 @@ The [Development section of the README](README.md#development) covers the day-to
 
 ## Ground rules for the art and sound
 
-Everything in pixelcat is original or procedural. Please do not submit sprites, sounds, or assets copied from other desktop pets (Comnyang, Shimeji packs, etc.) or from any copyrighted source. Code that generates things is the whole point here.
+Everything in pixelpets is original or procedural. Please do not submit sprites, sounds, or assets copied from other desktop pets (Comnyang, Shimeji packs, etc.) or from any copyrighted source. Code that generates things is the whole point here.
