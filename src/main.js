@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const config = require('./config');
+const datadir = require('./datadir');
 const { fillPlaceholders } = require('./template');
 const mail = require('./mail');
 const cal = require('./cal');
@@ -751,6 +752,9 @@ handleSecure('themes:import', async () => {
 app.whenReady().then(() => {
   if (isSecondary) return;
   try { app.setAppUserModelId('com.johnsonkc.pixelcat'); } catch (e) { /* Windows toast identity */ }
+  // Must run before the first read of settings/themes/mail: the pixelcat -> pixelpets
+  // rename moved userData, so on an upgrade the files are still under the old name.
+  datadir.migrateFromLegacy(app);
   themesCache = themes.load();
   if (!SHOT && !SHEET) {
     setAutostart(!process.argv.includes('--autostart=off'));

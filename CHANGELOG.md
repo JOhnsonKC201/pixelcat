@@ -10,6 +10,7 @@ Notable changes to **pixelpets**. All art and sound are original/procedural (no 
 ### Fixes
 - **The dog stops re-fetching the ball it just delivered.** It dropped the ball at its own feet, was back inside the grab radius on the next frame, and looped pickup/deliver at frame rate: 254 heart-and-chirp bursts in 72 seconds and a pant timer that never expired. Only the first throw ever looked right.
 - **Tray wording matches what the tray actually does.** A dog was offered "Give a treat 🦴" and then thrown a tennis ball; it now reads "Throw the ball 🎾", alongside "Ball to chase" and "Work mode (stay put, no ball)".
+- **Upgrading from 0.2.0 keeps your pet, your coats and your mailbox.** Electron derives the per-user data folder from the product name, so renaming pixelcat to pixelpets pointed the app at an empty directory: the next release would have greeted every existing user with an unnamed, default-coat pet, no custom coats, no notification recap, and a silently disconnected inbox, since `email.cred` holds an encrypted app-password that cannot be retyped from memory. First launch under the new name now carries the old files across. It never overwrites a file already saved under the new name, never touches the old folder, and only runs once, so deleting a file on purpose keeps it deleted.
 - **`npm run lint` works on a real working copy again** - it was walking local-only paths that `.gitignore` already excludes and reporting ~1.5k errors from code this repo does not own.
 
 ## [0.2.0] - 2026-07-25
