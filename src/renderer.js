@@ -1125,6 +1125,9 @@ try { pos = JSON.parse(localStorage.getItem('pos')); } catch (e) { /* ignore */ 
 if (SHOT) pos = { x: 130, y: 250 };
 if (SHOT && qp.get('treat') === '1') treat = { x: 210, y: 250, phase: 'nom', nomUntil: Infinity };   // preview render: npx electron . --shot --treat=1
 else if (!pos || typeof pos.x !== 'number') pos = { x: homeX(), y: viewH - 80 };
+// Kept below the chain above on purpose: slipping a statement between that `if` and
+// its `else if` silently re-parents the position fallback onto this condition.
+if (SHOT && qp.get('note')) { bubbleText = qp.get('note'); bubbleUntil = Infinity; }                 // preview render: npx electron . --shot --note="..."
 pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 // Start each launch resting on the taskbar line (keep the remembered X, snap Y to
 // the baseline) so the cat always begins the day on the same line, never mid-screen.

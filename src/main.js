@@ -57,8 +57,14 @@ const stateArg = (process.argv.find((a) => a.startsWith('--state=')) || '').spli
 const patternArg = (process.argv.find((a) => a.startsWith('--pattern=')) || '').split('=')[1] || '';
 const dirArg = (process.argv.find((a) => a.startsWith('--dir=')) || '').split('=')[1] || '';   // force climb direction (up|down) for --shot previews
 const speciesArg = (process.argv.find((a) => a.startsWith('--species=')) || '').split('=')[1] || '';   // force cat|dog for --shot previews (the renderer already reads ?species=)
+// `--note=<text>` pins a speech bubble open for a --shot capture, so bubble wrapping
+// and edge clamping can be eyeballed against a real font instead of only unit-tested.
+const noteArg = (process.argv.find((a) => a.startsWith('--note=')) || '').split('=').slice(1).join('=') || '';
 const SHOT = process.argv.includes('--shot');
 const SHEET = process.argv.includes('--sheet');   // contact-sheet QA capture
+// The preview canvas renderer.js sizes itself to in SHOT mode. Kept here so the
+// preview WINDOW can be built to cover it; the two must not drift (see createWindow).
+const SHOT_CANVAS = { w: 260, h: 320 };
 // `--at=<ms>` sets how long to let the scene animate before the --shot capture, so
 // animated poses (typing kneads, paper batting) can be QA'd at any phase.
 const shotAtMs = Math.max(0, Number((process.argv.find((a) => a.startsWith('--at=')) || '').split('=')[1]) || 700);
@@ -122,7 +128,12 @@ function createWindow() {
   if (SHOT || SHEET) {
     // Small focusable window for previews (no overlay/click-through). The sheet
     // window stays hidden - it exports its canvas via IPC, not a screen capture.
-    Object.assign(opts, { x: b.x + 80, y: b.y + 80, width: 240, height: 360, focusable: true, show: !SHEET });
+    // The width MUST cover the preview canvas that renderer.js's SHOT branch sizes
+    // (SHOT_CANVAS below): it was 20px narrower for a long time, so a --shot capture
+    // quietly cropped anything that reached the right-hand side of the canvas and
+    // the loss looked like a rendering bug rather than a window that was too small.
+    // tests/shot-window.test.js pins the two together.
+    Object.assign(opts, { x: b.x + 80, y: b.y + 80, width: SHOT_CANVAS.w, height: SHOT_CANVAS.h + 40, focusable: true, show: !SHEET });
   } else {
     // Full-display, click-through overlay; non-focusable so it never steals keys.
     Object.assign(opts, { x: b.x, y: b.y, width: b.width, height: b.height, focusable: false, enableLargerThanScreen: true });
@@ -145,6 +156,7 @@ function createWindow() {
   if (speciesArg) params.push(`species=${speciesArg}`);
   if (process.argv.includes('--bfly')) params.push('bfly=1');   // force the butterfly visitor (QA shots)
   if (process.argv.includes('--treat')) params.push('treat=1'); // force a dropped treat (QA shots)
+  if (noteArg) params.push(`note=${encodeURIComponent(noteArg)}`);   // force a speech bubble (QA shots)
   if (SHOT) params.push('shot=1');
   if (SHEET) params.push('sheet=1');
   win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });

@@ -530,7 +530,10 @@ with `npm run demo:all`.
 Single poses preview via
 `npx electron . --shot --state=<sit|typing|hunt|loaf|groom|paper|overheat|pet|startle|work> --pattern=<coat>`.
 Add `--at=<ms>` to capture an animated pose at a chosen phase (a typing
-key-press, say): `npx electron . --shot --state=typing --at=760`.
+key-press, say): `npx electron . --shot --state=typing --at=760`. Add
+`--note="<text>"` to pin a speech bubble open in the capture, which is how bubble
+wrapping and screen-edge clamping get checked against a real font rather than only
+in unit tests: `npx electron . --shot --note="a long reminder that has to wrap"`.
 
 ### Tech
 
