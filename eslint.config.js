@@ -1,7 +1,7 @@
 const js = require('@eslint/js');
 const globals = require('globals');
 
-// Names that cat-sprite.js / template.js / climb-frames.js put in the shared global
+// Names that cat-sprite.js / template.js / bubble.js / climb-frames.js put in the shared global
 // scope and that the *consumer* overlay scripts (renderer/settings-renderer/cat-preview)
 // reference as bare identifiers. cat-sprite.js itself DEFINES them, so it gets its own
 // block below (listing them here too would trip no-redeclare).
@@ -23,6 +23,8 @@ const sharedOverlay = {
   BODY: 'readonly', G: 'readonly', GC: 'readonly', GR: 'readonly', HALO: 'readonly',
   rgbStr: 'readonly', toRgb: 'readonly', shadeStr: 'readonly', lerpHex: 'readonly',
   fillPlaceholders: 'readonly', CLIMB_FRAMES: 'readonly',
+  // bubble.js provides the speech-bubble text layout (wrapping + edge clamping):
+  layoutBubble: 'readonly', wrapBubbleText: 'readonly', bubbleInnerW: 'readonly',
   // audio.js (loaded before renderer.js) provides these:
   audio: 'readonly', volNow: 'readonly', master: 'readonly', playMeow: 'readonly',
   startPurr: 'readonly', stopPurr: 'readonly', playChirp: 'readonly', playMrrp: 'readonly',

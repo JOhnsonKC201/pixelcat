@@ -28,6 +28,18 @@ function spawnWorker(url, timeoutMs, cb) {
   try { child.send({ url }); } catch (e) { finish({ ok: false, error: 'Could not reach the calendar worker.' }); }
 }
 
+// Event titles come from someone else's calendar, so unlike reminders (80 chars)
+// and the pinned note (80) they arrive with no length bound at all - a meeting
+// called "Weekly sync: platform, infra, and the Q3 migration follow-ups (bring
+// notes)" is entirely normal. The bubble wraps now, but a Windows toast still gets
+// the raw string, so cap it here at the source and mark that it was cut.
+const CAL_TITLE_MAX = 72;
+function eventTitle(summary) {
+  const s = String(summary == null ? '' : summary).replace(/\s+/g, ' ').trim();
+  if (!s) return 'Event';
+  return s.length <= CAL_TITLE_MAX ? s : s.slice(0, CAL_TITLE_MAX - 1).trimEnd() + '…';
+}
+
 function arm(events, leadMin) {
   const now = Date.now();
   for (const ev of events) {
@@ -41,7 +53,7 @@ function arm(events, leadMin) {
       if (firedKeys.size > 500) { for (const k of firedKeys) { firedKeys.delete(k); if (firedKeys.size <= 250) break; } }
       const mins = Math.max(0, Math.round((ev.start - Date.now()) / 60000));
       const when = mins <= 0 ? 'now' : ('in ' + mins + ' min');
-      if (notifyFn) notifyFn(ev.summary + ' ' + when, { source: 'calendar', dedupeKey: 'cal:' + key, title: 'Calendar' });
+      if (notifyFn) notifyFn(eventTitle(ev.summary) + ' ' + when, { source: 'calendar', dedupeKey: 'cal:' + key, title: 'Calendar' });
     }, Math.max(0, delay));
     fireTimers.set(key, tm);
   }
@@ -85,4 +97,4 @@ function test(cfg) {
 function init(notify_, getCfg_) { notifyFn = notify_; getCfg = getCfg_; }
 function stop() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } clearTimers(); }
 
-module.exports = { init, sync, test, stop };
+module.exports = { init, sync, test, stop, eventTitle };

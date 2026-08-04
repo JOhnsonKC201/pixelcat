@@ -1105,6 +1105,13 @@ let lowPower = false;   // main's derived low-power flag (user toggle and/or on 
 // Comnyang-style productivity layer: settings from main + reminder/break bubble
 let config = null;
 let bubbleText = '', bubbleUntil = 0;
+// Alerts waiting their turn. Two landing together (a reminder and a calendar nudge,
+// or two reminders set for the same minute) used to overwrite each other on the spot:
+// main.js only suppresses IDENTICAL messages, so the first bubble could vanish
+// milliseconds after it appeared and be gone unread. See queueBubble.
+let bubbleQueue = [];
+const BUBBLE_QUEUE_MAX = 4;   // deeper than this and you were never going to read them
+const BUBBLE_GAP = 220;       // a beat between bubbles so two in a row don't read as one flicker
 let pomo = null;   // { on, phase: 'focus'|'break', endsAt } - main owns the clock
 let purring = false;
 // Comnyang mood/energy model: 0-100, decays over time, bumped by stimuli. Bands
@@ -1184,7 +1191,7 @@ if (window.cat) {
       : 'idle';
     if (cat === 'done') {
       doneHopPending = true; doneIsAgent = true; agentState = 'idle'; energy = clamp(energy + 25, 0, 100);
-      bubbleText = 'Task complete!'; bubbleUntil = performance.now() + 2600;   // Comnyang-style done bubble
+      queueBubble({ text: 'Task complete!', ttl: 2600, sound: false, stretch: false });   // Comnyang-style done bubble
     }
     else if (cat === 'error') { errorPending = true; agentState = 'idle'; energy = clamp(energy + 30, 0, 100); }
     else if (cat === 'working') { agentState = 'working'; energy = clamp(energy + 8, 0, 100); }
@@ -1260,23 +1267,41 @@ function catName() { return config && config.name ? config.name : ''; }
 function template(msg) {
   return fillPlaceholders(msg, { name: catName() });
 }
+// Put a bubble on screen now, or line it up behind the one already showing so each
+// alert gets its full time to be read instead of being clobbered by the next.
+// `b` is { text, ttl, sound, stretch }.
+function presentBubble(b, now) {
+  bubbleText = b.text;
+  bubbleUntil = now + (b.ttl || 5000);
+  if (b.stretch !== false) stretchT0 = now;
+  if (config && config.soundOn && b.sound) playMeow();
+}
+function queueBubble(b) {
+  const now = performance.now();
+  if (now < bubbleUntil) {
+    if (bubbleQueue.length < BUBBLE_QUEUE_MAX) bubbleQueue.push(b);   // otherwise drop it; it is already logged in the tray recap
+  } else {
+    presentBubble(b, now);
+  }
+  resumeRaf();
+}
+// Hand the next queued alert the screen once the current one has had its time.
+function drainBubbleQueue(t) {
+  if (bubbleQueue.length && t >= bubbleUntil + BUBBLE_GAP) presentBubble(bubbleQueue.shift(), t);
+}
+
 // A generic notification from main: speech bubble + optional meow.
 // (Any Windows toast is raised in main; here we just draw + chirp.)
 function triggerNotify(d) {
   if (!d) return;
-  bubbleText = template(d.message) || 'Meow!';
-  bubbleUntil = performance.now() + (d.ttl || 5000);
-  stretchT0 = performance.now();
-  if (config && config.soundOn && d.sound !== false) playMeow();
-  resumeRaf();
+  queueBubble({ text: template(d.message) || 'Meow!', ttl: d.ttl || 5000, sound: d.sound !== false });
 }
 function triggerBreak() {
   const n = catName();
-  bubbleText = n ? `Break time, ${n}! Stretch with me~` : 'Break time! Stretch with me~';
-  bubbleUntil = performance.now() + 6000;
-  stretchT0 = performance.now();
-  if (config && config.soundOn) playMeow();
-  resumeRaf();
+  queueBubble({
+    text: n ? `Break time, ${n}! Stretch with me~` : 'Break time! Stretch with me~',
+    ttl: 6000, sound: true,
+  });
 }
 // --- Fetch (dogs only): the tray throws a tennis ball. The ball arcs out under
 //     gravity, bounces, and settles; the dog bolts after it, picks it up, carries
@@ -1419,18 +1444,42 @@ function drawTreat() {
 // defined there and shared via the overlay's global script scope.
 
 // Speech bubble above the head - same dark-rounded style as the coat label.
+// Wrapping and edge-clamping live in bubble.js (pure, unit-tested); this only
+// paints what that hands back. It used to size the panel to at most 260px and
+// then fillText the whole string regardless, so any message past ~44 characters
+// wrote itself onto the wallpaper either side of the box - and reminders and
+// pinned notes are allowed 80 characters, with calendar summaries uncapped.
+// One-entry wrap cache. A pinned note is re-drawn every frame for as long as it is
+// pinned, and wrapping costs a measureText per word; the result only depends on the
+// text and the screen width, neither of which changes between frames. The box
+// POSITION still recomputes each frame, so the bubble keeps riding the pet's breathing.
+let wrapCache = null;
+function wrapFor(text, measure, innerW) {
+  if (wrapCache && wrapCache.text === text && wrapCache.innerW === innerW) return wrapCache;
+  const lines = wrapBubbleText(text, measure, innerW, undefined);
+  let widest = 0;
+  for (const l of lines) widest = Math.max(widest, measure(l));
+  wrapCache = { text, innerW, lines, widest };
+  return wrapCache;
+}
 function drawBubble(cx, topY, text, alpha) {
   ctx.globalAlpha = alpha;
   ctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const padX = 8, w = Math.min(260, ctx.measureText(text).width + padX * 2), h = 20;
-  const x = Math.round(cx - w / 2), y = Math.round(topY - h);
+  const measure = (s) => ctx.measureText(s).width;
+  const wrapped = wrapFor(text, measure, bubbleInnerW(viewW));
+  const box = layoutBubble({ text, cx, topY, measure, viewW, viewH, lines: wrapped.lines, widest: wrapped.widest });
+  const { x, y, w, h } = box;
   ctx.fillStyle = 'rgba(20,20,24,0.88)';
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(x, y, w, h, 6); else ctx.rect(x, y, w, h);
   ctx.fill();
-  ctx.beginPath(); ctx.moveTo(cx - 4, y + h); ctx.lineTo(cx + 4, y + h); ctx.lineTo(cx, y + h + 5); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.fillText(text, cx, y + h / 2 + 1);
+  // The tail stays on the pet even when the panel has been slid off a screen edge,
+  // so a corner-resting pet's bubble still reads as coming from it.
+  ctx.beginPath(); ctx.moveTo(box.tailX - 4, y + h); ctx.lineTo(box.tailX + 4, y + h); ctx.lineTo(box.tailX, y + h + 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff';
+  const midX = x + w / 2;
+  for (let i = 0; i < box.lines.length; i++) ctx.fillText(box.lines[i], midX, y + box.padY + box.lineH * (i + 0.5) + 1);
   ctx.globalAlpha = 1;
 }
 
@@ -1958,6 +2007,10 @@ function draw(t) {
 
   const dt = Math.min(64, t - prevT); prevT = t;
   const step = Math.min(2.5, dt / 16);
+  // Hand the next queued alert the screen as soon as the current one has had its
+  // time. Up here at the top of the loop (rather than beside the bubble draw) so it
+  // keeps running through a hunt or a startle, which live in their own pose branch.
+  drainBubbleQueue(t);
   // eased settle onto the floor line (armed by repinFloor on resize / DPI / display change)
   if (settleT0 >= 0) {
     const se = clamp((t - settleT0) / SETTLE_MS, 0, 1);

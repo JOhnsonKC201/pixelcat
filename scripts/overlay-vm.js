@@ -41,7 +41,7 @@ function seededMath(seed) {
 // Same order as src/index.html - these share ONE global scope in the browser, and
 // renderer.js reads bare identifiers defined by the files ahead of it.
 const SCRIPTS = ['cat-sprite.js', 'dog-sprite.js', 'pets.js', 'art-frames.js', 'template.js',
-  'climb-frames.js', 'audio.js', 'effects.js', 'jam.js', 'renderer.js'];
+  'bubble.js', 'climb-frames.js', 'audio.js', 'effects.js', 'jam.js', 'renderer.js'];
 
 // A canvas 2D context that accepts anything and draws nothing.
 function mockCtx2d() {

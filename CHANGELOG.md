@@ -2,6 +2,13 @@
 
 Notable changes to **pixelpets**. All art and sound are original/procedural (no asset files).
 
+## [Unreleased]
+
+### Fixes
+- **Speech bubbles hold their text.** The panel was capped at 260px but the whole message was drawn anyway, so anything past roughly 44 characters spilled white text onto the wallpaper either side of the box, where it is unreadable. Reminders and the pinned note are allowed 80 characters and calendar event titles had no cap at all, so this was the normal case rather than an edge case. Messages now wrap, an over-long word is broken instead of left hanging, a message too long to show at all is ellipsised rather than silently cut, and the panel is clamped onto the screen with its tail still pointing at the pet - which matters because the pet's default resting spot is a screen corner.
+- **Alerts no longer overwrite each other.** Two arriving together - two reminders set for the same minute, or a reminder landing during a calendar nudge - meant the second replaced the first on the spot, so the first could be gone milliseconds after it appeared. Only identical messages were ever suppressed, so two different alerts always collided. They now queue, and each gets its full time on screen, including while the pet is hunting or startled.
+- **Calendar event titles are length-capped** before they become a bubble and a Windows toast. They come from someone else's calendar and, unlike reminders and the pinned note, arrived with no bound at all.
+
 ## [0.3.0] - 2026-08-03
 
 ### Dogs, and a new name
