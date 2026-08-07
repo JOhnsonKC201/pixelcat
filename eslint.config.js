@@ -17,6 +17,7 @@ const sharedOverlay = {
   // pets.js provides the species registry:
   PET_SPECIES: 'readonly', SPECIES_IDS: 'readonly', speciesOf: 'readonly', coatsFor: 'readonly',
   isSpecies: 'readonly', defaultCoatIndex: 'readonly', CAT_COATS: 'readonly', DOG_COATS: 'readonly',
+  SETTINGS_TEXT: 'readonly', settingsText: 'readonly',
   BUILDS: 'readonly', TABBY: 'readonly', PATTERN_BUILD: 'readonly',
   // art-frames.js provides the generated baked-pose table:
   ART_FRAMES: 'readonly',
