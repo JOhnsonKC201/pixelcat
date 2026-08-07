@@ -21,6 +21,7 @@ Notable changes to **pixelpets**. All art and sound are original/procedural (no 
 
 ### Added
 - **`--shot --note="<text>"`** pins a speech bubble open in a preview capture, so wrapping and edge clamping can be checked against a real font.
+- **`launch-pixelpets.vbs`**, a silent Windows launcher for running from source, is now part of the repo instead of a local-only file. `npm start` leaves a console window sitting behind the pet, which is why a shortcut wants this instead. It resolves the project from its own location rather than a hard-coded path, so moving or renaming the folder cannot leave the shortcut pointing at nothing, and it says what is wrong if dependencies were never installed rather than failing silently.
 
 ## [0.3.0] - 2026-08-03
 

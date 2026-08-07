@@ -131,6 +131,11 @@ Either way your pet appears in the corner and registers itself to start at login
 `npm run autostart:off` turns that off, and the installed version uninstalls like
 any other program, from Windows Settings > Apps.
 
+> **Windows, running from source:** `npm start` leaves a console window open behind
+> the pet. `launch-pixelpets.vbs` starts the same thing silently, so it works as a
+> desktop shortcut (point one at `wscript.exe "<path>\launch-pixelpets.vbs"`). It
+> locates the project from its own path, so moving the folder does not break it.
+
 > **macOS (beta):** same commands. On first run, grant Accessibility permission
 > (System Settings > Privacy & Security > Accessibility) so your pet can react to your
 > typing and cursor. Input is only detected, never logged or sent anywhere. The mac
