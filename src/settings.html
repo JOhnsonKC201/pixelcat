@@ -23,13 +23,20 @@
     body::-webkit-scrollbar { width: 10px; }
     body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; border: 2px solid var(--bg); }
 
+    /* Keyboard focus has to be visible on every control. The toggles below are
+       appearance:none, so without this a keyboard user tabbing through the window
+       has no idea which switch they are about to flip. */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* header + tabs travel together, so the tab rail needs no magic top offset */
+    .top { position: sticky; top: 0; z-index: 5; }
+
     /* sticky header bar - game-HUD feel */
     .hdr {
-      position: sticky; top: 0; z-index: 5;
       display: flex; align-items: center; gap: 9px;
-      padding: 13px 16px; margin-bottom: 14px;
+      padding: 13px 16px;
       background: linear-gradient(180deg, #1e2027, #181a20);
-      border-bottom: 2px solid #0f1116; box-shadow: 0 3px 0 rgba(0,0,0,.3);
+      border-bottom: 1px solid #0f1116;
     }
     .hdr .paw {
       width: 24px; height: 24px; flex: none; display: grid; place-items: center;
@@ -40,7 +47,35 @@
     .hdr b i { color: var(--accent); font-style: normal; }
     .hdr .tag { margin-left: auto; color: var(--faint); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; }
 
-    .wrap { padding: 0 16px; }
+    /* section rail - 11 cards in one scroll was a 6x blind scroll with nothing to
+       aim at; the rail turns "keep scrolling and hope" into one click. */
+    .tabs {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      background: linear-gradient(180deg, #1a1c23, #15171d);
+      border-bottom: 2px solid #0f1116; box-shadow: 0 3px 0 rgba(0,0,0,.3);
+    }
+    .tab {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      background: transparent; color: var(--muted);
+      border: 0; border-bottom: 3px solid transparent; border-radius: 0; box-shadow: none;
+      padding: 7px 2px 6px; font: inherit; font-size: 9.5px; font-weight: 700;
+      letter-spacing: .7px; text-transform: uppercase; cursor: pointer;
+      transition: color .12s, background .12s, border-color .12s;
+    }
+    .tab .ic { font-size: 15px; line-height: 1; filter: grayscale(.6) opacity(.7); transition: filter .12s; }
+    .tab:hover { color: var(--fg); background: rgba(255,255,255,.045); }
+    .tab:active { transform: none; box-shadow: none; }          /* not a chunky push-button */
+    .tab:focus-visible { outline-offset: -3px; }
+    .tab[aria-selected="true"] { color: var(--accent); background: rgba(232,148,60,.1); border-bottom-color: var(--accent); }
+    .tab[aria-selected="true"] .ic { filter: none; }
+
+    .wrap { padding: 14px 16px 0; }
+
+    /* Visibility is the `hidden` attribute and nothing else - a parallel .on class
+       is one more thing that can drift out of step with aria-selected. */
+    .panel { animation: panelIn .16s ease-out; }
+    @keyframes panelIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
 
     /* section cards */
     .card {
@@ -57,9 +92,9 @@
     .row { margin-bottom: 12px; }
     .row:last-child { margin-bottom: 0; }
     label.lbl { display: block; color: var(--muted); margin-bottom: 5px; font-size: 12px; }
-    input[type=text], input[type=number], input[type=time], select {
+    input[type=text], input[type=password], input[type=number], input[type=time], select {
       width: 100%; background: var(--bg); color: var(--fg);
-      border: 2px solid var(--line); border-radius: 7px; padding: 8px 9px; font: inherit; outline: none;
+      border: 2px solid var(--line); border-radius: 7px; padding: 8px 9px; font: inherit;
       transition: border-color .12s;
     }
     input:focus, select:focus { border-color: var(--accent); }
@@ -75,6 +110,7 @@
       border: 1px solid transparent; transition: background .12s, border-color .12s;
     }
     .check:hover { background: var(--panel2); border-color: var(--line); }
+    .check:has(input:focus-visible) { background: var(--panel2); border-color: var(--accent); }
     .check:last-child { margin-bottom: 0; }
     .check input { appearance: none; -webkit-appearance: none; width: 38px; height: 20px; flex: none;
       background: #14161c; border: 2px solid var(--line); border-radius: 12px; position: relative; cursor: pointer; transition: background .15s, border-color .15s; }
@@ -84,10 +120,13 @@
     .check input:checked::after { transform: translateX(18px); background: var(--accent); }
     .check label, .check > span.t { font-size: 12.5px; color: var(--fg); cursor: pointer; flex: 1; }
     .check .sub { display: block; color: var(--faint); font-size: 11px; margin-top: 1px; }
+    @media (prefers-reduced-motion: reduce) {
+      .check input, .check input::after { transition: none; }
+    }
 
     /* range */
     input[type=range] { width: 100%; appearance: none; -webkit-appearance: none; height: 6px; border-radius: 4px;
-      background: #14161c; border: 1px solid var(--line); outline: none; }
+      background: #14161c; border: 1px solid var(--line); }
     input[type=range]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 16px; height: 16px;
       border-radius: 4px; background: var(--accent); border: 2px solid #0f1116; box-shadow: 1px 1px 0 rgba(0,0,0,.4); cursor: pointer; }
 
@@ -102,10 +141,19 @@
     button.ghost { background: var(--panel2); color: var(--fg); font-weight: 600; }
     button.ghost:hover { background: #313542; }
 
-    .coatPreview-wrap { display: flex; justify-content: center; margin-top: 12px; }
-    canvas#coatPreview { display: block; image-rendering: pixelated;
-      background: radial-gradient(circle at 50% 35%, rgba(232,148,60,.08), rgba(255,255,255,.03));
-      border: 2px solid var(--line); border-radius: 10px; }
+    /* coat preview - the one place the app shows you what you are actually picking,
+       so it gets a lit stage and a floor to sit on rather than a bare swatch box. */
+    .stage {
+      display: grid; justify-items: center; margin-top: 12px; padding: 10px 10px 11px;
+      background:
+        radial-gradient(130px 62px at 50% 88%, rgba(232,148,60,.14), transparent 70%),
+        linear-gradient(180deg, #1c1f27, #171920);
+      border: 2px solid #14161c; border-radius: 10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+    }
+    canvas#coatPreview { display: block; image-rendering: pixelated; }
+    .stage .floor { width: 76%; height: 2px; border-radius: 2px;
+      background: linear-gradient(90deg, transparent, var(--line) 22%, var(--line) 78%, transparent); }
 
     .hint { color: var(--faint); font-size: 11px; }
 
@@ -146,205 +194,226 @@
   </style>
 </head>
 <body>
-  <div class="hdr">
-    <span class="paw">🐾</span>
-    <b><i>pixel</i>cat</b>
-    <span class="tag">settings</span>
+  <div class="top">
+    <div class="hdr">
+      <span class="paw">🐾</span>
+      <b><i>pixel</i>pets</b>
+      <span class="tag">settings</span>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Settings sections">
+      <button class="tab" role="tab" id="tab-pet" aria-controls="panel-pet" aria-selected="true" data-panel="pet"><span class="ic" aria-hidden="true">🐾</span>Pet</button>
+      <button class="tab" role="tab" id="tab-play" aria-controls="panel-play" aria-selected="false" data-panel="play"><span class="ic" aria-hidden="true">✨</span>Play</button>
+      <button class="tab" role="tab" id="tab-sound" aria-controls="panel-sound" aria-selected="false" data-panel="sound"><span class="ic" aria-hidden="true">🔊</span>Sound</button>
+      <button class="tab" role="tab" id="tab-focus" aria-controls="panel-focus" aria-selected="false" data-panel="focus"><span class="ic" aria-hidden="true">⏱️</span>Focus</button>
+      <button class="tab" role="tab" id="tab-feeds" aria-controls="panel-feeds" aria-selected="false" data-panel="feeds"><span class="ic" aria-hidden="true">📬</span>Feeds</button>
+    </nav>
   </div>
 
   <div class="wrap">
-    <!-- YOU + COAT -->
-    <section class="card">
-      <div class="card-h">your cat</div>
-      <div class="row">
-        <label class="lbl" for="name">Your name - the cat calls you by it</label>
-        <input type="text" id="name" maxlength="24" placeholder="e.g. John" />
-      </div>
-      <div class="row">
-        <label class="lbl" for="species">Pet</label>
-        <select id="species">
-          <option value="cat">🐱  Cat</option>
-          <option value="dog">🐶  Dog</option>
-        </select>
-        <label class="lbl" for="pattern" id="coatLabel">Coat</label>
-        <select id="pattern"></select>
-        <div class="coatPreview-wrap">
-          <canvas id="coatPreview" width="120" height="150"></canvas>
+    <!-- ============================ PET ============================ -->
+    <section class="panel" id="panel-pet" role="tabpanel" aria-labelledby="tab-pet">
+      <section class="card">
+        <div class="card-h" id="petCardTitle">your pet</div>
+        <div class="row">
+          <label class="lbl" for="name" id="nameLabel">Your name</label>
+          <input type="text" id="name" maxlength="24" placeholder="e.g. John" />
         </div>
-      </div>
-    </section>
-
-    <!-- BEHAVIOUR -->
-    <section class="card">
-      <div class="card-h">behaviour</div>
-      <div class="row inline">
-        <label class="lbl" for="breakMinutes">Break / stretch every</label>
-        <input type="number" id="breakMinutes" min="0" max="240" step="1" />
-        <span class="hint">min (0 = off)</span>
-      </div>
-      <label class="check"><input type="checkbox" id="followCursor" /><span class="t">Follow the cursor<span class="sub">eyes track your mouse</span></span></label>
-      <label class="check"><input type="checkbox" id="huntOn" /><span class="t">Hunt the cursor<span class="sub">pounces when the mouse moves fast</span></span></label>
-      <label class="check"><input type="checkbox" id="butterflyOn" /><span class="t">Butterfly visits<span class="sub">a butterfly drops by and the cat plays with it</span></span></label>
-      <label class="check"><input type="checkbox" id="moodOn" /><span class="t">Mood reactions<span class="sub">zoomies &amp; startle reactions</span></span></label>
-      <label class="check"><input type="checkbox" id="roamOn" /><span class="t">Wander<span class="sub">roams its play area</span></span></label>
-      <label class="check"><input type="checkbox" id="floorLock" /><span class="t">Stay on the floor<span class="sub">strolls along the bottom line; never wanders up</span></span></label>
-      <div class="row inline">
-        <label class="lbl" for="restSide">Rest corner</label>
-        <select id="restSide">
-          <option value="right">Bottom-right</option>
-          <option value="left">Bottom-left</option>
-        </select>
-      </div>
-      <label class="check"><input type="checkbox" id="workMode" /><span class="t">Work mode<span class="sub">parks the cat in its rest corner on the taskbar &amp; hides the butterfly while you work</span></span></label>
-      <label class="check"><input type="checkbox" id="reducedMotion" /><span class="t">Reduced motion<span class="sub">calmer: no wandering or bouncing</span></span></label>
-    </section>
-
-    <!-- PERFORMANCE -->
-    <section class="card">
-      <div class="card-h">performance</div>
-      <label class="check"><input type="checkbox" id="lowPower" /><span class="t">Low power mode<span class="sub">fewer frames &amp; slower polling while the cat rests (saves CPU/GPU)</span></span></label>
-      <label class="check"><input type="checkbox" id="lowPowerOnBattery" /><span class="t">Auto on battery<span class="sub">switch to low power automatically while unplugged</span></span></label>
-    </section>
-
-    <!-- SOUND -->
-    <section class="card">
-      <div class="card-h">sound</div>
-      <label class="check"><input type="checkbox" id="soundOn" /><span class="t">Sound<span class="sub" id="soundSub">meow &amp; purr (synthesized)</span></span></label>
-      <label class="check"><input type="checkbox" id="notifyOn" /><span class="t">Desktop alerts<span class="sub">also pop a Windows notification for reminders &amp; messages</span></span></label>
-      <div class="row">
-        <label class="lbl" for="volume">Volume <span class="hint" id="volumeVal"></span></label>
-        <input type="range" id="volume" min="0" max="100" step="5" />
-      </div>
-    </section>
-
-    <!-- LOBBY JAM -->
-    <section class="card">
-      <div class="card-h">lobby jam</div>
-      <label class="check"><input type="checkbox" id="lobbyJamOn" /><span class="t">🎸 Lobby Jam<span class="sub">lo-fi focus music your pet plays, synthesized live, no files</span></span></label>
-      <div class="row inline">
-        <label class="lbl" for="lobbyJamMood">Mood</label>
-        <select id="lobbyJamMood">
-          <option value="cozy">Cozy café</option>
-          <option value="dreamy">Dreamy</option>
-          <option value="upbeat">Upbeat lounge</option>
-          <option value="focus">Deep focus</option>
-          <option value="rain">Rainy study</option>
-          <option value="sleepy">Sleepy night</option>
-        </select>
-      </div>
-    </section>
-
-    <!-- POMODORO -->
-    <section class="card">
-      <div class="card-h">pomodoro</div>
-      <label class="check"><input type="checkbox" id="pomoOn" /><span class="t">Pomodoro timer<span class="sub">a pixel timer floats next to the cat; it stretches with you on breaks</span></span></label>
-      <div class="row inline">
-        <label class="lbl" for="pomoFocus">Focus</label>
-        <input type="number" id="pomoFocus" min="5" max="120" step="5" />
-        <span class="hint">min</span>
-        <label class="lbl" for="pomoBreak">Break</label>
-        <input type="number" id="pomoBreak" min="1" max="60" step="1" />
-        <span class="hint">min</span>
-      </div>
-    </section>
-
-    <!-- EMAIL -->
-    <section class="card">
-      <div class="card-h">email</div>
-      <label class="check"><input type="checkbox" id="emailOn" /><span class="t">Unread-mail alerts<span class="sub">the cat tells you when new mail arrives (IMAP)</span></span></label>
-      <div class="row"><label class="lbl" for="emailUser">Email address</label><input type="text" id="emailUser" placeholder="you@gmail.com" /></div>
-      <div class="row"><label class="lbl" for="emailPass">App password <span class="hint" id="emailPassState"></span></label><input type="password" id="emailPass" placeholder="paste an app-password" /></div>
-      <div class="row inline">
-        <label class="lbl" for="emailHost">Server</label>
-        <input type="text" id="emailHost" placeholder="imap.gmail.com" />
-        <label class="lbl" for="emailPort">Port</label>
-        <input type="number" id="emailPort" min="1" max="65535" />
-      </div>
-      <div class="row inline">
-        <label class="lbl" for="emailInterval">Check every</label>
-        <input type="number" id="emailInterval" min="1" max="60" />
-        <span class="hint">min</span>
-        <button class="ghost" id="emailTest">Test</button>
-      </div>
-      <span class="hint" id="emailStatus">Gmail server is imap.gmail.com (not www.gmail.com). Use an app-password, not your login password.</span>
-    </section>
-
-    <!-- CALENDAR -->
-    <section class="card">
-      <div class="card-h">calendar</div>
-      <label class="check"><input type="checkbox" id="calOn" /><span class="t">Event nudges<span class="sub">the cat reminds you before calendar events (.ics)</span></span></label>
-      <div class="row"><label class="lbl" for="calUrl">Secret .ics URL</label><input type="password" id="calUrl" placeholder="https://…/basic.ics" /></div>
-      <div class="row inline">
-        <label class="lbl" for="calLead">Nudge</label>
-        <input type="number" id="calLead" min="0" max="1440" />
-        <span class="hint">min before</span>
-        <button class="ghost" id="calTest">Test</button>
-      </div>
-      <span class="hint" id="calStatus">In Google/Outlook Calendar, copy the secret address in iCal (.ics) format.</span>
-    </section>
-
-    <!-- WINDOW / PLAY AREA -->
-    <section class="card">
-      <div class="card-h">window</div>
-      <label class="check"><input type="checkbox" id="onTop" /><span class="t">Always on top<span class="sub">keep the cat above other windows</span></span></label>
-      <div class="row" style="margin-top:10px;"><button class="ghost" id="clearArea" style="width:100%;">Clear play area (use whole screen)</button></div>
-    </section>
-
-    <!-- CUSTOM COATS -->
-    <section class="card">
-      <div class="card-h">custom coats</div>
-      <span class="hint">Design your own and pick it from Coat above.</span>
-      <ul id="themes"></ul>
-      <div class="t-io"><button class="ghost" id="exportThemes">Export…</button><button class="ghost" id="importThemes">Import…</button></div>
-      <details class="theme-add">
-        <summary>Add a custom coat</summary>
-        <div class="t-grid">
-          <input type="text" id="tName" maxlength="24" placeholder="Coat name" />
-          <select id="tBuild">
-            <option value="standard">Standard</option>
-            <option value="slender">Slender</option>
-            <option value="stocky">Stocky</option>
-            <option value="fluffy">Fluffy</option>
+        <div class="row">
+          <label class="lbl" for="species">Pet</label>
+          <select id="species">
+            <option value="cat">🐱  Cat</option>
+            <option value="dog">🐶  Dog</option>
           </select>
-          <label class="t-check"><input type="checkbox" id="tTabby" /> Tabby</label>
         </div>
-        <div class="t-colors">
-          <label>Coat<input type="color" id="c_coat" value="#8d97ac" /></label>
-          <label>Marks<input type="color" id="c_mark" value="#6f7892" /></label>
-          <label>White<input type="color" id="c_white" value="#f2f4f7" /></label>
-          <label>Patch<input type="color" id="c_patch" value="#8d97ac" /></label>
-          <label>Eyes<input type="color" id="c_eye" value="#8bbf5a" /></label>
-          <label>Nose<input type="color" id="c_nose" value="#e0888f" /></label>
-          <label>Inner ear<input type="color" id="c_inner" value="#f0b6a0" /></label>
-          <label>Outline<input type="color" id="c_outline" value="#2e323d" /></label>
+        <div class="row">
+          <label class="lbl" for="pattern" id="coatLabel">Coat</label>
+          <select id="pattern"></select>
+          <div class="stage">
+            <canvas id="coatPreview" width="132" height="158"></canvas>
+            <span class="floor"></span>
+          </div>
         </div>
-        <button id="addTheme" style="width:100%;">Add coat</button>
-      </details>
+      </section>
+
+      <section class="card">
+        <div class="card-h">custom coats</div>
+        <span class="hint" id="coatsHint">Design your own and pick it from Coat above.</span>
+        <ul id="themes"></ul>
+        <div class="t-io"><button class="ghost" id="exportThemes">Export…</button><button class="ghost" id="importThemes">Import…</button></div>
+        <details class="theme-add">
+          <summary>Add a custom coat</summary>
+          <div class="t-grid">
+            <input type="text" id="tName" maxlength="24" placeholder="Coat name" />
+            <select id="tBuild">
+              <option value="standard">Standard</option>
+              <option value="slender">Slender</option>
+              <option value="stocky">Stocky</option>
+              <option value="fluffy">Fluffy</option>
+            </select>
+            <label class="t-check"><input type="checkbox" id="tTabby" /> Tabby</label>
+          </div>
+          <div class="t-colors">
+            <label>Coat<input type="color" id="c_coat" value="#8d97ac" /></label>
+            <label>Marks<input type="color" id="c_mark" value="#6f7892" /></label>
+            <label>White<input type="color" id="c_white" value="#f2f4f7" /></label>
+            <label>Patch<input type="color" id="c_patch" value="#8d97ac" /></label>
+            <label>Eyes<input type="color" id="c_eye" value="#8bbf5a" /></label>
+            <label>Nose<input type="color" id="c_nose" value="#e0888f" /></label>
+            <label>Inner ear<input type="color" id="c_inner" value="#f0b6a0" /></label>
+            <label>Outline<input type="color" id="c_outline" value="#2e323d" /></label>
+          </div>
+          <button id="addTheme" style="width:100%;">Add coat</button>
+        </details>
+      </section>
     </section>
 
-    <!-- REMINDERS -->
-    <section class="card">
-      <div class="card-h">reminders</div>
-      <span class="hint">The cat meows your message at a set time. Placeholders: {name} {time} {date}</span>
-      <div class="rem-add" style="margin-top:10px;">
-        <input type="time" id="newTime" />
-        <input type="text" id="newMsg" maxlength="80" placeholder="Drink water, {name}!" />
-        <button id="addReminder">Add</button>
-      </div>
-      <div class="rem-recur" style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <select id="newRecur">
-          <option value="daily">Every day</option>
-          <option value="weekdays">Weekdays</option>
-          <option value="weekly">Weekly…</option>
-          <option value="once">Once</option>
-        </select>
-        <div id="dayPicker" style="display:none; gap:4px;"></div>
-      </div>
-      <ul id="reminders"></ul>
-      <div class="row" style="margin-top:12px;">
-        <label class="lbl" for="pinnedNote">Pinned note - stays above the cat's head (leave empty to hide)</label>
-        <input type="text" id="pinnedNote" maxlength="80" placeholder="Ship the demo by Friday!" />
-      </div>
+    <!-- ============================ PLAY ============================ -->
+    <section class="panel" id="panel-play" role="tabpanel" aria-labelledby="tab-play" hidden>
+      <section class="card">
+        <div class="card-h">behaviour</div>
+        <label class="check"><input type="checkbox" id="followCursor" /><span class="t">Follow the cursor<span class="sub">eyes track your mouse</span></span></label>
+        <label class="check"><input type="checkbox" id="huntOn" /><span class="t">Hunt the cursor<span class="sub" id="huntSub">pounces when the mouse moves fast</span></span></label>
+        <label class="check"><input type="checkbox" id="butterflyOn" /><span class="t"><span id="playTitle">Butterfly visits</span><span class="sub" id="playSub">a butterfly drops by and the pet plays with it</span></span></label>
+        <label class="check"><input type="checkbox" id="moodOn" /><span class="t">Mood reactions<span class="sub">zoomies &amp; startle reactions</span></span></label>
+        <label class="check"><input type="checkbox" id="roamOn" /><span class="t">Wander<span class="sub">roams its play area</span></span></label>
+        <label class="check"><input type="checkbox" id="floorLock" /><span class="t">Stay on the floor<span class="sub">strolls along the bottom line; never wanders up</span></span></label>
+        <div class="row inline" style="margin-top:10px;">
+          <label class="lbl" for="restSide">Rest corner</label>
+          <select id="restSide">
+            <option value="right">Bottom-right</option>
+            <option value="left">Bottom-left</option>
+          </select>
+        </div>
+        <label class="check" style="margin-top:7px;"><input type="checkbox" id="workMode" /><span class="t">Work mode<span class="sub" id="workModeSub">parks the pet in its rest corner on the taskbar while you work</span></span></label>
+        <label class="check"><input type="checkbox" id="reducedMotion" /><span class="t">Reduced motion<span class="sub">calmer: no wandering or bouncing</span></span></label>
+      </section>
+
+      <section class="card">
+        <div class="card-h">window</div>
+        <label class="check"><input type="checkbox" id="onTop" /><span class="t">Always on top<span class="sub" id="onTopSub">keep the pet above other windows</span></span></label>
+        <div class="row" style="margin-top:10px;"><button class="ghost" id="clearArea" style="width:100%;">Clear play area (use whole screen)</button></div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">performance</div>
+        <label class="check"><input type="checkbox" id="lowPower" /><span class="t">Low power mode<span class="sub">fewer frames &amp; slower polling while the pet rests (saves CPU/GPU)</span></span></label>
+        <label class="check"><input type="checkbox" id="lowPowerOnBattery" /><span class="t">Auto on battery<span class="sub">switch to low power automatically while unplugged</span></span></label>
+      </section>
+    </section>
+
+    <!-- ============================ SOUND ============================ -->
+    <section class="panel" id="panel-sound" role="tabpanel" aria-labelledby="tab-sound" hidden>
+      <section class="card">
+        <div class="card-h">sound</div>
+        <label class="check"><input type="checkbox" id="soundOn" /><span class="t">Sound<span class="sub" id="soundSub">meow &amp; purr (synthesized)</span></span></label>
+        <label class="check"><input type="checkbox" id="notifyOn" /><span class="t">Desktop alerts<span class="sub">also pop a Windows notification for reminders &amp; messages</span></span></label>
+        <div class="row" style="margin-top:10px;">
+          <label class="lbl" for="volume">Volume <span class="hint" id="volumeVal"></span></label>
+          <input type="range" id="volume" min="0" max="100" step="5" />
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">lobby jam</div>
+        <label class="check"><input type="checkbox" id="lobbyJamOn" /><span class="t">🎸 Lobby Jam<span class="sub">lo-fi focus music your pet plays, synthesized live, no files</span></span></label>
+        <div class="row inline" style="margin-top:10px;">
+          <label class="lbl" for="lobbyJamMood">Mood</label>
+          <select id="lobbyJamMood">
+            <option value="cozy">Cozy café</option>
+            <option value="dreamy">Dreamy</option>
+            <option value="upbeat">Upbeat lounge</option>
+            <option value="focus">Deep focus</option>
+            <option value="rain">Rainy study</option>
+            <option value="sleepy">Sleepy night</option>
+          </select>
+        </div>
+      </section>
+    </section>
+
+    <!-- ============================ FOCUS ============================ -->
+    <section class="panel" id="panel-focus" role="tabpanel" aria-labelledby="tab-focus" hidden>
+      <section class="card">
+        <div class="card-h">breaks</div>
+        <div class="row inline">
+          <label class="lbl" for="breakMinutes">Break / stretch every</label>
+          <input type="number" id="breakMinutes" min="0" max="240" step="1" />
+          <span class="hint">min (0 = off)</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">pomodoro</div>
+        <label class="check"><input type="checkbox" id="pomoOn" /><span class="t">Pomodoro timer<span class="sub" id="pomoSub">a pixel timer floats next to the pet; it stretches with you on breaks</span></span></label>
+        <div class="row inline" style="margin-top:10px;">
+          <label class="lbl" for="pomoFocus">Focus</label>
+          <input type="number" id="pomoFocus" min="5" max="120" step="5" />
+          <span class="hint">min</span>
+          <label class="lbl" for="pomoBreak">Break</label>
+          <input type="number" id="pomoBreak" min="1" max="60" step="1" />
+          <span class="hint">min</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">reminders</div>
+        <span class="hint" id="remindersHint">The pet says your message at a set time. Placeholders: {name} {time} {date}</span>
+        <div class="rem-add" style="margin-top:10px;">
+          <input type="time" id="newTime" />
+          <input type="text" id="newMsg" maxlength="80" placeholder="Drink water, {name}!" />
+          <button id="addReminder">Add</button>
+        </div>
+        <div class="rem-recur" style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <select id="newRecur">
+            <option value="daily">Every day</option>
+            <option value="weekdays">Weekdays</option>
+            <option value="weekly">Weekly…</option>
+            <option value="once">Once</option>
+          </select>
+          <div id="dayPicker" style="display:none; gap:4px;"></div>
+        </div>
+        <ul id="reminders"></ul>
+        <div class="row" style="margin-top:12px;">
+          <label class="lbl" for="pinnedNote" id="pinnedNoteLabel">Pinned note (leave empty to hide)</label>
+          <input type="text" id="pinnedNote" maxlength="80" placeholder="Ship the demo by Friday!" />
+        </div>
+      </section>
+    </section>
+
+    <!-- ============================ FEEDS ============================ -->
+    <section class="panel" id="panel-feeds" role="tabpanel" aria-labelledby="tab-feeds" hidden>
+      <section class="card">
+        <div class="card-h">email</div>
+        <label class="check"><input type="checkbox" id="emailOn" /><span class="t">Unread-mail alerts<span class="sub" id="emailSub">the pet tells you when new mail arrives (IMAP)</span></span></label>
+        <div class="row" style="margin-top:10px;"><label class="lbl" for="emailUser">Email address</label><input type="text" id="emailUser" placeholder="you@gmail.com" /></div>
+        <div class="row"><label class="lbl" for="emailPass">App password <span class="hint" id="emailPassState"></span></label><input type="password" id="emailPass" placeholder="paste an app-password" /></div>
+        <div class="row inline">
+          <label class="lbl" for="emailHost">Server</label>
+          <input type="text" id="emailHost" placeholder="imap.gmail.com" />
+          <label class="lbl" for="emailPort">Port</label>
+          <input type="number" id="emailPort" min="1" max="65535" />
+        </div>
+        <div class="row inline">
+          <label class="lbl" for="emailInterval">Check every</label>
+          <input type="number" id="emailInterval" min="1" max="60" />
+          <span class="hint">min</span>
+          <button class="ghost" id="emailTest">Test</button>
+        </div>
+        <span class="hint" id="emailStatus">Gmail server is imap.gmail.com (not www.gmail.com). Use an app-password, not your login password.</span>
+      </section>
+
+      <section class="card">
+        <div class="card-h">calendar</div>
+        <label class="check"><input type="checkbox" id="calOn" /><span class="t">Event nudges<span class="sub" id="calSub">the pet reminds you before calendar events (.ics)</span></span></label>
+        <div class="row" style="margin-top:10px;"><label class="lbl" for="calUrl">Secret .ics URL</label><input type="password" id="calUrl" placeholder="https://…/basic.ics" /></div>
+        <div class="row inline">
+          <label class="lbl" for="calLead">Nudge</label>
+          <input type="number" id="calLead" min="0" max="1440" />
+          <span class="hint">min before</span>
+          <button class="ghost" id="calTest">Test</button>
+        </div>
+        <span class="hint" id="calStatus">In Google/Outlook Calendar, copy the secret address in iCal (.ics) format.</span>
+      </section>
     </section>
   </div>
 

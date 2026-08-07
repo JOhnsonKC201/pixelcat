@@ -4,6 +4,46 @@
 const $ = (id) => document.getElementById(id);
 let cfg = null;
 
+// ---- section rail ----------------------------------------------------------
+// Everything used to live in one 3400px column inside a 560px window, so finding
+// "pomodoro" meant scrolling past ten cards. Panels are shown by the `hidden`
+// attribute alone; aria-selected and the roving tabindex follow it.
+const TABS = Array.from(document.querySelectorAll('.tab'));
+function selectTab(key, { focus = false } = {}) {
+  for (const t of TABS) {
+    const on = t.dataset.panel === key;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;                    // one stop for the whole rail, arrows move within it
+    const panel = $('panel-' + t.dataset.panel);
+    if (panel) panel.hidden = !on;
+    if (on && focus) t.focus();
+  }
+  window.scrollTo(0, 0);                          // a fresh panel starts at its top, not the last panel's offset
+}
+TABS.forEach((t, i) => {
+  t.addEventListener('click', () => selectTab(t.dataset.panel));
+  t.addEventListener('keydown', (e) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    let next = null;
+    if (step) next = TABS[(i + step + TABS.length) % TABS.length];
+    else if (e.key === 'Home') next = TABS[0];
+    else if (e.key === 'End') next = TABS[TABS.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    selectTab(next.dataset.panel, { focus: true });
+  });
+});
+selectTab('pet');
+
+// ---- per-species wording ---------------------------------------------------
+// The strings live in pets.js next to the tray's, so the two windows cannot end up
+// describing the same toggle differently (the settings window said "Butterfly
+// visits" at dog owners while the tray already said "Ball to chase").
+function applySpeciesText() {
+  const text = settingsText(curSpecies());
+  for (const [id, s] of Object.entries(text)) { const el = $(id); if (el) el.textContent = s; }
+}
+
 // Populate the coat dropdown from the built-in names plus any custom coats.
 let themes = [];
 // Which species the window is currently editing, and therefore which list of
@@ -18,13 +58,11 @@ function populateCoats() {
   const base = dog ? (window.DOG_COATS || []) : (window.PATTERN_NAMES || []);
   const names = dog ? base.slice() : base.concat(themes.map((t) => t.name));
   names.forEach((name, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = name; sel.appendChild(o); });
-  const lbl = $('coatLabel'); if (lbl) lbl.textContent = dog ? 'Breed' : 'Coat';
   if (cfg) sel.value = String(cfg[coatField()] || 0); else if (cur) sel.value = cur;
   const spSel = $('species'); if (spSel) spSel.value = curSpecies();
-  // The Sound row names the voices you will actually hear, which are not the same
-  // two sounds for both species.
-  const sub = $('soundSub');
-  if (sub) sub.textContent = dog ? 'bark & pant (synthesized)' : 'meow & purr (synthesized)';
+  // Coat vs Breed, which voice the Sound row promises, whether custom coats apply:
+  // all of it is one lookup now.
+  applySpeciesText();
   drawPreview();
 }
 function drawPreview() {
@@ -32,9 +70,14 @@ function drawPreview() {
   if (!P || !cv) return;
   const i = Number($('pattern').value) || 0;
   if (curSpecies() === 'dog') {
-    const pal = (window.DOG_PATTERNS || [])[i];
+    // Bare identifiers, NOT window.*: dog-sprite.js is a classic script whose top-level
+    // `const`s live in the global LEXICAL scope and never become window properties (it
+    // has no window-export branch, only module.exports). Reading window.DOG_PATTERNS
+    // got undefined, so this returned early and left the cat on the canvas - the dog
+    // coat preview never drew once. cat-preview.js's drawDog reads them the same way.
+    const pal = DOG_PATTERNS[i];
     if (!pal || !P.drawDog) return;
-    P.drawDog(cv, pal, (window.DOG_PATTERN_BUILD || [])[i]);
+    P.drawDog(cv, pal, DOG_PATTERN_BUILD[i]);
     return;
   }
   let pal, build, tabby;
@@ -61,6 +104,10 @@ function render() {
   // Don't stomp the name field while the user is typing in it (a broadcast config
   // echo would otherwise overwrite it with the normalized value and jump the caret).
   if (document.activeElement !== $('name')) $('name').value = cfg.name || '';
+  // Rebuild from the config's species before reading a coat index out of it. The
+  // first config and the first theme list arrive as two independent IPC replies, so
+  // whenever the themes won the race a dog owner got the cat's coat list.
+  populateCoats();
   $('pattern').value = String(cfg[coatField()] || 0);
   $('breakMinutes').value = String(cfg.breakMinutes || 0);
   $('followCursor').checked = !!cfg.followCursor;

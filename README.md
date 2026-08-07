@@ -384,11 +384,12 @@ Ideas only; all code here is original to pixelpets.</sub>
 
 ## Custom coats
 
-Design your own under Settings > Custom coats > "+ Add a custom coat": pick a
-name, a body build (standard, slender, stocky, or fluffy), optional tabby
+Design your own under Settings > Pet > Custom coats > "+ Add a custom coat": pick
+a name, a body build (standard, slender, stocky, or fluffy), optional tabby
 stripes, and eight colours (coat, marks, white, patch, eyes, nose, inner ear,
 outline). Your coat shows up in the Coat dropdown and the tray menu next to the
-14 built-ins.
+14 built-ins. Custom coats are built from the cat's geometry, so they apply to
+cats only; the Pet tab says so when a dog is selected.
 
 Custom coats live in `themes.json` in your app-data folder
 (`%APPDATA%/pixelcat/themes.json`) and can be hand-edited too:

@@ -38,6 +38,13 @@ const SPECIES = {
     // The companion the pet plays with on its own once you step away.
     playNoun: 'butterfly',
     playToggleLabel: 'Butterfly visits',
+    // Vocabulary the settings window writes into SETTINGS_TEXT below.
+    noun: 'cat',
+    voice: 'meow',
+    voiceLine: 'meow & purr',
+    chase: 'pounces',
+    playArrival: 'drops by',
+    customCoatNote: 'Design your own and pick it from Coat above.',
   },
   dog: {
     id: 'dog',
@@ -50,8 +57,55 @@ const SPECIES = {
     giveChannel: 'ball',
     playNoun: 'ball',
     playToggleLabel: 'Ball to chase',
+    noun: 'dog',
+    voice: 'bark',
+    voiceLine: 'bark & pant',
+    chase: 'chases',
+    playArrival: 'rolls in',
+    // Custom coats are built from the cat's geometry (see populateCoats), so a dog
+    // owner needs to be told that rather than left staring at a list that never grows.
+    customCoatNote: 'Custom coats are cat-only for now. Switch to Cat to use one.',
   },
 };
+
+// Every string in the settings window whose wording depends on the pet, keyed by
+// the element id that displays it. The window used to hard-code the cat's nouns in
+// its markup, so a dog owner read "the cat calls you by it" on rows the TRAY had
+// already learned to call "Ball to chase" - two UIs disagreeing about one toggle.
+//
+// %token% is looked up on the species entry. The braces in the reminders hint are a
+// DIFFERENT substitution (fillPlaceholders expands {name}/{time}/{date} at meow time)
+// and must survive this pass untouched, which is why these use percent signs.
+const SETTINGS_TEXT = {
+  petCardTitle: 'your %noun%',
+  nameLabel: 'Your name - the %noun% calls you by it',
+  coatLabel: '%coatNoun%',
+  huntSub: '%chase% when the mouse moves fast',
+  playTitle: '%playToggleLabel%',
+  playSub: 'a %playNoun% %playArrival% and the %noun% plays with it',
+  workModeSub: 'parks the %noun% in its rest corner on the taskbar & hides the %playNoun% while you work',
+  onTopSub: 'keep the %noun% above other windows',
+  soundSub: '%voiceLine% (synthesized)',
+  pomoSub: 'a pixel timer floats next to the %noun%; it stretches with you on breaks',
+  emailSub: 'the %noun% tells you when new mail arrives (IMAP)',
+  calSub: 'the %noun% reminds you before calendar events (.ics)',
+  remindersHint: 'The %noun% %voice%s your message at a set time. Placeholders: {name} {time} {date}',
+  pinnedNoteLabel: "Pinned note - stays above the %noun%'s head (leave empty to hide)",
+  coatsHint: '%customCoatNote%',
+  testSound: '🔊 Test %voice%',
+};
+
+// Resolve SETTINGS_TEXT for one species: { elementId: finalString }. An unknown
+// %token% is left alone rather than blanked, so a typo shows up in the window as
+// literal "%typo%" instead of silently deleting half a sentence.
+function settingsText(species) {
+  const sp = speciesOf(species);
+  const out = {};
+  for (const [id, tpl] of Object.entries(SETTINGS_TEXT)) {
+    out[id] = tpl.replace(/%(\w+)%/g, (m, k) => (typeof sp[k] === 'string' ? sp[k] : m));
+  }
+  return out;
+}
 
 const SPECIES_IDS = Object.keys(SPECIES);
 const isSpecies = (s) => Object.prototype.hasOwnProperty.call(SPECIES, s);
@@ -62,7 +116,7 @@ const defaultCoatIndex = (s) => {
   return Math.max(0, sp.coats.indexOf(sp.defaultCoat));
 };
 
-const api = { SPECIES, SPECIES_IDS, CAT_COATS, DOG_COATS, isSpecies, speciesOf, coatsFor, defaultCoatIndex };
+const api = { SPECIES, SPECIES_IDS, CAT_COATS, DOG_COATS, isSpecies, speciesOf, coatsFor, defaultCoatIndex, SETTINGS_TEXT, settingsText };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else if (typeof window !== 'undefined') Object.assign(window, api, { PET_SPECIES: SPECIES });

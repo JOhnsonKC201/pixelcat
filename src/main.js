@@ -481,7 +481,11 @@ function rebuildTrayMenu() {
 function openSettings() {
   if (settingsWin && !settingsWin.isDestroyed()) { settingsWin.show(); settingsWin.focus(); return; }
   settingsWin = new BrowserWindow({
-    width: 400, height: 560, resizable: false, fullscreenable: false, maximizable: false,
+    // Width is pinned (the layout is designed for one column at 400), but height is
+    // now draggable: the tallest section still overflows 640px on a short screen and
+    // a fixed window left no way out of that but scrolling.
+    width: 400, height: 640, minWidth: 400, maxWidth: 400, minHeight: 420,
+    resizable: true, fullscreenable: false, maximizable: false,
     title: 'pixelpets settings', skipTaskbar: false, alwaysOnTop: true,
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),   // taskbar icon for the settings window
     show: false, backgroundColor: '#191b22',   // dark from the first paint - no white flash
