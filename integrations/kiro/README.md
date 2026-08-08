@@ -1,4 +1,4 @@
-# Kiro → pixelcat
+# Kiro → pixelpets
 
 Kiro has two surfaces - the **IDE** (UI hooks) and the **CLI** (config file).
 
@@ -11,9 +11,9 @@ Kiro has two surfaces - the **IDE** (UI hooks) and the **CLI** (config file).
 
    | Trigger | Command |
    |---------|---------|
-   | **Prompt Submit** | `node "/ABS/PATH/pixelcat/agent-hook.js" thinking` |
-   | **Pre Tool Use** | `node "/ABS/PATH/pixelcat/agent-hook.js" working` |
-   | **Agent Stop** | `node "/ABS/PATH/pixelcat/agent-hook.js" done` |
+   | **Prompt Submit** | `node "/ABS/PATH/pixelpets/agent-hook.js" thinking` |
+   | **Pre Tool Use** | `node "/ABS/PATH/pixelpets/agent-hook.js" working` |
+   | **Agent Stop** | `node "/ABS/PATH/pixelpets/agent-hook.js" done` |
 
 4. **Create Hook** for each. (Timeout defaults to 60s.)
 
@@ -25,13 +25,13 @@ CLI hooks live in an agent JSON file - local `.kiro/agents/<name>.json` or globa
 ```json
 "hooks": {
   "userPromptSubmit": [
-    { "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" thinking" }
+    { "command": "node \"/ABS/PATH/pixelpets/agent-hook.js\" thinking" }
   ],
   "preToolUse": [
-    { "matcher": "*", "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" working" }
+    { "matcher": "*", "command": "node \"/ABS/PATH/pixelpets/agent-hook.js\" working" }
   ],
   "stop": [
-    { "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" done" }
+    { "command": "node \"/ABS/PATH/pixelpets/agent-hook.js\" done" }
   ]
 }
 ```

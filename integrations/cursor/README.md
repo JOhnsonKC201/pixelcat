@@ -1,7 +1,7 @@
-# Cursor → pixelcat
+# Cursor → pixelpets
 
 Copy [`hooks.json`](hooks.json) to `<your-project>/.cursor/hooks.json` (create the
-`.cursor/` folder if needed), replacing `/ABSOLUTE/PATH/TO/pixelcat/` with your
+`.cursor/` folder if needed), replacing `/ABSOLUTE/PATH/TO/pixelpets/` with your
 checkout path (forward slashes on Windows too). Reload Cursor so it picks up the
 hooks.
 

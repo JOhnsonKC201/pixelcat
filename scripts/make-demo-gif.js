@@ -294,7 +294,7 @@ function sceneIntro(frames, o = {}) {
   const n = o.n || 26;
   for (let i = 0; i < n; i++) {
     const buf = newFrame();
-    if (o.title) drawText(buf, 'PIXELCAT', Math.round(H * 0.115), o.titleScale || 5, [255, 196, 92]);
+    if (o.title) drawText(buf, 'PIXELPETS', Math.round(H * 0.115), o.titleScale || 5, [255, 196, 92]);
     caption(buf, o.caption, o.capScale || 2);
     const bob = Math.round(Math.sin(i / 4) * 2);
     const look = Math.round(Math.sin(i / 5) * 3);
@@ -648,7 +648,7 @@ function setCanvas(w, h, px, baseY) { W = w; H = h; PX = px; BASE_Y = baseY; }
 function recipeDemo(wantMp4) {
   setCanvas(480, 340, 6, 250); SP = buildPoses(0); PAL = paletteFor(S.PATTERNS[0]);
   const frames = [];
-  sceneIntro(frames, { title: true, titleScale: 5, caption: 'A CAT THAT LIVES ON YOUR DESKTOP', capScale: 2 });
+  sceneIntro(frames, { title: true, titleScale: 5, caption: 'A CAT OR A DOG THAT LIVES ON YOUR DESKTOP', capScale: 2 });
   sceneNap(frames, { caption: 'NAPS WHEN IDLE' });
   sceneType(frames, { caption: 'TAPS ITS PAWS WHEN YOU TYPE' });
   sceneHunt(frames, { caption: 'POUNCES TO HUNT' });
@@ -662,7 +662,7 @@ function recipeDemo(wantMp4) {
 function recipeHero(wantMp4) {
   setCanvas(960, 360, 8, 316); SP = buildPoses(TUX); PAL = paletteFor(S.PATTERNS[TUX]);
   const frames = [];
-  sceneIntro(frames, { title: true, titleScale: 9, caption: 'A CAT THAT LIVES ON YOUR DESKTOP', capScale: 3, n: 30 });
+  sceneIntro(frames, { title: true, titleScale: 9, caption: 'A CAT OR A DOG THAT LIVES ON YOUR DESKTOP', capScale: 3, n: 30 });
   sceneType(frames, { n: 22 });
   scenePet(frames, { n: 26 });
   maybeDump(frames, 'hero');

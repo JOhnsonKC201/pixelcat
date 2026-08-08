@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Print a ready-to-use pixelcat work-status hook config for a given agent, with
+// Print a ready-to-use pixelpets work-status hook config for a given agent, with
 // the absolute path to agent-hook.js already filled in (the one manual step in
 // integrations/). It only PRINTS - copy the output into the noted location; it
 // never edits your agent's config for you.
@@ -30,11 +30,11 @@ if (!AGENTS[agent]) {
 const { file, target } = AGENTS[agent];
 let txt = fs.readFileSync(path.join(root, file), 'utf8');
 // Fill the placeholder directory with this checkout (longest variants first).
-txt = txt.split('/ABSOLUTE/PATH/TO/pixelcat').join(dir)
-  .split('/ABS/PATH/pixelcat').join(dir)
+txt = txt.split('/ABSOLUTE/PATH/TO/pixelpets').join(dir)
+  .split('/ABS/PATH/pixelpets').join(dir)
   .split('/ABS/PATH').join(dir);
 
-console.log(`# pixelcat work-status hook - ${agent}`);
+console.log(`# pixelpets work-status hook - ${agent}`);
 console.log(`# agent-hook.js: ${hookAbs}`);
 console.log(`# place into:    ${target}`);
 console.log('# ' + '-'.repeat(64) + '\n');

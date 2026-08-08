@@ -63,7 +63,7 @@ function fetchOnce(url, address) {
       port: url.port || (isHttps ? 443 : 80),
       path: url.pathname + url.search,
       timeout: FETCH_TIMEOUT,
-      headers: { 'user-agent': 'pixelcat-cal', accept: 'text/calendar,*/*', host: url.host },
+      headers: { 'user-agent': 'pixelpets-cal', accept: 'text/calendar,*/*', host: url.host },
     };
     if (isHttps) opts.servername = url.hostname;   // TLS SNI + cert validation against the real hostname
     const req = mod.get(opts, (res) => {

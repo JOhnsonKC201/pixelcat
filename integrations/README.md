@@ -1,12 +1,12 @@
 # AI agent work-status reactions
 
-pixelcat reacts to a coding agent's work status: a **thinking** bubble while it
+pixelpets reacts to a coding agent's work status: a **thinking** bubble while it
 plans, a **working** spinner while it edits/tests/builds, a startled **flinch** on
 errors, and a happy **hop** when it finishes. Any agent that can run a shell
 command on its lifecycle events can drive the cat through the bundled helper:
 
 ```
-node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" <state>
+node "/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js" <state>
 ```
 
 `agent-hook.js` is **hook-safe**: it drains stdin and prints `{"continue": true}`,
@@ -42,7 +42,7 @@ copy it into the location noted at the top of the output.
 - **Antigravity** → [`antigravity/`](antigravity/) - `.agents/hooks.json` (see notes)
 - **Kiro** → [`kiro/`](kiro/) - add via the Agent Hooks UI ("Run Command")
 
-> **Replace `/ABSOLUTE/PATH/TO/pixelcat/`** with the real path to your checkout,
+> **Replace `/ABSOLUTE/PATH/TO/pixelpets/`** with the real path to your checkout,
 > using forward slashes on Windows too, e.g.
-> `node "C:/Users/you/pixelcat/agent-hook.js" working`.
+> `node "C:/Users/you/pixelpets/agent-hook.js" working`.
 > Hooks run from varying working directories, so an **absolute path is required**.

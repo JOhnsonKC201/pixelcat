@@ -414,8 +414,8 @@ file, and imported coats merge into your set by name.
 ## Build a standalone app
 
 ```powershell
-npm run pack    # portable build -> dist/win-unpacked/pixelcat.exe (no installer)
-npm run dist    # Windows installer -> dist/pixelcat Setup <version>.exe
+npm run pack    # portable build -> dist/win-unpacked/pixelpets.exe (no installer)
+npm run dist    # Windows installer -> dist/pixelpets Setup <version>.exe
 ```
 
 `pack` works out of the box. `dist` (the NSIS installer) needs permission to

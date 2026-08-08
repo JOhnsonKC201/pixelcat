@@ -1,21 +1,21 @@
-# pixelcat work-status reactions for OpenAI Codex CLI.
+# pixelpets work-status reactions for OpenAI Codex CLI.
 # Merge these tables into ~/.codex/config.toml. Replace the absolute path to
 # agent-hook.js (forward slashes on Windows too). Docs: https://developers.openai.com/codex/hooks
 
 [[hooks.UserPromptSubmit]]
 [[hooks.UserPromptSubmit.hooks]]
 type = "command"
-command = 'node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" thinking'
+command = 'node "/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js" thinking'
 
 [[hooks.PreToolUse]]
 [[hooks.PreToolUse.hooks]]
 type = "command"
-command = 'node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" working'
+command = 'node "/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js" working'
 
 [[hooks.Stop]]
 [[hooks.Stop.hooks]]
 type = "command"
-command = 'node "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js" done'
+command = 'node "/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js" done'
 
 # Alternative (no hooks): a desktop-style notifier on turn completion -
-#   notify = ["node", "/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js", "done"]
+#   notify = ["node", "/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js", "done"]
