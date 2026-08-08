@@ -39,19 +39,19 @@ scratch: nearly every sprite, animation, and sound is original and procedural.
 <br />
 
 <sub>
-  <a href="#two-pets-one-app">Two pets</a> &nbsp;·&nbsp;
-  <a href="#see-it-in-action">In action</a> &nbsp;·&nbsp;
-  <a href="#what-it-actually-does">Features</a> &nbsp;·&nbsp;
-  <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
-  <a href="#meet-the-cat">Meet the cat</a> &nbsp;·&nbsp;
-  <a href="#stay-on-track">Stay on track</a> &nbsp;·&nbsp;
-  <a href="#controls">Controls</a> &nbsp;·&nbsp;
-  <a href="#ai-agent-reactions">AI agents</a> &nbsp;·&nbsp;
-  <a href="#custom-coats">Custom coats</a> &nbsp;·&nbsp;
-  <a href="#how-it-works">How it works</a> &nbsp;·&nbsp;
-  <a href="#privacy">Privacy</a> &nbsp;·&nbsp;
-  <a href="#development">Development</a> &nbsp;·&nbsp;
-  <a href="#contributing">Contributing</a>
+  <a href="#two-pets-one-app">Two pets</a>&nbsp;·
+    <a href="#see-it-in-action">In action</a>&nbsp;·
+    <a href="#what-it-actually-does">Features</a>&nbsp;·
+    <a href="#quick-start">Quick start</a>&nbsp;·
+    <a href="#meet-the-cat">Meet the cat</a>&nbsp;·
+    <a href="#stay-on-track">Stay on track</a>&nbsp;·
+    <a href="#controls">Controls</a>&nbsp;·
+    <a href="#ai-agent-reactions">AI agents</a>&nbsp;·
+    <a href="#custom-coats">Custom coats</a>&nbsp;·
+    <a href="#how-it-works">How it works</a>&nbsp;·
+    <a href="#privacy">Privacy</a>&nbsp;·
+    <a href="#development">Development</a>&nbsp;·
+    <a href="#contributing">Contributing</a>
 </sub>
 
 </div>
