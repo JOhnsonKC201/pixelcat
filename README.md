@@ -35,7 +35,28 @@ scratch: nearly every sprite, animation, and sound is original and procedural.
 
 <sub>The browser demo runs the real renderer: pet it, type at it, scroll to climb, and wait for the butterfly.</sub>
 
+<br />
+<br />
+
+<sub>
+  <a href="#two-pets-one-app">Two pets</a> &nbsp;·&nbsp;
+  <a href="#see-it-in-action">In action</a> &nbsp;·&nbsp;
+  <a href="#what-it-actually-does">Features</a> &nbsp;·&nbsp;
+  <a href="#quick-start">Quick start</a> &nbsp;·&nbsp;
+  <a href="#meet-the-cat">Meet the cat</a> &nbsp;·&nbsp;
+  <a href="#stay-on-track">Stay on track</a> &nbsp;·&nbsp;
+  <a href="#controls">Controls</a> &nbsp;·&nbsp;
+  <a href="#ai-agent-reactions">AI agents</a> &nbsp;·&nbsp;
+  <a href="#custom-coats">Custom coats</a> &nbsp;·&nbsp;
+  <a href="#how-it-works">How it works</a> &nbsp;·&nbsp;
+  <a href="#privacy">Privacy</a> &nbsp;·&nbsp;
+  <a href="#development">Development</a> &nbsp;·&nbsp;
+  <a href="#contributing">Contributing</a>
+</sub>
+
 </div>
+
+---
 
 ## Two pets, one app
 
@@ -94,13 +115,15 @@ pet draws with, generated headlessly by one script. Nothing is a screen recordin
 
 ## What it actually does
 
-- It reacts to you. Petting, dragging, typing, scrolling, and cursor play each get their own response, gated by an internal mood model that runs from calm up to zoomies and back.
-- 14 coat patterns ship built in, all recolored at draw time from one role-coded sprite, and you can design, import, and export your own.
-- Every animation is composed into that sprite, limbs included, so all 28 coats across both species get every pose in their own colours without shipping a single extra frame.
-- Every sound is synthesized live with Web Audio: the meow, the purr, the chirp, and an endlessly improvising lo-fi jam. The app ships zero audio files.
-- It keeps you on track. Break and Pomodoro timers, repeating reminders, a pinned note, IMAP unread-mail alerts, and calendar nudges, all delivered by your pet.
-- It knows when your coding agent is thinking, working, or done, and reacts with its paws. Hook configs ship for five agents.
-- The whole thing is a transparent, click-through overlay that stays above every window. Only your pet is clickable.
+|  |  |
+|---|---|
+| **It reacts to you** | Petting, dragging, typing, scrolling, and cursor play each get their own response, gated by an internal mood model that runs from calm up to zoomies and back. |
+| **28 coats, one shape** | 14 cat coats and 14 dog breeds, all recolored at draw time from one role-coded sprite. Design, import, and export your own. |
+| **No spare frames** | Every animation is composed into that sprite, limbs included, so all 28 coats across both species get every pose in their own colours without shipping a single extra image. |
+| **Zero audio files** | The meow, the bark, the purr, the pant, and an endlessly improvising lo-fi jam are all synthesized live with Web Audio. |
+| **It keeps you on track** | Break and Pomodoro timers, repeating reminders, a pinned note, IMAP unread-mail alerts, and calendar nudges, all delivered by your pet. |
+| **It watches your agent** | It knows when your coding agent is thinking, working, or done, and reacts with its paws. Hook configs ship for five agents. |
+| **It stays out of the way** | A transparent, click-through overlay that sits above every window. Only your pet is clickable. |
 
 <div align="center">
 
@@ -114,7 +137,7 @@ pet draws with, generated headlessly by one script. Nothing is a screen recordin
 
 The Windows installer is the easy path. No git, no Node, just run it:
 
-### [Download for Windows](https://github.com/JOhnsonKC201/pixelpets/releases/latest)
+[![Download the Windows installer](https://img.shields.io/badge/Download_the_Windows_installer-E8930C?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/JOhnsonKC201/pixelpets/releases/latest)
 
 You can also [play with the cat in your browser](https://pixelcat-jet.vercel.app) before installing anything.
 
@@ -131,29 +154,18 @@ Either way your pet appears in the corner and registers itself to start at login
 `npm run autostart:off` turns that off, and the installed version uninstalls like
 any other program, from Windows Settings > Apps.
 
+> [!TIP]
 > **Windows, running from source:** `npm start` leaves a console window open behind
 > the pet. `launch-pixelpets.vbs` starts the same thing silently, so it works as a
 > desktop shortcut (point one at `wscript.exe "<path>\launch-pixelpets.vbs"`). It
 > locates the project from its own path, so moving the folder does not break it.
 
+> [!NOTE]
 > **macOS (beta):** same commands. On first run, grant Accessibility permission
 > (System Settings > Privacy & Security > Accessibility) so your pet can react to your
 > typing and cursor. Input is only detected, never logged or sent anywhere. The mac
 > port is code-complete but not yet smoke-tested on real hardware; see the
 > [build checklist](#build-a-standalone-app). Issues welcome.
-
-## Contents
-
-- [Meet the cat](#meet-the-cat)
-- [Stay on track](#stay-on-track)
-- [Controls](#controls)
-- [AI agent reactions](#ai-agent-reactions)
-- [Custom coats](#custom-coats)
-- [Build a standalone app](#build-a-standalone-app)
-- [How it works](#how-it-works)
-- [Privacy](#privacy)
-- [Development](#development)
-- [Contributing](#contributing)
 
 ---
 
