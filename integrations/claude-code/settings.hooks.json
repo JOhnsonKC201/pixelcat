@@ -2,13 +2,13 @@
   "_comment": "Merge the hooks below into ~/.claude/settings.json. Replace the absolute path to agent-hook.js (forward slashes on Windows too).",
   "hooks": {
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node \"/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js\" thinking" }] }
+      { "hooks": [{ "type": "command", "command": "node \"/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js\" thinking" }] }
     ],
     "PreToolUse": [
-      { "hooks": [{ "type": "command", "command": "node \"/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js\" working" }] }
+      { "hooks": [{ "type": "command", "command": "node \"/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js\" working" }] }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "node \"/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js\" done" }] }
+      { "hooks": [{ "type": "command", "command": "node \"/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js\" done" }] }
     ]
   }
 }

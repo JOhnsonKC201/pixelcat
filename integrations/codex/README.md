@@ -1,7 +1,7 @@
-# Codex CLI → pixelcat
+# Codex CLI → pixelpets
 
 Merge [`config.toml`](config.toml) into your `~/.codex/config.toml`, replacing
-`/ABSOLUTE/PATH/TO/pixelcat/` with your checkout path (forward slashes on Windows
+`/ABSOLUTE/PATH/TO/pixelpets/` with your checkout path (forward slashes on Windows
 too).
 
 Mapping: `UserPromptSubmit` → thinking · `PreToolUse` → working · `Stop` → done.

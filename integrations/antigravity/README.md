@@ -1,4 +1,4 @@
-# Antigravity → pixelcat
+# Antigravity → pixelpets
 
 Antigravity (2.0+) supports event-driven **hooks** that run a local shell command
 at points in the agent loop. The hooks file uses a Claude-Code-style schema:
@@ -11,19 +11,19 @@ slashes on Windows too):
 
 ```json
 {
-  "pixelcat-thinking": {
+  "pixelpets-thinking": {
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" thinking" }] }
+      { "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/pixelpets/agent-hook.js\" thinking" }] }
     ]
   },
-  "pixelcat-working": {
+  "pixelpets-working": {
     "PreToolUse": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" working" }] }
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/pixelpets/agent-hook.js\" working" }] }
     ]
   },
-  "pixelcat-done": {
+  "pixelpets-done": {
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/pixelcat/agent-hook.js\" done" }] }
+      { "hooks": [{ "type": "command", "command": "node \"/ABS/PATH/pixelpets/agent-hook.js\" done" }] }
     ]
   }
 }

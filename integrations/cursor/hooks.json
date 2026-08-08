@@ -2,16 +2,16 @@
   "version": 1,
   "hooks": {
     "beforeSubmitPrompt": [
-      { "command": "node \"/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js\" thinking" }
+      { "command": "node \"/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js\" thinking" }
     ],
     "afterFileEdit": [
-      { "command": "node \"/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js\" working" }
+      { "command": "node \"/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js\" working" }
     ],
     "postToolUse": [
-      { "command": "node \"/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js\" working" }
+      { "command": "node \"/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js\" working" }
     ],
     "stop": [
-      { "command": "node \"/ABSOLUTE/PATH/TO/pixelcat/agent-hook.js\" done" }
+      { "command": "node \"/ABSOLUTE/PATH/TO/pixelpets/agent-hook.js\" done" }
     ]
   }
 }

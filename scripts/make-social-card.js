@@ -117,9 +117,11 @@ for (let y = top; y < H; y++) for (let x = 0; x < FADE; x++) {
 }
 
 // Wordmark + tagline + flanking hearts in the clear band on top.
-drawText(buf, 'PIXELCAT', W / 2, 62, 18, ORANGE);
-drawText(buf, 'A CAT THAT LIVES ON YOUR DESKTOP', W / 2, 182, 5, MUTED);
-const wm = textWidth('PIXELCAT', 18);
+drawText(buf, 'PIXELPETS', W / 2, 62, 18, ORANGE);
+// Species-neutral since 0.3.0, when the app became a cat OR a dog. Not "CAT OR DOG"
+// because FONT here is a minimal subset with no G in it.
+drawText(buf, 'A PET THAT LIVES ON YOUR DESKTOP', W / 2, 182, 5, MUTED);
+const wm = textWidth('PIXELPETS', 18);
 drawHeart(buf, Math.round(W / 2 - wm / 2 - 78), 88, 6, PINK);
 drawHeart(buf, Math.round(W / 2 + wm / 2 + 36), 88, 6, PINK);
 

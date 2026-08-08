@@ -2,7 +2,7 @@ blank_issues_enabled: true
 contact_links:
   - name: Play with the cat in your browser
     url: https://pixelcat-jet.vercel.app
-    about: Try pixelcat without installing anything.
+    about: Try pixelpets without installing anything.
   - name: Discussions
     url: https://github.com/JOhnsonKC201/pixelpets/discussions
-    about: Show off your cat, share custom coats, or ask a question.
+    about: Show off your pet, share custom coats, or ask a question.
