@@ -739,7 +739,7 @@ onSecure('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()
 onSecure('settings:testSound', () => {
   notify('Hi {name}!', { source: 'test', dedupeMs: 0, os: false });   // a sound test shouldn't also pop a desktop toast
 });
-handleSecure('email:hasPassword', () => mail.hasPassword());
+handleSecure('email:passwordInfo', () => mail.passwordInfo());
 handleSecure('email:setPassword', (_e, pw) => mail.setPassword(pw));
 handleSecure('email:test', (_e, pw) => mail.test(cfg, pw && String(pw).length ? String(pw) : null));
 handleSecure('calendar:test', () => cal.test(cfg));

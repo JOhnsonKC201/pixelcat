@@ -19,23 +19,40 @@ let getCfg = null;
 
 function credPath() { return path.join(app.getPath('userData'), 'email.cred'); }
 
-function hasPassword() {
-  try { return fs.existsSync(credPath()); } catch (e) { return false; }
+// Gmail hands out an app-password as four space-separated groups ("abcd efgh ijkl
+// mnop") but the credential is the sixteen characters without the spaces, and that
+// is how people paste it. Strip whitespace only for that exact shape, so a real
+// passphrase that happens to contain a space survives untouched.
+const GMAIL_APP_PASSWORD = /^[a-z0-9]{4}(?:\s+[a-z0-9]{4}){3}$/i;
+function normalizePassword(plain) {
+  const s = String(plain == null ? '' : plain).trim();
+  return GMAIL_APP_PASSWORD.test(s) ? s.replace(/\s+/g, '') : s;
 }
+
+// Report on the stored credential rather than merely on the file's existence: a
+// stale or undecryptable email.cred used to show a reassuring "saved" tick in
+// Settings while every poll bailed out for want of a password. The length lets the
+// UI call out a truncated app-password instead of pretending it is fine.
+function passwordInfo() {
+  const pw = readPassword();
+  return { has: pw.length > 0, len: pw.length };
+}
+function hasPassword() { return passwordInfo().has; }
 function setPassword(plain) {
-  if (plain == null || plain === '') {
+  const pw = normalizePassword(plain);
+  if (pw === '') {
     try { fs.unlinkSync(credPath()); } catch (e) { /* already gone */ }
-    return { ok: true };
+    return { ok: true, len: 0 };
   }
   if (!safeStorage.isEncryptionAvailable()) return { ok: false, error: 'Secure storage is unavailable on this system; cannot save the password.' };
   try {
-    const enc = safeStorage.encryptString(String(plain));
+    const enc = safeStorage.encryptString(pw);
     const fp = credPath();
     fs.mkdirSync(path.dirname(fp), { recursive: true });
     const tmp = fp + '.tmp';
     fs.writeFileSync(tmp, enc);
     fs.renameSync(tmp, fp);
-    return { ok: true };
+    return { ok: true, len: pw.length };
   } catch (e) { return { ok: false, error: 'Could not save the password.' }; }
 }
 function readPassword() {
@@ -72,7 +89,9 @@ function credsFromCfg(cfg, plainOverride) {
   const e = (cfg && cfg.email) || {};
   return {
     host: imapHostFor(e.user, e.host), port: e.port, user: e.user, secure: e.secure !== false,
-    pass: plainOverride != null ? plainOverride : readPassword(),
+    // Normalize the override the same way setPassword does, so "Test" cannot pass a
+    // spaced app-password that then differs from the one we stored.
+    pass: plainOverride != null ? normalizePassword(plainOverride) : readPassword(),
   };
 }
 
@@ -140,4 +159,4 @@ function test(cfg, plainOverride) {
 function init(notify_, getCfg_) { notifyFn = notify_; getCfg = getCfg_; }
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-module.exports = { init, sync, test, setPassword, hasPassword, stop, imapHostFor };
+module.exports = { init, sync, test, setPassword, hasPassword, passwordInfo, stop, imapHostFor, normalizePassword };

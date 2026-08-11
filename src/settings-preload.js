@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('settings', {
   exportThemes: () => ipcRenderer.invoke('themes:export'),
   importThemes: () => ipcRenderer.invoke('themes:import'),
   testSound: () => ipcRenderer.send('settings:testSound'),
-  emailHasPassword: () => ipcRenderer.invoke('email:hasPassword'),
+  emailPasswordInfo: () => ipcRenderer.invoke('email:passwordInfo'),
   emailSetPassword: (pw) => ipcRenderer.invoke('email:setPassword', pw),
   emailTest: (pw) => ipcRenderer.invoke('email:test', pw),
   calendarTest: () => ipcRenderer.invoke('calendar:test'),

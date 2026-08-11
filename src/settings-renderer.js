@@ -254,28 +254,60 @@ function emailSave() {
   save({ email: { on: $('emailOn').checked, user: $('emailUser').value.trim(), host: $('emailHost').value.trim(), port, secure: port !== 143, intervalMin: Number($('emailInterval').value) || 5 } });   // port 143 => STARTTLS (secure:false); config guards the downgrade
 }
 ['emailOn', 'emailUser', 'emailHost', 'emailPort', 'emailInterval'].forEach((id) => $(id).addEventListener('change', emailSave));
-async function refreshEmailPassState() {
-  try { const has = await window.settings.emailHasPassword(); $('emailPassState').textContent = has ? '\u00b7 saved \u2713' : ''; }
-  catch (e) { /* ignore */ }
-}
-let emailPassTimer = null;
-$('emailPass').addEventListener('input', () => {
-  clearTimeout(emailPassTimer);
-  emailPassTimer = setTimeout(async () => {
-    const pw = $('emailPass').value; if (!pw) return;
-    await window.settings.emailSetPassword(pw);
-    $('emailPass').value = ''; refreshEmailPassState();
-    $('emailStatus').textContent = 'Password saved (encrypted).';
-  }, 600);
+// Switching alerts on with half the details filled in used to do nothing at all -
+// the poller stays deliberately quiet until it is fully configured - so say what is
+// still missing rather than leaving the user watching a cat that never speaks.
+$('emailOn').addEventListener('change', async () => {
+  if (!$('emailOn').checked) { $('emailStatus').textContent = 'Unread-mail alerts are off.'; return; }
+  const info = await window.settings.emailPasswordInfo().catch(() => null);
+  const missing = [];
+  if (!$('emailUser').value.trim()) missing.push('your email address');
+  if (!info || !info.has) missing.push('an app-password');
+  $('emailStatus').textContent = missing.length
+    ? ('Alerts are on, but still need ' + missing.join(' and ') + '.')
+    : 'Alerts are on. Hit Test to check the connection.';
 });
+const APP_PASSWORD_MIN = 8;   // shorter than any provider issues: a sign of a truncated paste
+async function refreshEmailPassState() {
+  try {
+    const info = await window.settings.emailPasswordInfo();
+    const el = $('emailPassState');
+    if (!info || !info.has) { el.textContent = ''; return; }
+    el.textContent = info.len < APP_PASSWORD_MIN
+      ? `\u00b7 saved, but only ${info.len} characters; re-enter it`
+      : '\u00b7 saved \u2713';
+  } catch (e) { /* ignore */ }
+}
+// Save the app-password when the field is done, never mid-keystroke. The old
+// 600ms auto-save stored whatever had been typed so far and then blanked the box,
+// so anyone typing a Gmail app-password group by group ("abcd efgh ijkl mnop")
+// silently saved the first four characters and typed the rest into an empty field.
+// `change` fires on blur and on Enter, which is exactly "the user is done".
+function emailPassSave() {
+  const pw = $('emailPass').value;
+  if (!pw) return Promise.resolve();
+  return (async () => {
+    const r = await window.settings.emailSetPassword(pw);
+    $('emailPass').value = '';
+    await refreshEmailPassState();
+    $('emailStatus').textContent = (r && r.ok === false)
+      ? ('Could not save the password: ' + (r.error || 'unknown error'))
+      : `Password saved (${(r && r.len) | 0} characters, encrypted).`;
+  })();
+}
+$('emailPass').addEventListener('change', emailPassSave);
 $('emailTest').addEventListener('click', async () => {
   const typedHost = $('emailHost').value.trim();
   // light validation: a real IMAP host has a dot and no spaces
   if (typedHost && (/\s/.test(typedHost) || !typedHost.includes('.'))) {
     $('emailStatus').textContent = "That server doesn't look right - try imap.gmail.com"; return;
   }
-  $('emailStatus').textContent = 'Testing\u2026'; emailSave();
+  emailSave();
+  // Read the box before anything can clear it, then commit it: testing a password
+  // that never got stored would report "Connected" for a setup that stays broken.
   const pw = $('emailPass').value || null;
+  if (pw) await emailPassSave();
+  $('emailStatus').textContent = 'Testing\u2026';
   const r = await window.settings.emailTest(pw);
   // if the test corrected the host (e.g. www.gmail.com -> imap.gmail.com), apply it visibly + save
   const corrected = r && r.host && r.host !== typedHost;
@@ -284,7 +316,6 @@ $('emailTest').addEventListener('click', async () => {
   $('emailStatus').textContent = r && r.ok
     ? ('Connected' + note + ' - ' + r.unread + ' unread.')
     : ('Failed: ' + ((r && r.error) || 'unknown error') + note);
-  if (pw) { await window.settings.emailSetPassword(pw); $('emailPass').value = ''; refreshEmailPassState(); }
 });
 
 function calSave() {
