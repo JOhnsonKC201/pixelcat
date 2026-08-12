@@ -754,7 +754,19 @@ handleSecure('settings:save', (_e, partial) => {
 });
 handleSecure('themes:get', () => themesCache);
 handleSecure('themes:add', (_e, t) => { themesCache = themes.save([...themesCache, t]); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
-handleSecure('themes:delete', (_e, name) => { themesCache = themes.save(themesCache.filter((x) => x.name !== name)); broadcastThemes(); rebuildTrayMenu(); return themesCache; });
+handleSecure('themes:delete', (_e, name) => {
+  const removed = themesCache.findIndex((x) => x.name === name);
+  themesCache = themes.save(themesCache.filter((x) => x.name !== name));
+  broadcastThemes(); rebuildTrayMenu();
+  // Coat indices run built-ins first, custom coats after, so deleting one shifts
+  // every coat below it up a slot. Re-anchor the cat's coat or it quietly becomes
+  // whichever coat inherited the index.
+  if (removed >= 0 && cfg) {
+    const next = config.coatAfterThemeRemoval(cfg.pattern, removed);
+    if (next !== cfg.pattern) persistAndBroadcast({ ...cfg, pattern: next });
+  }
+  return themesCache;
+});
 handleSecure('themes:export', async () => {
   const r = await dialog.showSaveDialog(settingsWin || win, { title: 'Export custom coats', defaultPath: 'pixelpets-coats.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
   if (r.canceled || !r.filePath) return false;

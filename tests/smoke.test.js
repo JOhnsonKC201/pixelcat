@@ -52,7 +52,8 @@ test('config.normalize fills defaults and clamps', () => {
   const { PATTERN_NAMES } = require(path.join(ROOT, 'src', 'patterns.js'));
   assert.strictEqual(c.pattern, PATTERN_NAMES.indexOf('Tuxedo'));   // tuxedo is the default coat
   assert.ok(Array.isArray(c.reminders));
-  assert.strictEqual(normalize({ pattern: 999 }).pattern, PATTERN_NAMES.length - 1);   // out-of-range coat clamps to the last coat
+  const { MAX_THEMES } = require(path.join(ROOT, 'src', 'themes.js'));
+  assert.strictEqual(normalize({ pattern: 999 }).pattern, PATTERN_NAMES.length - 1 + MAX_THEMES);   // absurd coat clamps to the top of the coat range
   assert.strictEqual(normalize({ moodOn: false }).moodOn, false);
   assert.strictEqual(normalize({}).onTop, true);
   assert.strictEqual(normalize({ onTop: false }).onTop, false);

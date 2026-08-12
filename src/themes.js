@@ -9,6 +9,13 @@ const path = require('path');
 const BUILD_NAMES = ['standard', 'slender', 'stocky', 'fluffy'];
 const ROLES = ['coat', 'mark', 'white', 'patch', 'eye', 'nose', 'inner', 'outline'];
 const HEX = /^#[0-9a-fA-F]{6}$/;
+// Hard cap on custom coats. The overlay builds a full set of sit/type/loaf/rear
+// sprites per coat and both pickers (tray submenu, settings dropdown) are flat
+// lists, so an imported themes.json with thousands of entries would stall the
+// overlay building coats nobody can scroll to. It also gives config.js a bounded
+// ceiling for the coat index, which addresses built-ins and custom coats in one
+// run of numbers (see MAX_PATTERN there).
+const MAX_THEMES = 64;
 
 function filePath() { return path.join(app.getPath('userData'), 'themes.json'); }
 
@@ -29,7 +36,8 @@ function clean(list) {
   const seen = new Set();
   return (Array.isArray(list) ? list : [])
     .map(validateOne)
-    .filter((t) => t && !seen.has(t.name.toLowerCase()) && seen.add(t.name.toLowerCase()));
+    .filter((t) => t && !seen.has(t.name.toLowerCase()) && seen.add(t.name.toLowerCase()))
+    .slice(0, MAX_THEMES);
 }
 
 function load() {
@@ -54,4 +62,4 @@ function save(list) {
   return out;
 }
 
-module.exports = { load, save, validateOne, clean, BUILD_NAMES, ROLES, filePath };
+module.exports = { load, save, validateOne, clean, BUILD_NAMES, ROLES, MAX_THEMES, filePath };

@@ -611,11 +611,17 @@ const loafSprites = PATTERN_BUILD.map((b, i) => posed('loaf', i, 24, 30, () => S
 // and a rear-up "bat the butterfly" body per coat - same 24x30 size as the sit sprite
 const rearSprites = PATTERN_BUILD.map((b, i) => posed('rear', i, 24, 30, () => SPECIES_DEFS.rear(buildFor(i, SPECIES_DEFS))));
 huntSprites = buildHuntSprites(SPECIES_DEFS);
-const DEFAULT_PATTERN = Math.max(0, PATTERNS.findIndex((p) => p.name === (species === 'dog' ? 'Golden Retriever' : 'Tuxedo')));
+// The out-of-box coat for whichever species is live NOW. This was a const resolved
+// once at load, so every fallback after a species swap still named the LAUNCH
+// species' index: a dog falling back landed on coat 4 of the breed list (a husky),
+// because 4 is where the cat's Tuxedo sits.
+function defaultPatternIndex() {
+  return Math.max(0, PATTERNS.findIndex((p) => p.name === (isDog() ? 'Golden Retriever' : 'Tuxedo')));
+}
 const coatKey = (sp) => (sp === 'dog' ? 'dogPattern' : 'pattern');
 const storedPattern = localStorage.getItem(coatKey(species));
-let patternIndex = storedPattern != null ? Number(storedPattern) : DEFAULT_PATTERN;
-if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
+let patternIndex = storedPattern != null ? Number(storedPattern) : defaultPatternIndex();
+if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = defaultPatternIndex();
 const forcedPattern = qp.get('pattern');
 if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
 
@@ -626,14 +632,28 @@ if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().in
 // recomputing ~12 colour conversions every single frame. Invalidated in applyThemes().
 let _palKey = -1, _coldPalRGB = null, _coldPal = null;
 let BASE_PATTERNS = PATTERNS.length;
+// The last coat list main sent. Kept because a species swap rebuilds the coat
+// tables from the built-ins alone, and main only broadcasts themes when they
+// CHANGE - so without replaying them here, going cat -> dog -> cat dropped every
+// custom coat until the next restart (and a pet wearing one fell back to Tuxedo).
+let themeList = [];
 function applyThemes(list) {
+  themeList = Array.isArray(list) ? list : [];
   _palKey = -1;   // coat palettes changed -> force a cold-palette rebuild next frame
-  climbSpriteCache.clear(); pawSpriteCache.clear();   // custom coats shift what each index means
+  // Custom coats shift what each index means, so every lazily-built, index-keyed
+  // sprite cache has to go. batSpriteCache was missed here, which left the rear-up
+  // batting pose painted in the coat that used to hold the index.
+  climbSpriteCache.clear(); pawSpriteCache.clear(); batSpriteCache.clear();
   PATTERNS.length = BASE_PATTERNS; PATTERN_BUILD.length = BASE_PATTERNS; TABBY.length = BASE_PATTERNS;
   sprites.length = BASE_PATTERNS; typeSprites.length = BASE_PATTERNS; loafSprites.length = BASE_PATTERNS; rearSprites.length = BASE_PATTERNS;
-  for (const th of (Array.isArray(list) ? list : [])) {
+  // Custom coats are built from the CAT's geometry, and every other surface already
+  // treats them as cat-only: the tray lists breeds alone for a dog, the settings
+  // dropdown says so out loud, and config.js clamps dogPattern to the built-in
+  // breeds. Building them onto a dog only minted indices nothing else could reach,
+  // which is what let a right-click cycle walk a dog off the end of its own list.
+  for (const th of (isDog() ? [] : themeList)) {
     if (!th || !th.name || !th.coat) continue;
-    const build = (SPECIES_DEFS.builds[th.build] || BUILDS[th.build]) ? th.build : (isDog() ? DOG_PATTERN_BUILD[0] : 'standard');
+    const build = BUILDS[th.build] ? th.build : 'standard';   // cat geometry, so SPECIES_DEFS.builds IS BUILDS here
     PATTERNS.push({ name: th.name, coat: th.coat, mark: th.mark || th.coat, white: th.white || th.coat,
       patch: th.patch || th.coat, eye: th.eye || '#8bbf5a', nose: th.nose || '#e0888f',
       inner: th.inner || '#f0b6a0', outline: th.outline || '#222831' });
@@ -645,9 +665,18 @@ function applyThemes(list) {
     typeSprites.push(posed('type', at, 24, 24, () => D.type(tb)));
     loafSprites.push(posed('loaf', at, 24, 30, () => D.loaf(tb)));
     rearSprites.push(posed('rear', at, 24, 30, () => D.rear(tb)));
-    if (huntSprites) huntSprites.push(posed('hunt', at, D.huntCols, D.huntRows, () => D.hunt(tb)));
+    // No hunt sprite: huntSprites is per-BREED and dog-only, and cats share one
+    // crouch (huntSpriteFor falls through to spriteHunt for any index past it).
   }
-  if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = DEFAULT_PATTERN;
+  // A custom coat's index is only IN RANGE once its theme has been built here, so
+  // re-read the coat the config asked for. A config that arrived before its themes
+  // was clamped down to a built-in coat and then stayed there, which looked exactly
+  // like picking a custom coat doing nothing.
+  if (config) {
+    const want = isDog() ? config.dogPattern : config.pattern;
+    if (Number.isFinite(want) && want >= 0 && want < PATTERNS.length) patternIndex = want;
+  }
+  if (!(patternIndex >= 0 && patternIndex < PATTERNS.length)) patternIndex = defaultPatternIndex();
   if (forcedPattern) { const i = PATTERNS.findIndex((p) => p.name.toLowerCase().includes(forcedPattern.toLowerCase())); if (i >= 0) patternIndex = i; }
 }
 
@@ -680,11 +709,12 @@ function setSpecies(next, coatIdx) {
     // painted rope-climb for the rest of the session. coatHasFrames() gates them by
     // species instead, so a dog never borrows cat art.
     ball = null; pantUntil = 0; wagBoost = 0;   // drop any in-flight dog-only state
+    applyThemes(themeList);   // replay the custom coats onto the new tables (main won't re-send them)
   }
   const stored = coatIdx != null ? coatIdx : Number(localStorage.getItem(coatKey(species)));
   patternIndex = Number.isFinite(stored) && stored >= 0 && stored < PATTERNS.length
     ? stored
-    : Math.max(0, PATTERNS.findIndex((p) => p.name === (isDog() ? 'Golden Retriever' : 'Tuxedo')));
+    : defaultPatternIndex();
   localStorage.setItem(coatKey(species), String(patternIndex));
   _palKey = -1;
   return changed;
@@ -2754,11 +2784,21 @@ window.addEventListener('mouseup', () => {
 // Double-click opens Settings (Quit lives in the tray now).
 window.addEventListener('dblclick', () => { audio(); if (window.cat && window.cat.openSettings) window.cat.openSettings(); });
 window.addEventListener('keydown', (e) => { if (settingArea && e.key === 'Escape') finishSetArea(true); });
+// Right-click cycles the coat. PATTERNS holds exactly the coats the ACTIVE species
+// can wear (built-in breeds for a dog; built-in coats plus the custom ones for a
+// cat), which is the same list main will accept back.
+function cycleCoat() {
+  patternIndex = (patternIndex + 1) % Math.max(1, PATTERNS.length);
+  // Per-species key. This wrote to 'pattern' regardless of species, so cycling a
+  // DOG's breed both lost the choice on the next launch (nothing updated
+  // 'dogPattern') and stamped a breed index over the cat's stored coat, so
+  // switching back to the cat brought back a coat the user never picked.
+  localStorage.setItem(coatKey(species), String(patternIndex));   // fast local fallback
+  if (window.cat && window.cat.setPattern) window.cat.setPattern(patternIndex); // sync tray + settings.json
+  labelUntil = performance.now() + 1500;
+}
 window.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   audio();
-  patternIndex = (patternIndex + 1) % PATTERNS.length;
-  localStorage.setItem('pattern', patternIndex);            // fast local fallback
-  if (window.cat && window.cat.setPattern) window.cat.setPattern(patternIndex); // sync tray + settings.json
-  labelUntil = performance.now() + 1500;
+  cycleCoat();
 });

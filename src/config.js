@@ -8,7 +8,16 @@ const path = require('path');
 
 const { PATTERN_NAMES } = require('./patterns');
 const { isSpecies, coatsFor, defaultCoatIndex } = require('./pets');
-const MAX_PATTERN = PATTERN_NAMES.length - 1;
+const { MAX_THEMES } = require('./themes');
+// A cat's coat index addresses ONE run of numbers: the built-in coats first, then
+// the user's custom coats, which is the order both pickers build (tray submenu in
+// main.js, dropdown in settings-renderer.js). Clamping at the last built-in coat
+// meant every custom coat a user picked - from either surface - was silently
+// rewritten to the last built-in one, so designing a coat, importing a coat pack
+// and picking either appeared to do nothing at all. themes.clean() caps the stored
+// list at MAX_THEMES, so the ceiling stays bounded against a junk config file.
+// (Dogs have no custom coats: dogPattern still clamps to the built-in breeds.)
+const MAX_PATTERN = PATTERN_NAMES.length - 1 + MAX_THEMES;
 const DEFAULT_PATTERN = Math.max(0, PATTERN_NAMES.indexOf('Tuxedo'));   // tuxedo is the out-of-box coat
 
 const DEFAULTS = {
@@ -141,6 +150,19 @@ function normalize(cfg) {
   };
 }
 
+// Where a cat's coat index lands after the custom coat at `removedThemeIndex` (an
+// index into the theme list, not the coat list) is deleted. Custom coats are
+// addressed by POSITION, so removing one shifts every coat after it down a slot:
+// without this, deleting the first of two custom coats leaves the config pointing
+// at a coat that is now somebody else, and deleting the coat the pet is WEARING
+// leaves it pointing past the end of the list - which the settings dropdown shows
+// as a blank selection. Built-in coats are never affected.
+function coatAfterThemeRemoval(pattern, removedThemeIndex, builtinCount = PATTERN_NAMES.length) {
+  const at = builtinCount + removedThemeIndex;
+  if (!Number.isInteger(pattern) || !Number.isInteger(removedThemeIndex) || removedThemeIndex < 0 || pattern < at) return pattern;
+  return pattern === at ? DEFAULT_PATTERN : pattern - 1;
+}
+
 // Fill any missing top-level key from DEFAULTS (forward-compatible loads).
 function migrate(cfg) {
   return { ...DEFAULTS, ...(cfg && typeof cfg === 'object' ? cfg : {}) };
@@ -180,4 +202,4 @@ function save(cfg) {
   return clean;
 }
 
-module.exports = { DEFAULTS, load, save, normalize, migrate, makeId, filePath };
+module.exports = { DEFAULTS, load, save, normalize, migrate, makeId, coatAfterThemeRemoval, filePath };
