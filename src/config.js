@@ -45,6 +45,7 @@ const DEFAULTS = {
   lowPowerOnBattery: true, // auto-enter low power while running on battery
   pinnedNote: '',      // fixed message pinned above the cat's head ('' = off)
   notifyOn: true,      // also pop a Windows toast for reminders/messages
+  quietHours: { on: false, start: '22:00', end: '08:00' }, // daily do-not-disturb: no sound or toast inside this window
   pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
   lobbyJam: { on: false, mood: 'cozy' },  // synthesized lo-fi "study music" the cat plays (cozy/dreamy/upbeat/focus/rain)
   reminders: [],       // [{ id, hhmm: 'HH:MM', message, recur, days, lastFired }]
@@ -101,6 +102,12 @@ function normalize(cfg) {
     lowPowerOnBattery: c.lowPowerOnBattery === undefined ? true : !!c.lowPowerOnBattery,
     pinnedNote: String(c.pinnedNote == null ? '' : c.pinnedNote).trim().slice(0, 80),
     notifyOn: c.notifyOn === undefined ? true : !!c.notifyOn,
+    quietHours: (() => {
+      const q = (c.quietHours && typeof c.quietHours === 'object') ? c.quietHours : {};
+      const start = HHMM.test(String(q.start || '')) ? String(q.start) : '22:00';
+      const end = HHMM.test(String(q.end || '')) ? String(q.end) : '08:00';
+      return { on: !!q.on, start, end };
+    })(),
     pomodoro: (() => {
       const p = (c.pomodoro && typeof c.pomodoro === 'object') ? c.pomodoro : {};
       return { on: !!p.on, focusMin: clampInt(p.focusMin, 5, 120, 25), breakMin: clampInt(p.breakMin, 1, 60, 5) };

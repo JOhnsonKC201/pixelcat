@@ -308,6 +308,13 @@
         <div class="card-h">sound</div>
         <label class="check"><input type="checkbox" id="soundOn" /><span class="t">Sound<span class="sub" id="soundSub">meow &amp; purr (synthesized)</span></span></label>
         <label class="check"><input type="checkbox" id="notifyOn" /><span class="t">Desktop alerts<span class="sub">also pop a Windows notification for reminders &amp; messages</span></span></label>
+        <label class="check"><input type="checkbox" id="quietOn" /><span class="t">Quiet hours<span class="sub">hush sound &amp; desktop alerts overnight (the bubble still shows)</span></span></label>
+        <div class="row inline" style="margin-top:10px;">
+          <label class="lbl" for="quietStart">From</label>
+          <input type="time" id="quietStart" />
+          <label class="lbl" for="quietEnd">to</label>
+          <input type="time" id="quietEnd" />
+        </div>
         <div class="row" style="margin-top:10px;">
           <label class="lbl" for="volume">Volume <span class="hint" id="volumeVal"></span></label>
           <input type="range" id="volume" min="0" max="100" step="5" />

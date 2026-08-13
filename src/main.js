@@ -5,6 +5,7 @@ const os = require('os');
 const config = require('./config');
 const datadir = require('./datadir');
 const { fillPlaceholders } = require('./template');
+const { inQuietHours } = require('./quiet-hours');
 const mail = require('./mail');
 const cal = require('./cal');
 const themes = require('./themes');
@@ -594,10 +595,15 @@ function notify(message, opts) {
   notifyRecent.set(key, now);
   if (notifyRecent.size > 200) { for (const k of notifyRecent.keys()) { notifyRecent.delete(k); if (notifyRecent.size <= 100) break; } }
   if (!opts.recap) recordNotify(opts.source, msg);   // log it (but not when re-showing from the recap)
+  // Quiet Hours silences the pet without hiding it: the bubble still appears so a
+  // reminder that lands overnight is there when you look, but the meow/purr and the
+  // OS toast are held back. opts.ignoreQuiet is the escape hatch for anything that
+  // should always break through.
+  const quiet = !opts.ignoreQuiet && cfg && inQuietHours(cfg.quietHours, new Date());
   if (opts.bubble !== false && win && !win.isDestroyed()) {
-    win.webContents.send('notify', { message: msg, ttl: opts.ttl || 5000, level: opts.level || 'info', sound: opts.sound !== false });
+    win.webContents.send('notify', { message: msg, ttl: opts.ttl || 5000, level: opts.level || 'info', sound: opts.sound !== false && !quiet });
   }
-  const wantOs = opts.os !== undefined ? opts.os : !(cfg && cfg.notifyOn === false);
+  const wantOs = (opts.os !== undefined ? opts.os : !(cfg && cfg.notifyOn === false)) && !quiet;
   if (wantOs) {
     try { if (Notification.isSupported()) new Notification({ title: opts.title || 'pixelpets', body: msg, silent: true }).show(); }
     catch (e) { /* toasts are best-effort */ }
