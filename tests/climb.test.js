@@ -229,3 +229,37 @@ test('the posed climb is never mirrored, so the mitts stay on the rope', () => {
   assert.ok(h.run('ropeGeom({ x: 500, y: 400 }, 0, 0).ropeX') > 500,
     'the strand hangs right of the pet centre');
 });
+
+test('the strand stays in the mitt that is gripping it', () => {
+  // The mitt is baked at grid column CLIMB_ROPE_C, so in world space it lands at
+  // spriteX + (CLIMB_ROPE_C - 12) * CELL. The body sways sideways on its own
+  // (idle wig + climbSway) and the rope has its own serpentine sway, so a strand
+  // pinned to a raw pos.x wandered out of the paw holding it - worst case over 4s
+  // of climbing was a full sprite pixel of daylight.
+  const h = loadOverlay();
+  const CELL = h.run('CELL');
+  const SH = h.run('SH');
+  const mittOff = (h.run('CLIMB_ROPE_C') - 12) * CELL;
+  const pos = { x: 500, y: 400 };
+  const gripY = pos.y - SH + 2 * CELL;
+
+  const worstGap = (anchored) => {
+    let worst = 0;
+    for (let t = 0; t < 4000; t += 25) {
+      const climbSway = Math.cos(((t / 460) % 1) * Math.PI * 2);
+      const wig = Math.round(Math.sin(t / 2600));
+      const mittX = pos.x + wig + climbSway + mittOff;
+      const o = anchored ? `{ dx: ${wig + climbSway}, climbing: true }` : 'undefined';
+      const at = h.run(`ropeGeom({x:${pos.x},y:${pos.y}}, ${t}, 70, ${o}).ropeAt(${gripY})`);
+      worst = Math.max(worst, Math.abs(at - mittX));
+    }
+    return worst;
+  };
+
+  const anchored = worstGap(true);
+  const loose = worstGap(false);
+  assert.ok(anchored < CELL / 2,
+    `the strand drifts ${anchored.toFixed(2)}px from the mitt, over half a sprite pixel`);
+  assert.ok(anchored < loose - 1,
+    `anchoring should visibly tighten the grip (anchored ${anchored.toFixed(2)}px vs loose ${loose.toFixed(2)}px)`);
+});

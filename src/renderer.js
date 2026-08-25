@@ -1586,13 +1586,22 @@ function drawYarnBall(cx, cy) {
 
 // Shared rope geometry so the rope, the procedural grip-paws, AND the raster climb
 // frame all line up: a vertical strand from above the head down to a floor ball.
-function ropeGeom(pos, t, energy) {
+function ropeGeom(pos, t, energy, o) {
+  o = o || {};
   // The strand lines up with column CLIMB_ROPE_C of the climb sprite, so the
   // pose's gripping mitts close on the real rope instead of near it.
-  const ropeX = Math.round(pos.x + (CLIMB_ROPE_C - 12) * CELL);
+  //
+  // It has to FOLLOW that sprite, though. The body sways sideways on its own
+  // (idle wig + climbSway) while the rope was pinned to a raw pos.x, so the paw
+  // that is supposed to be holding the strand drifted off it by a couple of px
+  // every stroke. o.dx carries the same horizontal offset the sprite is drawn at.
+  const ropeX = Math.round(pos.x + (o.dx || 0) + (CLIMB_ROPE_C - 12) * CELL);
   const topY = Math.round(pos.y - SH - 55);                  // plenty of rope rising above the head
   const ballY = Math.round(pos.y - 6);                       // ball rests on the floor line
-  const sway = Math.sin(t / 220) * (1 + energy / 40);        // whole-rope sway, livelier with energy
+  // A rope being GRIPPED cannot serpentine freely. At full energy the free-hanging
+  // sway reaches ~2.75px, which is more than a whole sprite pixel of daylight
+  // between the mitt and the strand, so damp it hard while the pet is on the rope.
+  const sway = Math.sin(t / 220) * (1 + energy / 40) * (o.climbing ? 0.3 : 1);
   const ropeAt = (y) => ropeX + Math.sin((y - topY) / 16 + t / 240) * sway;   // rope x at height y
   return { ropeX, topY, ballY, sway, ropeAt };
 }
@@ -1609,9 +1618,9 @@ const faceLeftAt = (t, posedClimb) => !posedClimb
 
 // The coral yarn rope + the floor ball (no cat) - shared by the procedural climb
 // and the raster climb (which blits a painted cat over this).
-function drawRope(pos, t, climbing, dir, energy) {
+function drawRope(pos, t, climbing, dir, energy, anchor) {
   const YARN_DK = '#e0556e', YARN_MID = '#f2697f', YARN_LT = '#ff8fa3';
-  const g = ropeGeom(pos, t, energy), dirN = clamp(dir, -1, 1);
+  const g = ropeGeom(pos, t, energy, anchor), dirN = clamp(dir, -1, 1);
   const texOff = climbing ? t * 0.05 * dirN : 0;             // twist phase scrolls with climb dir
   for (let y = g.topY; y < g.ballY; y++) {
     const x = Math.round(g.ropeAt(y)), k = y - g.topY;
@@ -1628,10 +1637,10 @@ function drawRope(pos, t, climbing, dir, energy) {
 // climb POSE now (composeClimb / composeClimbDog) drawn through the normal sprite
 // pipeline, so nothing here draws limbs any more - the sprite's own mitts close on
 // the strand at ropeX.
-function drawRopeClimb(pos, t, climbing, dir, energy) {
+function drawRopeClimb(pos, t, climbing, dir, energy, anchor) {
   const YARN_OUT = '#c8455a', YARN_LT = '#ff8fa3';
-  const g = ropeGeom(pos, t, energy), dirN = clamp(dir, -1, 1);
-  drawRope(pos, t, climbing, dir, energy);
+  const g = ropeGeom(pos, t, energy, anchor), dirN = clamp(dir, -1, 1);
+  drawRope(pos, t, climbing, dir, energy, anchor);
 
   // falling debris flecks + bright twists riding the rope while actively climbing
   if (climbing && energy > 6) {
@@ -2630,7 +2639,9 @@ function draw(t) {
         drawYawn(octx, catSprite, bob, yp);
       }
       // rope + floor ball go down FIRST so the body occludes the strand it grips
-      if (procClimb) drawRopeClimb(pos, t, climbing, climbDir, Math.round(paperLen));
+      // Hand the rope the same horizontal offset the sprite is about to be drawn
+      // at, so the strand tracks the body it is being gripped by.
+      if (procClimb) drawRopeClimb(pos, t, climbing, climbDir, Math.round(paperLen), { dx: wig + climbSway, climbing });
       ctx.save();
       const purrJit = purring ? Math.sin(t / 46) * 0.7 : 0;   // faint purr buzz while petted
       ctx.translate(Math.round(pos.x + wig + climbSway + purrJit), Math.round(pos.y - hop - climbBob - petPush - climbLift));   // round to whole CSS px for crisp pixels; nuzzle push + purr buzz ride on the rest pose
