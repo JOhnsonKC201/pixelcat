@@ -204,3 +204,28 @@ test('a dog never borrows the painted cat art', () => {
   assert.strictEqual(h.run('coatHasFrames("tuxedo")'), false);
   assert.strictEqual(h.run('coatHasFrames("golden-retriever")'), false);
 });
+
+test('the posed climb is never mirrored, so the mitts stay on the rope', () => {
+  // The climb pose bakes the rope on the RIGHT (CLIMB_ROPE_C) and ropeGeom draws
+  // the real strand at the matching world x. Mirroring the sprite therefore puts
+  // the gripping mitts on the OPPOSITE side from the rope. That was reachable:
+  // faceLeft only asks whether the pet is roaming leftward, and a roam still
+  // running when you scroll overlaps the climb within ~180ms.
+  const h = loadOverlay();
+  h.run(`(() => {
+    roamFrom = { x: pos.x, y: pos.y };
+    roamTo = { x: pos.x - 200, y: pos.y };   // walking LEFT
+    roamDur = 1500;
+    roamUntil = 4000;
+  })()`);
+
+  // Walking left with no climb up: mirroring is correct.
+  assert.strictEqual(h.run('faceLeftAt(1000, false)'), true, 'a leftward roam should still flip the walk');
+  // Same instant, but the posed climb is up: mirroring must be suppressed.
+  assert.strictEqual(h.run('faceLeftAt(1000, true)'), false,
+    'the posed climb must never mirror, or the mitts grip the wrong side of the rope');
+
+  // And the rope really is on the right, which is what makes the mirror wrong.
+  assert.ok(h.run('ropeGeom({ x: 500, y: 400 }, 0, 0).ropeX') > 500,
+    'the strand hangs right of the pet centre');
+});

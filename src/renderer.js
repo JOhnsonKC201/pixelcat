@@ -1347,6 +1347,14 @@ function triggerBreak() {
 //     reason a dog is worth having as a desktop pet rather than a recoloured cat.
 const FETCH_GRAB = 22;        // how close the dog must get to pick the ball up
 const BALL_R = 5;
+// Preview render: npx electron . --shot --species=dog --ball=1
+// The counterpart to --treat=1 for the cat. Fetch has by far the most complex
+// state machine in the give slot and had no way to eyeball a frame of it without
+// waiting on the physics loop. Parked at 'rest' on the floor line, which is the
+// pose worth checking; throwBall() itself is a no-op under SHOT.
+// Placed here rather than beside the --treat hook because BALL_R is declared
+// above this line and would be in the temporal dead zone up there.
+if (SHOT && qp.get('ball') === '1') ball = { x: 210, y: restingY() - BALL_R, vx: 0, vy: 0, phase: 'rest', spin: 0, restAt: 0 };
 function throwBall() {
   if (SHOT || !pos || !isDog()) return;
   const side = pos.x < viewW / 2 ? 1 : -1;
@@ -1588,6 +1596,16 @@ function ropeGeom(pos, t, energy) {
   const ropeAt = (y) => ropeX + Math.sin((y - topY) / 16 + t / 240) * sway;   // rope x at height y
   return { ropeX, topY, ballY, sway, ropeAt };
 }
+
+// Should the sprite be mirrored right now? Only while walking left.
+//
+// NEVER while the posed climb is up. That pose bakes the rope on the RIGHT (at
+// CLIMB_ROPE_C) and ropeGeom() draws the real strand at the matching world x, so
+// mirroring the sprite puts the gripping mitts on the opposite side from the rope
+// they are supposed to be holding. A roam that was still running when you scrolled
+// did exactly that: verified reproducible, the two overlap within ~180ms.
+const faceLeftAt = (t, posedClimb) => !posedClimb
+  && roamUntil > t && !!roamFrom && !!roamTo && roamTo.x < roamFrom.x;
 
 // The coral yarn rope + the floor ball (no cat) - shared by the procedural climb
 // and the raster climb (which blits a painted cat over this).
@@ -2618,7 +2636,7 @@ function draw(t) {
       ctx.translate(Math.round(pos.x + wig + climbSway + purrJit), Math.round(pos.y - hop - climbBob - petPush - climbLift));   // round to whole CSS px for crisp pixels; nuzzle push + purr buzz ride on the rest pose
       if (lean || cursorLean) ctx.rotate(lean + cursorLean);   // idle lean + watch-the-cursor tilt
       if (spinUntil > t) ctx.rotate((1 - (spinUntil - t) / 650) * Math.PI * 2);   // tail-chase spin
-      const faceLeft = roamUntil > t && roamFrom && roamTo && roamTo.x < roamFrom.x;   // face where it walks
+      const faceLeft = faceLeftAt(t, procClimb);   // face where it walks, but never mirror the posed climb
       ctx.scale(faceLeft ? -sx : sx, sy);
       ctx.drawImage(oc, 0, 0, SW, SH, -SW / 2, -SH, SW, SH);
       ctx.restore();

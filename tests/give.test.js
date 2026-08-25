@@ -107,3 +107,26 @@ test('with no play area the give slot still respects the screen edges', () => {
     assert.ok(tx >= lo - 0.5 && tx <= hi + 0.5, `treat at ${tx} escaped the screen bounds ${lo}..${hi}`);
   }
 });
+
+test('the cat walks to its treat, eats it, and the treat clears', () => {
+  // fetch.test.js pins the dog's whole ball cycle; the cat's side had no
+  // equivalent, so a treat that never got eaten (or never got cleared, leaving
+  // the cat parked on it forever) would not have failed anything.
+  const h = catOverlay();
+  const e0 = h.run('energy');
+  h.run('dropTreat()');
+  assert.strictEqual(h.run('treat.phase'), 'walk', 'a fresh treat starts as a walk target');
+
+  const phases = [];
+  let cleared = false;
+  for (let t = STEP; t <= 30000; t += STEP) {
+    h.run(`draw(${t})`);
+    if (!h.run('treat !== null')) { cleared = true; break; }
+    const p = h.run('treat.phase');
+    if (phases[phases.length - 1] !== p) phases.push(p);
+  }
+
+  assert.ok(phases.includes('nom'), `the cat never started eating (phases seen: ${phases.join(' -> ')})`);
+  assert.ok(cleared, 'the treat was never cleared, so the cat is parked on it forever');
+  assert.ok(h.run('energy') > e0, 'eating a treat should leave the cat more energetic');
+});
