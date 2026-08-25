@@ -69,6 +69,15 @@ test('config.normalize fills defaults and clamps', () => {
   assert.strictEqual(normalize({}).workMode, false);            // "work mode" off by default
   assert.strictEqual(normalize({ workMode: true }).workMode, true);
   assert.strictEqual(normalize({ workMode: 1 }).workMode, true);
+  // First-run hints: the flag that makes them fire exactly once, ever. It has to
+  // survive a normalize round-trip, because that persistence IS the "once" - main.js
+  // sets it before showing anything, so the automatic reload after a renderer crash
+  // cannot replay the hints.
+  assert.strictEqual(normalize({}).tipsSeen, false, 'a config with no flag has not seen the hints');
+  assert.strictEqual(normalize({ tipsSeen: true }).tipsSeen, true, 'once seen it stays seen');
+  assert.strictEqual(normalize(normalize({ tipsSeen: true })).tipsSeen, true, 'and survives a round-trip');
+  assert.strictEqual(normalize({ tipsSeen: 'yes' }).tipsSeen, true, 'junk coerces to a boolean');
+  assert.strictEqual(normalize({ tipsSeen: 0 }).tipsSeen, false);
   assert.strictEqual(normalize({}).playArea, null);
   const pa = normalize({ playArea: { x: 0.5, y: 0.6, w: 0.5, h: 0.4 } }).playArea;
   assert.ok(pa && pa.x === 0.5 && pa.w === 0.5, "valid play area kept");

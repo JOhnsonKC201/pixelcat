@@ -45,6 +45,7 @@ const DEFAULTS = {
   lowPowerOnBattery: true, // auto-enter low power while running on battery
   pinnedNote: '',      // fixed message pinned above the cat's head ('' = off)
   notifyOn: true,      // also pop a Windows toast for reminders/messages
+  tipsSeen: false,     // the one-time first-run hints have been shown (see showFirstRunTips)
   pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
   lobbyJam: { on: false, mood: 'cozy' },  // synthesized lo-fi "study music" the cat plays (cozy/dreamy/upbeat/focus/rain)
   reminders: [],       // [{ id, hhmm: 'HH:MM', message, recur, days, lastFired }]
@@ -94,6 +95,7 @@ function normalize(cfg) {
     restSide: c.restSide === 'left' ? 'left' : 'right',
     floorLock: c.floorLock === undefined ? true : !!c.floorLock,
     butterflyOn: c.butterflyOn === undefined ? true : !!c.butterflyOn,
+    tipsSeen: !!c.tipsSeen,   // absent (an existing install, or a fresh one) reads as false
     workMode: !!c.workMode,
     volume: clampInt(c.volume, 0, 100, 100),
     reducedMotion: !!c.reducedMotion,

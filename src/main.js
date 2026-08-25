@@ -41,6 +41,7 @@ let renderCrashes = 0, lastRenderCrashAt = 0;
 const RELOAD_MAX = 5;                                  // consecutive reloads before giving up
 const RELOAD_RESET_MS = 60000;                         // uptime that counts as "recovered"
 let cursorTimer;
+let tipTimers = [];                                    // one-time first-run hint timers
 let topTimer;                                          // re-asserts always-on-top
 let settingArea = false, areaTimer = null;             // "set play area (drag)" mode
 let agentTimer;
@@ -199,7 +200,7 @@ function createWindow() {
 
   // Push current settings to the overlay as soon as (and every time) it loads,
   // so first paint already has the name / coat / sound+hunt flags.
-  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) { applyConfigToOverlay(); sendPomo(); sendGeom(); } });
+  win.webContents.on('did-finish-load', () => { sendThemes(); if (!SHOT && !SHEET) { applyConfigToOverlay(); sendPomo(); sendGeom(); showFirstRunTips(); } });
 
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
   // (Skipped for --shot previews - a screenshot has no need for a global hook,
@@ -615,6 +616,29 @@ function recordNotify(source, message) {
   saveNotifyHistorySoon();
   rebuildTrayMenu();   // refresh the "Recent notifications" submenu
 }
+// One-time first-run hints.
+//
+// Nothing in the running app tells a new user that double-clicking opens Settings,
+// right-clicking cycles the coat, or that scrolling makes the pet climb. All of it
+// was discoverable only by having read the README first, which most people will
+// not have done. Two short bubbles, once ever.
+//
+// Marks itself seen BEFORE showing anything: did-finish-load fires again on every
+// reload, including the automatic one after a renderer crash, and a hint that
+// replays itself is worse than no hint at all.
+//
+// Bubble only, never an OS toast: a desktop toast on first launch reads as an app
+// demanding attention, which is the opposite of what this one is for.
+function showFirstRunTips() {
+  if (SHOT || SHEET || !cfg || cfg.tipsSeen) return;
+  persistAndBroadcast({ ...cfg, tipsSeen: true });
+  const say = (delay, text) => tipTimers.push(setTimeout(() => {
+    if (win && !win.isDestroyed()) notify(text, { source: 'tips', os: false, ttl: 9000, dedupeMs: 0 });
+  }, delay));
+  say(6000, 'Double-click me for settings. Right-click to change my coat.');
+  say(18000, 'Scroll any page and watch me climb.');
+}
+
 function relTime(ts) {
   const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
   if (s < 60) return s + 's ago';
@@ -699,6 +723,7 @@ let cleanedUp = false;
 function cleanup() {
   if (cleanedUp) return; cleanedUp = true;
   if (cursorTimer) clearInterval(cursorTimer);
+  tipTimers.forEach(clearTimeout); tipTimers = [];   // a hint must not fire mid-teardown
   if (areaTimer) clearTimeout(areaTimer);
   if (topTimer) clearInterval(topTimer);
   if (agentTimer) clearInterval(agentTimer);
