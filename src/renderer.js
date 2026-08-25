@@ -497,7 +497,7 @@ huntSprites = buildHuntSprites(SPECIES_DEFS);
 // species' index: a dog falling back landed on coat 4 of the breed list (a husky),
 // because 4 is where the cat's Tuxedo sits.
 function defaultPatternIndex() {
-  return Math.max(0, PATTERNS.findIndex((p) => p.name === (isDog() ? 'Black Lab' : 'Tuxedo')));
+  return Math.max(0, PATTERNS.findIndex((p) => p.name === (isDog() ? 'Black Lab' : 'Mackerel Tabby')));
 }
 const coatKey = (sp) => (sp === 'dog' ? 'dogPattern' : 'pattern');
 const storedPattern = localStorage.getItem(coatKey(species));

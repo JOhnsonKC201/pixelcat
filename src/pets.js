@@ -25,7 +25,7 @@ const SPECIES = {
     emoji: '🐱',
     coats: CAT_COATS,
     coatNoun: 'Coat',
-    defaultCoat: 'Tuxedo',
+    defaultCoat: 'Mackerel Tabby',
     // The tray's single "give" slot: what it is called AND which payload it sends.
     // They live together so the menu can never say "treat" at a dog that is actually
     // being handed a ball, which is precisely what happened while the label and the

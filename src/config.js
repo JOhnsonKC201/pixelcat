@@ -18,7 +18,9 @@ const { MAX_THEMES } = require('./themes');
 // list at MAX_THEMES, so the ceiling stays bounded against a junk config file.
 // (Dogs have no custom coats: dogPattern still clamps to the built-in breeds.)
 const MAX_PATTERN = PATTERN_NAMES.length - 1 + MAX_THEMES;
-const DEFAULT_PATTERN = Math.max(0, PATTERN_NAMES.indexOf('Tuxedo'));   // tuxedo is the out-of-box coat
+// Mackerel Tabby is the out-of-box coat. It ships painted climb art, so a brand
+// new user gets the rope climb on their first scroll rather than the leaf swipe.
+const DEFAULT_PATTERN = Math.max(0, PATTERN_NAMES.indexOf('Mackerel Tabby'));
 
 const DEFAULTS = {
   name: '',

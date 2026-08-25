@@ -196,7 +196,7 @@ to your cursor, to your typing, and to its own internal mood.
 - 14 coat patterns: Orange, Mackerel, and Brown tabby, Siamese, Tuxedo, Black,
   Gray, White, Cream, Tortoiseshell, Calico, Slate, Chocolate (a solid warm-brown
   Havana with green eyes), and Russian Blue (cool blue-grey with green eyes). It
-  ships as Tuxedo; right-click the cat to cycle, and your choice is remembered.
+  ships as Mackerel Tabby; right-click the cat to cycle, and your choice is remembered.
 - Custom coats: design your own (see [Custom coats](#custom-coats)).
 - The pixel art has a white sticker outline that pops on any wallpaper, soft
   top-lit shading, whiskers, a ground shadow, and sparkly eyes.

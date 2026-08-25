@@ -153,11 +153,11 @@ test('changing the coat list clears every index-keyed sprite cache', () => {
 
 test('a coat fallback follows the species that is live now', () => {
   // The default was resolved once at load, so after a swap it still named the
-  // launch species' index: a dog falling back landed on coat 4 of the BREED list
-  // (a husky) because 4 is where the cat's Tuxedo sits.
+  // launch species' index: a dog falling back landed on the breed list at whatever
+  // index the cat's default coat happened to sit at.
   const h = overlay('cat');
   h.run('setSpecies("dog", 999)');   // out-of-range coat -> fall back
   assert.strictEqual(h.run('PATTERNS[patternIndex].name'), 'Black Lab');
   h.run('setSpecies("cat", 999)');
-  assert.strictEqual(h.run('PATTERNS[patternIndex].name'), 'Tuxedo');
+  assert.strictEqual(h.run('PATTERNS[patternIndex].name'), 'Mackerel Tabby');
 });
