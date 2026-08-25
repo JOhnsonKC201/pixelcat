@@ -353,7 +353,7 @@ function composeClimb(B, o) {
   // Forelegs LAST, reaching up the right side to the rope - clear of the face, so
   // the arms never paint over an eye. One paw is high and one low; o.hand swaps
   // them, which is what makes alternating frames read as hand-over-hand.
-  const gripHi = 2.2 - coil * 0.8, gripLo = gripHi + 7.0;
+  const gripHi = 4.6 - coil * 0.8, gripLo = gripHi + 6.4;
   const grips = o.hand ? [gripLo, gripHi] : [gripHi, gripLo];
   const arm = (sx, sy, gy) => {
     for (let i = 0; i <= 7; i++) {
