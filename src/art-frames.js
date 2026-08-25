@@ -22,7 +22,7 @@
 // for a composed pose.
 //
 // Only the five HELD poses are read: sit, type, loaf, rear, hunt. The other six
-// activities (both rope climbs, groom, ponder, play, bat) are animation rigs whose
+// activities (groom, ponder, play, bat) are animation rigs whose
 // limbs move with a quantised parameter, so a single still would freeze them. See
 // docs/frame-pack.md.
 const ART_FRAMES = {

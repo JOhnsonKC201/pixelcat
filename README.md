@@ -34,7 +34,7 @@ scratch: nearly every sprite, animation, and sound is original and procedural.
 &nbsp;
 [![Play in your browser](https://img.shields.io/badge/Play_in_your_browser-15161d?style=for-the-badge)](https://pixelcat-jet.vercel.app)
 
-<sub>The browser demo runs the real renderer: pet it, type at it, scroll to climb, and wait for the butterfly.</sub>
+<sub>The browser demo runs the real renderer: pet it, type at it, scroll to set it swiping, and wait for the butterfly.</sub>
 
 <br />
 <br />
@@ -73,7 +73,7 @@ coat choice, so switching back and forth never loses your pick.
 | Play | bats a butterfly | **fetch**: chases the ball down, carries it home, drops it |
 | Left alone | a butterfly flutters in | starts its own game of fetch |
 | After exertion | grooms | pants, tongue out |
-| Scroll | climbs the yarn rope hand over hand | hauls itself up the same rope, ears and snout intact |
+| Scroll | rears up and swipes at a leaf blowing past | rears into a beg and takes a swipe at the same leaf |
 | Reward | a fish treat | a tennis ball |
 
 The dog is not a recoloured cat. It has its own sprite module with a muzzle that
@@ -93,7 +93,6 @@ npm run sheet:dog   # previews/dog-sheet.png - the five base poses only
 
 <table align="center">
 <tr>
-<td align="center"><img src="assets/gallery/climb.gif" width="240" alt="the Tuxedo cat climbs a yarn rope when you scroll" /><br /><sub><b>Climbs when you scroll</b></sub></td>
 <td align="center"><img src="assets/gallery/type.gif" width="240" alt="the cat kneads the keyboard when you type" /><br /><sub><b>Kneads when you type</b></sub></td>
 <td align="center"><img src="assets/gallery/butterfly.gif" width="240" alt="the cat tracks and plays with a butterfly" /><br /><sub><b>Plays with a butterfly</b></sub></td>
 </tr>
@@ -110,9 +109,9 @@ npm run sheet:dog   # previews/dog-sheet.png - the five base poses only
 </table>
 
 <div align="center">
-<sub>The climb clip uses the app's own hand-painted Tuxedo frames. Coats without painted art climb the same
-rope from a composed pose in their own colours, dogs included. Everything here is rendered from the sprite the pet draws with, generated
-headlessly by one script. Nothing is a screen recording.</sub>
+<sub>Every pose here is composed into the pet's own sprite, so all 15 coats and both species get every one of them in
+their own colours. Everything is rendered from the sprite the pet draws with, generated headlessly by one script.
+Nothing is a screen recording.</sub>
 </div>
 
 ## What it actually does
@@ -184,7 +183,7 @@ to your cursor, to your typing, and to its own internal mood.
 | **Tap it** | A quick pet: happy eyes, hearts, a chirp. |
 | **Move your cursor** | The cat watches it and blinks now and then. Flick the cursor fast and it crouches, stalks, and pounces. A sudden jolt startles it: it puffs up, freezes, then bolts or creeps back. |
 | **Type in any app** | It leans onto two big keys and kneads them with its paws. Type fast enough and it overheats, turning red with steam, then cools down. |
-| **Scroll anywhere** | Grabs a yarn rope and climbs it hand over hand, up when you scroll up and down when you scroll down, with a ball of yarn anchored on the floor. |
+| **Scroll anywhere** | A leaf blows past in the direction you are scrolling, travelling faster the harder you flick the wheel. The pet rears up on its haunches, tracks the leaf, and takes swipes at it as it goes by. |
 | **Wait for a visitor** | Once in a while a butterfly flutters in. The cat tracks it, swats at it, and occasionally pounces and catches it between its paws before it flutters off. Step away from the keyboard and one comes out on its own, so the pet always has something to play with. Keep a dog instead and it starts its own game of fetch rather than waiting on a butterfly. |
 | **Leave it be** | Left alone it keeps itself busy: it bats a drifting leaf with a paw, washes its face, loafs, and its whiskers twitch. Lively without ever getting in your way. |
 | **Come back** | Return after being away and the cat notices you: happy eyes, a little heart, and a friendly chirp hello. |
@@ -351,7 +350,7 @@ ignored (no backlog replay), and calling it while the pet is closed is harmless.
 | **Rest cursor on its head** | Happy eyes, floating hearts, and a purr |
 | **Rest cursor on its body** | Leans and arches into your hand, tail up, trilling |
 | **Type** (any app) | Front-paw kneading; fast typing overheats it |
-| **Scroll** (any app) | Climbs a yarn rope, up or down with your scroll |
+| **Scroll** (any app) | Rears up and swipes at a leaf blowing past, with your scroll |
 | **Double-click** the cat | Opens Settings (name, timers, reminders, coat) |
 | **Tray icon** | Settings, Start break now, coat picker, play area, sound and hunt and mood toggles, Quit |
 
@@ -458,10 +457,10 @@ bar), the tray menu works in the menu bar, and login launch works.
   is made of the same cells as the rest of the pet, so it picks up the coat's
   shading, outline halo, markings and breathing scale for free. Nothing is
   painted on top afterwards. That is why washing, pondering, batting a leaf,
-  boxing at the butterfly and climbing the yarn rope all work in all 15 coats
+  boxing at the butterfly and swiping at the scroll leaf all work in all 15 coats
   and both species without a single extra sprite asset.
 - Poses that vary continuously (how high a paw is raised, how far it reaches,
-  which paw has the rope) are quantised to a handful of steps and memoised, and
+  which paw is mid-swipe) are quantised to a handful of steps and memoised, and
   built only for the coat currently on screen. Pixel art wants stepped limbs
   anyway, so the cheap thing and the right-looking thing are the same thing.
 - Rendering happens on an HTML canvas in a full-screen transparent Electron

@@ -86,7 +86,7 @@ function encodePng(rgba, w, h) {
 // which is Electron-coupled and cannot be required. Rather than move working code
 // out of the renderer, this reaches the composers where they are: scripts/overlay-vm.js
 // loads the whole overlay script stack in a vm with a mocked browser, and the pose
-// caches (climbSpriteFor / pawSpriteFor / batSpriteFor) hand back real sprite grids.
+// caches (pawSpriteFor / batSpriteFor) hand back real sprite grids.
 // So one command now covers every activity x every coat, for either species.
 const ALL_POSES = [
   ['sit', (i) => `sprites[${i}]`],
@@ -94,8 +94,6 @@ const ALL_POSES = [
   ['loaf', (i) => `loafSprites[${i}]`],
   ['rear', (i) => `rearSprites[${i}]`],
   ['hunt', (i) => `huntSpriteFor(${i})`],
-  ['climb up', (i) => `climbSpriteFor(${i}, 0, -1)`],
-  ['climb down', (i) => `climbSpriteFor(${i}, 1, 1)`],
   ['groom', (i) => `pawSpriteFor(${i}, 1, 0)`],
   ['ponder', (i) => `pawSpriteFor(${i}, 0.75, 0.1)`],
   ['play', (i) => `pawSpriteFor(${i}, 0.6, 0.7)`],

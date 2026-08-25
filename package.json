@@ -19,7 +19,6 @@
     "poses:dog": "node scripts/pet-sheet.js dog --all",
     "icon": "node scripts/make-logo-icons.js",
     "social": "node scripts/make-social-card.js",
-    "climb-frames": "node scripts/embed-climb-frames.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac",

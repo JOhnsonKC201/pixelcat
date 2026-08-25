@@ -141,12 +141,12 @@ test('changing the coat list clears every index-keyed sprite cache', () => {
   // the list changes. batSpriteCache was missed, so the rear-up batting pose kept
   // painting whichever coat used to hold that index.
   const h = overlay('cat');
-  h.run('pawSpriteFor(0, 1, 0); batSpriteFor(0, 1, 0); climbSpriteFor(0, 0, -1)');
-  for (const cache of ['pawSpriteCache', 'batSpriteCache', 'climbSpriteCache']) {
+  h.run('pawSpriteFor(0, 1, 0); batSpriteFor(0, 1, 0)');
+  for (const cache of ['pawSpriteCache', 'batSpriteCache']) {
     assert.ok(h.run(`${cache}.size`) > 0, `${cache} should have been populated`);
   }
   h.ipc('onThemes', [theme('Mine')]);
-  for (const cache of ['pawSpriteCache', 'batSpriteCache', 'climbSpriteCache']) {
+  for (const cache of ['pawSpriteCache', 'batSpriteCache']) {
     assert.strictEqual(h.run(`${cache}.size`), 0, `${cache} was left holding sprites for the old coat order`);
   }
 });
