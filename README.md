@@ -8,14 +8,15 @@
 
 It sits in the corner, watches your cursor, kneads the keyboard when you type,
 purrs when you pet it, and stretches like mochi when you drag it. Prefer a dog?
-Switch species from the tray and you get a real one: 14 breeds, a wagging tail
+Switch species from the tray and you get a real one: a Black Lab with a wagging tail
 that reads your pet's mood, a play bow instead of a hunting crouch, and a tennis
 ball it will actually chase down and bring back. A desktop pet built from
 scratch: nearly every sprite, animation, and sound is original and procedural.
 
 <br />
 
-[![CI](https://img.shields.io/github/actions/workflow/status/JOhnsonKC201/pixelpets/ci.yml?style=flat-square&labelColor=15161d&label=CI)](https://github.com/JOhnsonKC201/pixelpets/actions/workflows/ci.yml)
+[![stars](https://img.shields.io/github/stars/JOhnsonKC201/pixelpets?style=flat-square&labelColor=15161d&color=E8930C)](https://github.com/JOhnsonKC201/pixelpets/stargazers)
+&nbsp;[![CI](https://img.shields.io/github/actions/workflow/status/JOhnsonKC201/pixelpets/ci.yml?style=flat-square&labelColor=15161d&label=CI)](https://github.com/JOhnsonKC201/pixelpets/actions/workflows/ci.yml)
 &nbsp;[![release](https://img.shields.io/github/v/release/JOhnsonKC201/pixelpets?style=flat-square&labelColor=15161d&color=E8930C)](https://github.com/JOhnsonKC201/pixelpets/releases/latest)
 &nbsp;![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20(beta)-4C566A?style=flat-square&labelColor=15161d)
 &nbsp;[![license](https://img.shields.io/github/license/JOhnsonKC201/pixelpets?style=flat-square&labelColor=15161d&color=22C55E)](LICENSE)
@@ -65,7 +66,7 @@ coat choice, so switching back and forth never loses your pick.
 
 |  | Cat | Dog |
 |---|---|---|
-| Coats | 14 coats, from Orange Tabby to Russian Blue | 14 breeds, from Golden Retriever to Chihuahua |
+| Coats | 14 coats, from Orange Tabby to Russian Blue | the Black Lab |
 | Resting | loafs into a "cat bread" | curls nose-to-tail into a ring |
 | Excited | hunting crouch, ears back | **play bow**: chest down, rump up, tail flagged |
 | Tail | slow rolling S-curve, tip flicks | fast wag from the base, shaped per breed (curl / plume / feather / stub / straight) |
@@ -76,10 +77,11 @@ coat choice, so switching back and forth never loses your pick.
 | Reward | a fish treat | a tennis ball |
 
 The dog is not a recoloured cat. It has its own sprite module with a muzzle that
-protrudes past the skull line, ears that hang or perk per breed, a broader chest,
-and short legs on the dwarf breeds. Markings are coat *structures*, not palette
-swaps: the Dalmatian is spotted, the shepherd wears a saddle, the beagle is
-tricolour, the husky has a mask, and the Aussie is merle.
+protrudes past the skull line, floppy ears, a broader chest, and a straight
+otter tail. Markings are coat *structures* rather than palette swaps, and the
+build archetypes behind them (spotted, saddled, tricolour, masked, merle, and
+the short-legged dwarf silhouette) are still in the sprite module for any breed
+added back later.
 
 ```bash
 npm run poses:dog   # previews/dog-poses.png - every breed x every ACTIVITY
@@ -118,8 +120,8 @@ pet draws with, generated headlessly by one script. Nothing is a screen recordin
 |  |  |
 |---|---|
 | **It reacts to you** | Petting, dragging, typing, scrolling, and cursor play each get their own response, gated by an internal mood model that runs from calm up to zoomies and back. |
-| **28 coats, one shape** | 14 cat coats and 14 dog breeds, all recolored at draw time from one role-coded sprite. Design, import, and export your own. |
-| **No spare frames** | Every animation is composed into that sprite, limbs included, so all 28 coats across both species get every pose in their own colours without shipping a single extra image. |
+| **15 coats, one shape** | 14 cat coats and a Black Lab, all recolored at draw time from one role-coded sprite. Design, import, and export your own. |
+| **No spare frames** | Every animation is composed into that sprite, limbs included, so all 15 coats across both species get every pose in their own colours without shipping a single extra image. |
 | **Zero audio files** | The meow, the bark, the purr, the pant, and an endlessly improvising lo-fi jam are all synthesized live with Web Audio. |
 | **It keeps you on track** | Break and Pomodoro timers, repeating reminders, a pinned note, IMAP unread-mail alerts, and calendar nudges, all delivered by your pet. |
 | **It watches your agent** | It knows when your coding agent is thinking, working, or done, and reacts with its paws. Hook configs ship for five agents. |
@@ -456,7 +458,7 @@ bar), the tray menu works in the menu bar, and login launch works.
   is made of the same cells as the rest of the pet, so it picks up the coat's
   shading, outline halo, markings and breathing scale for free. Nothing is
   painted on top afterwards. That is why washing, pondering, batting a leaf,
-  boxing at the butterfly and climbing the yarn rope all work in all 28 coats
+  boxing at the butterfly and climbing the yarn rope all work in all 15 coats
   and both species without a single extra sprite asset.
 - Poses that vary continuously (how high a paw is raised, how far it reaches,
   which paw has the rope) are quantised to a handful of steps and memoised, and
@@ -510,9 +512,9 @@ isolated worker processes. Your IMAP app password is stored encrypted at rest
 
 ```powershell
 npm start                 # run the app
-npm test                  # 81 tests: config, poses, petting, audio, art frames, site drift
+npm test                  # 142 tests: config, poses, petting, audio, art frames, site drift
 npm run poses:cat         # previews/cat-poses.png (every activity x every coat)
-npm run poses:dog         # the same for all 14 breeds
+npm run poses:dog         # the same for the Black Lab
 npm run frames:import -- <dir>   # import painted PNGs as baked poses
 npm run demo:all          # regenerate the README media (hero, gallery, carousel)
 npm run hook -- cursor    # print a path-filled agent hook config
@@ -520,7 +522,7 @@ npm run icon              # regenerate the tray + app-tile icons
 ```
 
 **Painting a pose by hand.** Every pose is composed in code, which is why one
-`sit` covers 28 coats and a new coat costs nine hex values instead of an art pass.
+`sit` covers 15 coats and a new coat costs nine hex values instead of an art pass.
 The trade is that changing how the pet looks means editing geometry.
 `npm run frames:import` is the escape hatch: paint a pose against a placeholder
 palette, import it, and it wins over the composer for exactly the coats you name

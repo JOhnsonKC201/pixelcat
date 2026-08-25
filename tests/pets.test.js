@@ -65,12 +65,14 @@ test('the sitting dog keeps its muzzle below the eyes and inside the grid', () =
   }
 });
 
-test('dwarf breeds really do get shorter legs than standard ones', () => {
-  const corgi = dog.DOG_PATTERNS.findIndex((p) => p.name === 'Corgi');
-  const golden = dog.DOG_PATTERNS.findIndex((p) => p.name === 'Golden Retriever');
-  assert.ok(corgi >= 0 && golden >= 0);
-  assert.ok(dog.DOG_BUILDS[dog.DOG_PATTERN_BUILD[corgi]].legLen < 1, 'corgi should be short-legged');
-  assert.equal(dog.DOG_BUILDS[dog.DOG_PATTERN_BUILD[golden]].legLen, undefined, 'golden should use full-length legs');
+// Asserted against the build archetypes rather than against named breeds: only
+// Black Lab ships now, but the archetypes are what carry the leg-length rule and
+// they stay in DOG_BUILDS for any breed added back later.
+test('dwarf builds really do get shorter legs than standard ones', () => {
+  assert.ok(dog.DOG_BUILDS.dwarf.legLen < 1, 'the dwarf build should be short-legged');
+  assert.ok(dog.DOG_BUILDS.longdog.legLen < 1, 'the longdog build should be short-legged');
+  assert.equal(dog.DOG_BUILDS.retriever.legLen, undefined, 'the retriever build should use full-length legs');
+  assert.equal(dog.DOG_BUILDS.labrador.legLen, undefined, 'the labrador build should use full-length legs');
 });
 
 test('species registry agrees with the sprite modules', () => {
@@ -115,5 +117,5 @@ test('config normalises species and keeps a coat per species', () => {
   assert.equal(pets.isSpecies('cat'), true);
   assert.equal(pets.isSpecies('ferret'), false);
   const dogDefault = pets.defaultCoatIndex('dog');
-  assert.equal(pets.coatsFor('dog')[dogDefault], 'Golden Retriever');
+  assert.equal(pets.coatsFor('dog')[dogDefault], 'Black Lab');
 });

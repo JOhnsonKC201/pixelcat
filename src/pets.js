@@ -15,10 +15,7 @@ const CAT_COATS = [
 ];
 
 const DOG_COATS = [
-  'Golden Retriever', 'Shiba Inu', 'Corgi', 'Beagle',
-  'Siberian Husky', 'Dalmatian', 'German Shepherd', 'Border Collie',
-  'Dachshund', 'Pug', 'Black Lab', 'Poodle',
-  'Australian Shepherd', 'Chihuahua',
+  'Black Lab',
 ];
 
 const SPECIES = {
@@ -52,7 +49,7 @@ const SPECIES = {
     emoji: '🐶',
     coats: DOG_COATS,
     coatNoun: 'Breed',
-    defaultCoat: 'Golden Retriever',
+    defaultCoat: 'Black Lab',
     giveLabel: 'Throw the ball 🎾',
     giveChannel: 'ball',
     playNoun: 'ball',

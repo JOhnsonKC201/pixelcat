@@ -544,20 +544,7 @@ function composeClimbDog(B, o) {
 // Dog noses are overwhelmingly black or liver, never the pink a cat gets, so the
 // `nose` values here run dark on purpose. `tongue` is dog-only (panting).
 const DOG_PATTERNS = [
-  { name: 'Golden Retriever', coat: '#e0a95c', mark: '#c98f42', white: '#f4e0bb', patch: '#e0a95c', eye: '#6b4423', nose: '#2c2320', inner: '#c98f7a', outline: '#7a5326', tongue: '#e8747f' },
-  { name: 'Shiba Inu', coat: '#dd8a45', mark: '#c06f2e', white: '#f7efe0', patch: '#dd8a45', eye: '#4a3222', nose: '#241d1a', inner: '#d69a86', outline: '#6f3f18', tongue: '#e8747f' },
-  { name: 'Corgi', coat: '#e2984d', mark: '#c67b32', white: '#faf3e6', patch: '#e2984d', eye: '#4a3222', nose: '#241d1a', inner: '#d99e8b', outline: '#6d4118', tongue: '#e8747f' },
-  { name: 'Beagle', coat: '#d9a463', mark: '#33302e', white: '#f8f4ea', patch: '#b06a2c', eye: '#4a3222', nose: '#241d1a', inner: '#cf9583', outline: '#4a3520', tongue: '#e8747f' },
-  { name: 'Siberian Husky', coat: '#9aa6b4', mark: '#333a44', white: '#f6f8fb', patch: '#9aa6b4', eye: '#6db4d6', nose: '#20242a', inner: '#b9a0a4', outline: '#242a33', tongue: '#e8747f' },
-  { name: 'Dalmatian', coat: '#f4f3ef', mark: '#2b2d33', white: '#ffffff', patch: '#f4f3ef', eye: '#5a4433', nose: '#20222a', inner: '#e0b6b6', outline: '#6e6a63', tongue: '#e8747f' },
-  { name: 'German Shepherd', coat: '#c98f45', mark: '#2f2a26', white: '#dcb277', patch: '#c98f45', eye: '#4a3222', nose: '#1e1a18', inner: '#c08e7c', outline: '#3d2f1e', tongue: '#e8747f' },
-  { name: 'Border Collie', coat: '#f4f2ec', mark: '#2b2d33', white: '#ffffff', patch: '#2b2d33', eye: '#5a4433', nose: '#20222a', inner: '#dcb2b2', outline: '#6b665f', tongue: '#e8747f' },
-  { name: 'Dachshund', coat: '#8a4f28', mark: '#6b3a1c', white: '#a86a38', patch: '#8a4f28', eye: '#4a3222', nose: '#211a16', inner: '#b5837a', outline: '#3a2010', tongue: '#e8747f' },
-  { name: 'Pug', coat: '#e3c489', mark: '#33302e', white: '#eed9ae', patch: '#e3c489', eye: '#3f2c1f', nose: '#221e1c', inner: '#cfa192', outline: '#6e5730', tongue: '#e8747f' },
   { name: 'Black Lab', coat: '#2f3138', mark: '#25272d', white: '#2f3138', patch: '#2f3138', eye: '#8a6a3a', nose: '#16181c', inner: '#6a4c52', outline: '#15171b', tongue: '#e8747f' },
-  { name: 'Poodle', coat: '#f0ece2', mark: '#ddd6c6', white: '#fbf8f1', patch: '#f0ece2', eye: '#4a3a2c', nose: '#22201e', inner: '#e2bcbc', outline: '#948d7e', tongue: '#e8747f' },
-  { name: 'Australian Shepherd', coat: '#9d9ba0', mark: '#3a3a42', white: '#f4f2ee', patch: '#a9702f', eye: '#6db4d6', nose: '#20222a', inner: '#c9a5a5', outline: '#33333c', tongue: '#e8747f' },
-  { name: 'Chihuahua', coat: '#dcb783', mark: '#c39a63', white: '#f2e4ca', patch: '#dcb783', eye: '#3f2c1f', nose: '#231d1a', inner: '#d6a794', outline: '#8a6636', tongue: '#e8747f' },
 ];
 
 // Build archetypes. `ear`, `tail` and `legLen` do most of the visual work.
@@ -578,8 +565,8 @@ const DOG_BUILDS = {
   toy:        { bodyW: 0.82, headRx: 6.0, headRy: 5.4, ear: 'big',    tail: 'curl',    snoutRx: 2.7, snoutRy: 2.3, eyeRx: 2.3, eyeRy: 2.4, marking: 'solid' },
 };
 
-//  Golden     Shiba    Corgi    Beagle   Husky      Dalmatian  Shepherd    Collie    Dachshund  Pug       Lab         Poodle    Aussie      Chihuahua
-const DOG_PATTERN_BUILD = ['retriever', 'spitz', 'dwarf', 'hound', 'working', 'spotted', 'shepherd', 'collie', 'longdog', 'brachy', 'labrador', 'poodle', 'merledog', 'toy'];
+//  Lab
+const DOG_PATTERN_BUILD = ['labrador'];
 
 // Tail shape per breed, read by the renderer's drawDogTail.
 const DOG_TAILS = DOG_PATTERN_BUILD.map((b) => DOG_BUILDS[b].tail || 'straight');

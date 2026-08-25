@@ -107,10 +107,12 @@ test('the coat a config asks for wins whichever order config and themes arrive i
 test('right-click cycles the coat into the active species own slot', () => {
   // This wrote to the cat's 'pattern' key whatever the pet was, so a dog's breed
   // was lost on the next launch AND stamped over the cat's stored coat.
+  // Only Black Lab ships, so cycling wraps 0 -> 0. The point of the test is which
+  // KEY the cycle writes to, not which index it lands on.
   const dog = overlay('dog');
-  dog.run('patternIndex = 2');
+  dog.run('patternIndex = 0');
   dog.run('cycleCoat()');
-  assert.strictEqual(dog.store.dogPattern, '3', 'a dog must remember its own breed');
+  assert.strictEqual(dog.store.dogPattern, '0', 'a dog must remember its own breed');
   assert.strictEqual(dog.store.pattern, undefined, "cycling a dog's breed must not touch the cat's coat");
 
   const cat = overlay('cat');
@@ -155,7 +157,7 @@ test('a coat fallback follows the species that is live now', () => {
   // (a husky) because 4 is where the cat's Tuxedo sits.
   const h = overlay('cat');
   h.run('setSpecies("dog", 999)');   // out-of-range coat -> fall back
-  assert.strictEqual(h.run('PATTERNS[patternIndex].name'), 'Golden Retriever');
+  assert.strictEqual(h.run('PATTERNS[patternIndex].name'), 'Black Lab');
   h.run('setSpecies("cat", 999)');
   assert.strictEqual(h.run('PATTERNS[patternIndex].name'), 'Tuxedo');
 });
