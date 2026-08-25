@@ -13,9 +13,40 @@
 > style. The prompts in `~/pixelpets-frame-pack/prompts/` now specify that
 > explicitly; they did not before, which is why the current art clashes.
 >
-> Coverage: only `tuxedo`, `orange-tabby` and `mackerel-tabby` are live. `gray` is
-> on `CLIMB_FRAME_SKIP` (its art is a green-eyed bicolor, the coat is solid gray
-> with gold eyes). The other 11 coats and every dog use the procedural climb.
+> ## Coverage: WORK IN PROGRESS, 3 of 14
+>
+> Only these three climb with painted art:
+>
+> - [x] `tuxedo` (the shipped default coat)
+> - [x] `orange-tabby`
+> - [x] `mackerel-tabby`
+>
+> These fall back to the **procedural** climb and are still to do:
+>
+> - [ ] `gray` - REPAINT, not a new sheet. Five frames already exist here, but
+>       `CLIMB_FRAME_SKIP` in `src/renderer.js` excludes them: the art is a
+>       green-eyed gray-and-white bicolor while the Gray coat is solid gray with
+>       gold eyes. Repaint, then drop it from that set.
+> - [ ] `brown-tabby`   - [ ] `siamese`    - [ ] `black`
+> - [ ] `white`         - [ ] `cream`      - [ ] `tortoiseshell`
+> - [ ] `calico`        - [ ] `slate`      - [ ] `chocolate`
+> - [ ] `russian-blue`
+> - [ ] the dog. Painted climb is cat-only today: `coatHasFrames()` returns false
+>       for dogs unconditionally, so a Black Lab sheet would slice and embed but
+>       never draw. Needs the gate opened AND the lookup namespaced by species,
+>       since a dog breed and a cat coat can share a slug.
+>
+> Ready-to-paste prompts for every one of these live in
+> `~/pixelpets-frame-pack/prompts/`, already carrying the chunky-flat-sprite style
+> rule, the one-row layout rule and the per-coat palette from `src/cat-sprite.js`.
+>
+> Until a coat is ticked off it uses the procedural climb, which is correct and
+> connected but reads weakly: the raised paw is a small pale shape rather than an
+> obvious grip. That is a structural limit, not a bug. `eyeBox()` splits the grid
+> at column 12 so the face must straddle that seam, which pins the body at column
+> 11.25; the rope sits at 18.4 with the shoulders between them, so any grip level
+> with the face drags the arm straight across it and destroys the eyes. The
+> overhead reach is the only place the arm can go. Painted art sidesteps it.
 
 ## Layout
 
