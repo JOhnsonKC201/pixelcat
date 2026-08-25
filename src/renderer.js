@@ -1639,22 +1639,27 @@ const CLIMB_SCENE_H = 2.4;      // full painted scene (cat+rope+ball) height as 
 const CLIMB_ANCHOR_X = 0.5;     // horizontal anchor fraction of the frame (rope/cat centre over pos.x)
 const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on the floor line
 const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-');
-// PAINTED CLIMB ART IS GATED OFF.
+// Painted climb art is ON, and that is a deliberate trade.
 //
-// The painted rope-climb scenes are a different art language from the pet itself.
-// The pet is a chunky ~24x30-cell sprite with flat fills and a pale sticker
-// outline; the painted scenes are fine-grained and softly shaded. Drawn one after
-// the other the pet visibly changed BOTH style and size mid-scroll - measured at
-// 169px wide sitting against 75px climbing. Tuxedo is the shipped DEFAULT coat and
-// had painted art, so every new user met that break on their very first scroll.
-// Only 4 of 14 coats had art at all, so the app was inconsistent in two directions
-// at once: sprite-vs-painted for those four, and painted-vs-procedural between coats.
+// The painted rope-climb scenes are a different art language from the pet itself:
+// the pet is a chunky ~24x30-cell sprite with flat fills and a pale sticker
+// outline, while these are fine-grained and softly shaded, so the pet changes
+// style and size mid-scroll. That was measured and it is real.
 //
-// The procedural climb already covers every coat and both species in the pet's own
-// style, so gating this off costs nothing visually and removes the break. The art
-// is still in assets/climb/ and the frame picker below is still tested: flip this
-// to true to restore it, once the art is repainted to match the sprite.
-const PAINTED_CLIMB = false;
+// It is still the better of two bad options today, because the PROCEDURAL climb
+// does not read at this sprite size. A paw reaching overhead is about 4x3 cells of
+// pale colour, which renders as a white blob on the cat's skull rather than a grip,
+// and the front-facing symmetrical body reads as "cat standing next to a string" -
+// exactly what composeClimb was written to avoid. A climb that looks right and
+// matches nothing beats a climb that matches and looks broken.
+//
+// The real fix is painted art drawn IN the sprite's own chunky flat style, which
+// removes the trade entirely. The prompts in ~/pixelpets-frame-pack/prompts/ now
+// specify that style explicitly; they did not before, which is why this art clashes.
+//
+// Coverage today: only tuxedo, orange-tabby and mackerel-tabby are painted (gray is
+// skipped below). The other 11 coats and every dog still use the procedural climb.
+const PAINTED_CLIMB = true;
 // Per-coat exclusions, applied when PAINTED_CLIMB is on. 'gray' is painted as a
 // green-eyed gray+white bicolor, but the gray coat is solid gray with gold eyes.
 const CLIMB_FRAME_SKIP = new Set(['gray']);

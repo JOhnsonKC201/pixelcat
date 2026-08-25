@@ -34,10 +34,10 @@ function pickedFrame(h, { climbing, dir, coat, anim = 0 }) {
   })()`);
 }
 
-// Force the painted set into the cache the way loadClimbFrames() would if
-// PAINTED_CLIMB were on. The picker and the cache-lifetime regression below are
-// worth keeping covered while the gate is off, so that flipping it back on lands
-// on tested code rather than on code nobody has exercised in months.
+// Force the painted set into the cache, so the picker and the cache-lifetime
+// regression below are covered by their own fixture rather than by whatever
+// loadClimbFrames() happened to decode. That keeps them meaningful whichever way
+// PAINTED_CLIMB is set.
 function primePaintedFrames(h, coat = 'tuxedo') {
   h.run(`(() => {
     const set = CLIMB_FRAMES[${JSON.stringify(coat)}] || {};
@@ -46,18 +46,17 @@ function primePaintedFrames(h, coat = 'tuxedo') {
   })()`);
 }
 
-test('painted climb art is gated off, so every coat uses the procedural climb', () => {
+test('painted climb art is on, and decodes for the coats that ship it', () => {
   const h = loadOverlay();
-  assert.strictEqual(h.run('PAINTED_CLIMB'), false, 'the gate should be off');
-  assert.deepStrictEqual(h.run('Object.keys(climbImgs)'), [],
-    'nothing should decode while the gate is off');
-  // Tuxedo is the shipped default and the coat that used to break on first scroll.
-  assert.strictEqual(h.run('coatHasFrames("tuxedo")'), false,
-    'the default coat must climb procedurally, in the same style as the sitting sprite');
-  assert.strictEqual(h.run('coatHasFrames("siamese")'), false);
-  // The art itself is still shipped, so re-enabling is a one-line change.
-  assert.ok(h.run('Object.keys(CLIMB_FRAMES).length') > 0,
-    'the painted frames should still be embedded, just not loaded');
+  assert.strictEqual(h.run('PAINTED_CLIMB'), true, 'the painted climb should be enabled');
+  const coats = h.run('Object.keys(climbImgs).sort()');
+  assert.ok(coats.includes('tuxedo'), 'tuxedo is the default coat and must have painted art');
+  assert.ok(coats.length >= 2, `expected several painted coats, got ${JSON.stringify(coats)}`);
+  assert.ok(!coats.includes('gray'),
+    "'gray' art is a mismatched repaint - it must stay on the procedural climb");
+  assert.strictEqual(h.run('coatHasFrames("tuxedo")'), true);
+  // Coverage is partial on purpose: only 3 coats are painted, the rest fall back.
+  assert.strictEqual(h.run('coatHasFrames("siamese")'), false, 'a coat with no art has no painted set');
 });
 
 test('scrolling starts the climb and the heading follows the wheel direction', () => {
@@ -78,7 +77,7 @@ test('scrolling starts the climb and the heading follows the wheel direction', (
   assert.ok(h.run('paperLen') <= 1, 'climb energy bleeds off after the scrolling stops');
 });
 
-test('the painted frame picker maps heading to the right frame (gate off, primed by hand)', () => {
+test('the painted frame picker maps heading to the right frame', () => {
   const h = loadOverlay();
   primePaintedFrames(h);
   assert.strictEqual(pickedFrame(h, { climbing: true, dir: -1, coat: 'tuxedo', anim: 0 }), 'up1');
@@ -91,11 +90,10 @@ test('the painted frame picker maps heading to the right frame (gate off, primed
 });
 
 test('a species round-trip does not clear the painted cache (regression)', () => {
-  // Kept alive with the gate off. The original bug: the frames decode ONCE at
-  // startup with no reloader, so anything that empties climbImgs silently
-  // downgrades the cat for the rest of the session, and you only notice by
-  // scrolling after a species swap. Priming by hand means this still guards
-  // setSpecies() for whenever PAINTED_CLIMB is turned back on.
+  // The frames decode ONCE at startup with no reloader, so anything that empties
+  // climbImgs silently downgrades the cat to the procedural climb for the rest of
+  // the session, and you only notice by scrolling after a species swap. Primed by
+  // hand so this keeps guarding setSpecies() regardless of how PAINTED_CLIMB is set.
   const h = loadOverlay();
   primePaintedFrames(h);
   assert.strictEqual(h.run('coatHasFrames("tuxedo")'), true, 'primed cache should read as painted');

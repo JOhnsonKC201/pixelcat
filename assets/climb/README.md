@@ -1,34 +1,21 @@
 # Scroll rope-climb sprite frames (per coat)
 
-> **⚠️ These are currently GATED OFF.** `PAINTED_CLIMB = false` in
-> `src/renderer.js` stops any of this art loading, so every coat and both species
-> use the **procedural** climb instead. The painted scenes are a different art
-> language from the pet itself: the sprite is a chunky ~24x30-cell flat-filled
-> character, while these are fine-grained and softly shaded, so the pet visibly
-> changed style *and* size mid-scroll (measured at 169px wide sitting against 75px
-> climbing). Tuxedo is the shipped default coat and had painted art, so every new
-> user hit that break on their first scroll.
+> **Status: ON**, via `PAINTED_CLIMB = true` in `src/renderer.js`.
 >
-> The art below is still shipped and the frame picker is still covered by
-> `tests/climb.test.js`. To restore it: repaint to match the sprite style (see
-> `~/pixelpets-frame-pack/prompts/`, which now specify that style explicitly), then
-> flip `PAINTED_CLIMB` back to `true`.
+> A known trade-off. These painted scenes are a different art language from the pet
+> itself (the sprite is a chunky ~24x30-cell flat-filled character; these are
+> fine-grained and softly shaded), so the pet changes style and size mid-scroll.
+> They are still preferred because the **procedural** climb does not read at sprite
+> size: a paw reaching overhead is ~4x3 cells of pale colour, which renders as a
+> white blob on the cat's skull rather than a grip.
 >
-> Note that while gated off, `src/climb-frames.js` is ~4.7 MB of base64 that ships
-> and parses at startup for nothing. Moving the coat folders under
-> `assets/climb/_disabled/` and re-running `npm run climb-frames` would empty it
-> (the embed script skips `_`-prefixed directories).
-
-The cat that climbs a yarn rope while you scroll. Frames are **per coat**: each coat
-folder holds 5 self-contained painted scenes (cat + rope + yarn ball). A coat
-**with** its own folder uses the painted art; a coat **without** one uses the
-**procedural** rope-climb in its own colours (no cross-coat fallback). **Tuxedo** is
-the default coat out of the box.
-
-Painted coats currently shipped: `tuxedo`, `orange-tabby`, `mackerel-tabby`, `gray`.
-Every other coat (siamese, calico, black, …) climbs procedurally until a sheet is
-added for it. (`black` was supplied on a checkerboard background that couldn't be
-keyed cleanly - re-send it on a solid/transparent background to enable it.)
+> The fix that removes the trade is painted art drawn IN the sprite's chunky flat
+> style. The prompts in `~/pixelpets-frame-pack/prompts/` now specify that
+> explicitly; they did not before, which is why the current art clashes.
+>
+> Coverage: only `tuxedo`, `orange-tabby` and `mackerel-tabby` are live. `gray` is
+> on `CLIMB_FRAME_SKIP` (its art is a green-eyed bicolor, the coat is solid gray
+> with gold eyes). The other 11 coats and every dog use the procedural climb.
 
 ## Layout
 
