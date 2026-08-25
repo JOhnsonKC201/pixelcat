@@ -29,6 +29,7 @@ const sharedOverlay = {
   // audio.js (loaded before renderer.js) provides these:
   audio: 'readonly', volNow: 'readonly', master: 'readonly', playMeow: 'readonly',
   startPurr: 'readonly', stopPurr: 'readonly', playChirp: 'readonly', playMrrp: 'readonly',
+  playSwipe: 'readonly', playPlop: 'readonly',
   // effects.js provides these:
   drawThinkBubble: 'readonly', drawWorkBubble: 'readonly', drawDoneSpark: 'readonly', drawHeart: 'readonly',
   drawSparkle: 'readonly', drawGuitar: 'readonly', drawNote: 'readonly',

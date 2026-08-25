@@ -5,7 +5,7 @@
 // and `patternIndex`/`PATTERN_BUILD` (per-breed voice) and exposes audio()/playMeow()/
 // startPurr()/stopPurr()/playChirp()/playMrrp() that renderer.js calls. Extracted from
 // renderer.js to keep that file focused on drawing.
-/* exported playMeow, startPurr, stopPurr, playChirp, playMrrp */
+/* exported playMeow, startPurr, stopPurr, playChirp, playMrrp, playSwipe, playPlop */
 let actx = null, master = null;
 function volNow() { return (config && typeof config.volume === 'number' ? config.volume : 100) / 100; }
 // Soft-clip (tanh) curve for the master safety stage: ~unity slope near zero (quiet
@@ -424,4 +424,72 @@ function playMrrp() {
   const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1300;
   o.connect(lp); lp.connect(g); o.start(t0); o.stop(t0 + 0.2);
   o.onended = () => { try { g.disconnect(); lp.disconnect(); } catch (e) { /* ignore */ } };
+}
+
+// A paw cutting the air: a short filtered-noise whoosh under each swipe of the
+// rear-up bat. Both things that use that pose (the butterfly overhead, and the
+// leaf that blows past while you scroll) were completely silent before, so the
+// pet's most physical animation made no sound at all.
+//
+// Species-neutral on purpose: a paw moving through air sounds the same whoever it
+// is attached to, so unlike the voices this one does not fork on voiceIsDog().
+//
+// Deliberately quiet. It fires once per stroke and strokes come every ~200ms while
+// batting, so anything louder turns into a hiss you notice instead of texture you
+// only miss when it is gone. `strength` 0..1 scales it with how hard the swipe is.
+function playSwipe(strength) {
+  const ac = audio(); if (!ac) return;
+  const s = Math.max(0, Math.min(1, strength == null ? 1 : strength));
+  const t0 = ac.currentTime;
+  const g = ac.createGain(); g.connect(master);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.030 + 0.026 * s, t0 + 0.022);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.15);
+  // The band sweeps UP as the paw accelerates and falls away past the top of the
+  // arc, which is what makes it read as movement rather than a burst of static.
+  const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.1;
+  bp.frequency.setValueAtTime(820, t0);
+  bp.frequency.exponentialRampToValueAtTime(2400 + 900 * s, t0 + 0.085);
+  bp.frequency.exponentialRampToValueAtTime(1100, t0 + 0.15);
+  const n = noiseSource(ac);
+  n.connect(bp); bp.connect(g);
+  n.start(t0); n.stop(t0 + 0.16);
+  n.onended = () => { try { g.disconnect(); bp.disconnect(); } catch (e) { /* ignore */ } };
+}
+
+// The pet landing after you drop it: a soft, low thud with a paw-pat on top.
+//
+// Tapping the pet chirped, and shaking it mrrped, but PICKING IT UP AND DROPPING
+// IT made no sound at all - on the one interaction that is entirely about physical
+// feel. The landing already squashes and eases; this is the sound of that.
+//
+// `strength` 0..1 comes from how far it fell, so setting the pet down gently is
+// nearly silent and dropping it from the top of the screen actually lands.
+function playPlop(strength) {
+  const ac = audio(); if (!ac) return;
+  const s = Math.max(0, Math.min(1, strength == null ? 0.5 : strength));
+  const t0 = ac.currentTime;
+
+  // body: a low sine dropping away fast. Short enough to read as a thud rather
+  // than a note, which is the difference between landing and beeping.
+  const g = ac.createGain(); g.connect(master);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.055 + 0.075 * s, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.13 + 0.05 * s);
+  const o = ac.createOscillator(); o.type = 'sine';
+  o.frequency.setValueAtTime(155 - 25 * s, t0);
+  o.frequency.exponentialRampToValueAtTime(62, t0 + 0.11);
+  o.connect(g); o.start(t0); o.stop(t0 + 0.2);
+
+  // paws: a very short lowpassed noise tick, so it reads as feet meeting a
+  // surface instead of a bass drum on its own.
+  const ng = ac.createGain(); ng.connect(master);
+  ng.gain.setValueAtTime(0.0001, t0);
+  ng.gain.exponentialRampToValueAtTime(0.020 + 0.020 * s, t0 + 0.006);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500;
+  const n = noiseSource(ac);
+  n.connect(lp); lp.connect(ng); n.start(t0); n.stop(t0 + 0.06);
+
+  o.onended = () => { try { g.disconnect(); ng.disconnect(); lp.disconnect(); } catch (e) { /* ignore */ } };
 }

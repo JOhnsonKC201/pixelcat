@@ -101,3 +101,25 @@ test('a swipe connects at most once per leaf', () => {
   }
   assert.ok(flips <= 4, `too many strikes (${flips}) - the hit latch is not holding`);
 });
+
+test('the swipe whoosh fires once per stroke, not once per frame', () => {
+  // The bat pose is re-rendered every frame, so a naive "play it while swiping"
+  // would fire the whoosh 16 times a second and turn into a hiss. One stroke is
+  // one half-period of the swing, and the sound belongs at the START of a stroke,
+  // when the paw is accelerating.
+  const h = loadOverlay();
+  // sound ON for this one: the whoosh is gated on config.soundOn, and the other
+  // tests here run silent.
+  h.ipc('onConfig', { species: 'cat', soundOn: true, followCursor: true, floorLock: true, butterflyOn: false });
+  h.run('var __swipes = 0; playSwipe = function () { __swipes++; };');
+  for (let i = 0; i < 4; i++) h.ipc('onScroll', 1);
+  const frames = 40;
+  for (let i = 1; i <= frames; i++) {
+    if (i % 4 === 0) h.ipc('onScroll', 1);
+    h.run(`draw(${i * STEP})`);
+  }
+  const swipes = h.run('__swipes');
+  assert.ok(swipes > 0, 'a swiping pet should make some noise');
+  assert.ok(swipes < frames / 2,
+    `${swipes} whooshes in ${frames} frames means it is firing per frame, not per stroke`);
+});

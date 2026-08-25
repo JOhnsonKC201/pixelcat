@@ -106,3 +106,23 @@ test('flicking the cursor straight past the pet is not a pat', () => {
   const eyes = run(h, 6, (i) => ({ x: p.x - 600 + i * 240, y: p.y - p.SH * 0.5 }));
   assert.ok(!eyes.includes('happy'), 'a fast flyby should not read as petting');
 });
+
+test('dropping the pet thuds, but a floor-line nudge stays silent', () => {
+  // Tapping chirped and shaking mrrped, but a DROP - the one interaction that is
+  // entirely about physical feel - was silent. The catch is that the same settle
+  // easing also runs when the floor line shifts under a pet already sitting on it,
+  // which is not a landing and must not make a noise while nobody is touching it.
+  const h = loadOverlay();
+  h.ipc('onConfig', { species: 'cat', soundOn: true, followCursor: true, floorLock: true, butterflyOn: false });
+  h.run('var __plops = 0; playPlop = function () { __plops++; };');
+
+  // a real drop: well above the resting line
+  h.run('settleFromY = restingY() - 160; settleToY = restingY(); settleT0 = 0; pos.y = settleFromY;');
+  for (let t = 60; t <= 1200; t += 60) h.run(`draw(${t})`);
+  assert.strictEqual(h.run('__plops'), 1, 'a real drop should land exactly once');
+
+  // a nudge of a couple of px is not a landing
+  h.run('__plops = 0; settleFromY = restingY() - 4; settleToY = restingY(); settleT0 = 2000; pos.y = settleFromY;');
+  for (let t = 2060; t <= 3200; t += 60) h.run(`draw(${t})`);
+  assert.strictEqual(h.run('__plops'), 0, 'a tiny settle is not a landing and must stay silent');
+});

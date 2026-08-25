@@ -149,3 +149,27 @@ test('jam scheduler drives many beats (chord graph + melody) without throwing', 
   s.window.jamStop();
   assert.ok(true);
 });
+
+// ---- swipe whoosh -----------------------------------------------------------
+// The rear-up bat was silent. That pose drives BOTH the butterfly overhead and the
+// leaf that blows past while you scroll, so the pet's most physical animation made
+// no sound at all. playSwipe is the paw cutting the air under each stroke.
+test('the swipe whoosh runs at every strength, for both species', () => {
+  const s = loadAudioJam();
+  s.audio();
+  for (const dog of [false, true]) {
+    s.isDog = () => dog;
+    for (const strength of [undefined, 0, 0.5, 1, -3, 42, NaN]) s.playSwipe(strength);
+  }
+  assert.ok(typeof s.playSwipe === 'function');
+});
+
+test('the landing thud runs at every drop height, for both species', () => {
+  const s = loadAudioJam();
+  s.audio();
+  for (const dog of [false, true]) {
+    s.isDog = () => dog;
+    for (const strength of [undefined, 0, 0.5, 1, -3, 42, NaN]) s.playPlop(strength);
+  }
+  assert.ok(typeof s.playPlop === 'function');
+});

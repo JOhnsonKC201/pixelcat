@@ -881,6 +881,14 @@ function renderRearBat(t, palRGB, blinking, o) {
   const swing = (t - (o.swingT0 != null ? o.swingT0 : bfSwatT0)) / 130;                // quick swipe tempo
   const left = Math.max(0, Math.sin(swing)), right = Math.max(0, Math.sin(swing + Math.PI));
   const topPh = Math.max(left, right);
+  // One whoosh per swipe, not per frame. Each half-period of the swing is one
+  // stroke, so the stroke index changing IS a new swipe starting - and the start
+  // is the right moment for it, because that is when the paw is accelerating.
+  const stroke = Math.floor(swing / Math.PI);
+  if (stroke !== lastSwipeStroke) {
+    lastSwipeStroke = stroke;
+    if (config && config.soundOn) playSwipe(o.strength == null ? 1 : o.strength);
+  }
   const sp = batSpriteFor(patternIndex, left >= right ? -1 : 1, topPh);
   drawShadow(pos.x, pos.y, 0.2, 34);
   octx.clearRect(0, 0, oc.width, oc.height);
@@ -1014,6 +1022,7 @@ let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, scrollRat
 // the PROVEN bat rig, whose arm bows outward to stay clear of the skull.
 let swatLeaf = null;      // { x, y, spin, spinV, hit } - null when nothing is flying past
 let swatT0 = 0;           // swipe tempo anchor, reset when a new leaf enters
+let lastSwipeStroke = -1;   // which swipe of the bat cycle last played its whoosh
 // liveliness: eased gaze, idle micro-actions, animated tail + frame governor
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
@@ -1834,7 +1843,15 @@ function draw(t) {
     const k = 1 - Math.pow(1 - se, 3);                 // easeOutCubic
     pos.y = settleFromY + (settleToY - settleFromY) * k;
     settleSquash = (1 - k) * 0.03;                     // a whisper of squash that resolves on landing
-    if (se >= 1) { pos.y = settleToY; settleT0 = -1; settleSquash = 0; restSprings(); persistPos(); }
+    if (se >= 1) {
+      // Landed. Scale the thud by how far it actually fell, and stay silent for the
+      // tiny settles that happen when the floor line shifts under a pet that is
+      // already sitting on it - those are not a landing, and a sound there would
+      // fire at random while nobody is touching anything.
+      const fall = Math.abs(settleToY - settleFromY);
+      if (fall > 14 && config && config.soundOn) playPlop(clamp(fall / 220, 0, 1));
+      pos.y = settleToY; settleT0 = -1; settleSquash = 0; restSprings(); persistPos();
+    }
     wantHighFps = true;
   }
   ctx.clearRect(0, 0, viewW, viewH);
