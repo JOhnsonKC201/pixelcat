@@ -34,14 +34,30 @@ function pickedFrame(h, { climbing, dir, coat, anim = 0 }) {
   })()`);
 }
 
-test('painted climb frames decode for the coats that ship art', () => {
+// Force the painted set into the cache the way loadClimbFrames() would if
+// PAINTED_CLIMB were on. The picker and the cache-lifetime regression below are
+// worth keeping covered while the gate is off, so that flipping it back on lands
+// on tested code rather than on code nobody has exercised in months.
+function primePaintedFrames(h, coat = 'tuxedo') {
+  h.run(`(() => {
+    const set = CLIMB_FRAMES[${JSON.stringify(coat)}] || {};
+    climbImgs[${JSON.stringify(coat)}] = {};
+    for (const k of Object.keys(set)) climbImgs[${JSON.stringify(coat)}][k] = { src: set[k], complete: true };
+  })()`);
+}
+
+test('painted climb art is gated off, so every coat uses the procedural climb', () => {
   const h = loadOverlay();
-  const coats = h.run('Object.keys(climbImgs).sort()');
-  assert.ok(coats.includes('tuxedo'), 'tuxedo is the default coat and must have painted art');
-  assert.ok(coats.length >= 2, `expected several painted coats, got ${JSON.stringify(coats)}`);
-  assert.ok(!coats.includes('gray'), "'gray' art is a mismatched repaint - it must stay on the procedural climb");
-  assert.strictEqual(h.run('coatHasFrames("tuxedo")'), true);
-  assert.strictEqual(h.run('coatHasFrames("siamese")'), false, 'a coat with no art has no painted set');
+  assert.strictEqual(h.run('PAINTED_CLIMB'), false, 'the gate should be off');
+  assert.deepStrictEqual(h.run('Object.keys(climbImgs)'), [],
+    'nothing should decode while the gate is off');
+  // Tuxedo is the shipped default and the coat that used to break on first scroll.
+  assert.strictEqual(h.run('coatHasFrames("tuxedo")'), false,
+    'the default coat must climb procedurally, in the same style as the sitting sprite');
+  assert.strictEqual(h.run('coatHasFrames("siamese")'), false);
+  // The art itself is still shipped, so re-enabling is a one-line change.
+  assert.ok(h.run('Object.keys(CLIMB_FRAMES).length') > 0,
+    'the painted frames should still be embedded, just not loaded');
 });
 
 test('scrolling starts the climb and the heading follows the wheel direction', () => {
@@ -62,8 +78,9 @@ test('scrolling starts the climb and the heading follows the wheel direction', (
   assert.ok(h.run('paperLen') <= 1, 'climb energy bleeds off after the scrolling stops');
 });
 
-test('the painted climb uses the up frames going up and the down frames going down', () => {
+test('the painted frame picker maps heading to the right frame (gate off, primed by hand)', () => {
   const h = loadOverlay();
+  primePaintedFrames(h);
   assert.strictEqual(pickedFrame(h, { climbing: true, dir: -1, coat: 'tuxedo', anim: 0 }), 'up1');
   assert.strictEqual(pickedFrame(h, { climbing: true, dir: -1, coat: 'tuxedo', anim: 1 }), 'up2');
   assert.strictEqual(pickedFrame(h, { climbing: true, dir: 1, coat: 'tuxedo', anim: 0 }), 'down1');
@@ -73,9 +90,15 @@ test('the painted climb uses the up frames going up and the down frames going do
   assert.strictEqual(pickedFrame(h, { climbing: true, dir: 0.1, coat: 'tuxedo' }), 'idle');
 });
 
-test('a species round-trip keeps the cat painted climb (regression)', () => {
+test('a species round-trip does not clear the painted cache (regression)', () => {
+  // Kept alive with the gate off. The original bug: the frames decode ONCE at
+  // startup with no reloader, so anything that empties climbImgs silently
+  // downgrades the cat for the rest of the session, and you only notice by
+  // scrolling after a species swap. Priming by hand means this still guards
+  // setSpecies() for whenever PAINTED_CLIMB is turned back on.
   const h = loadOverlay();
-  assert.strictEqual(h.run('coatHasFrames("tuxedo")'), true, 'cat starts with its painted climb');
+  primePaintedFrames(h);
+  assert.strictEqual(h.run('coatHasFrames("tuxedo")'), true, 'primed cache should read as painted');
 
   h.run('setSpecies("dog")');
   h.run('setSpecies("cat")');

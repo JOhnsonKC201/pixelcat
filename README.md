@@ -110,9 +110,9 @@ npm run sheet:dog   # previews/dog-sheet.png - the five base poses only
 </table>
 
 <div align="center">
-<sub>The climb clip uses the app's own hand-painted Tuxedo frames. Coats without painted art climb the same
-rope from a composed pose in their own colours, dogs included. Everything here is rendered from the sprite the
-pet draws with, generated headlessly by one script. Nothing is a screen recording.</sub>
+<sub>Every coat climbs the rope from a composed pose in its own colours, dogs included, so the climbing pet is the
+same character as the sitting one. Everything here is rendered from the sprite the pet draws with, generated
+headlessly by one script. Nothing is a screen recording.</sub>
 </div>
 
 ## What it actually does

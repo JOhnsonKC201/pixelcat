@@ -1639,12 +1639,28 @@ const CLIMB_SCENE_H = 2.4;      // full painted scene (cat+rope+ball) height as 
 const CLIMB_ANCHOR_X = 0.5;     // horizontal anchor fraction of the frame (rope/cat centre over pos.x)
 const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on the floor line
 const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-');
-// Coats whose painted climb art doesn't match the coat: skip them so they fall back
-// to the procedural climb in their OWN colours. 'gray' is painted as a green-eyed
-// gray+white bicolor, but the gray coat is solid gray with gold eyes - repaint to re-enable.
+// PAINTED CLIMB ART IS GATED OFF.
+//
+// The painted rope-climb scenes are a different art language from the pet itself.
+// The pet is a chunky ~24x30-cell sprite with flat fills and a pale sticker
+// outline; the painted scenes are fine-grained and softly shaded. Drawn one after
+// the other the pet visibly changed BOTH style and size mid-scroll - measured at
+// 169px wide sitting against 75px climbing. Tuxedo is the shipped DEFAULT coat and
+// had painted art, so every new user met that break on their very first scroll.
+// Only 4 of 14 coats had art at all, so the app was inconsistent in two directions
+// at once: sprite-vs-painted for those four, and painted-vs-procedural between coats.
+//
+// The procedural climb already covers every coat and both species in the pet's own
+// style, so gating this off costs nothing visually and removes the break. The art
+// is still in assets/climb/ and the frame picker below is still tested: flip this
+// to true to restore it, once the art is repainted to match the sprite.
+const PAINTED_CLIMB = false;
+// Per-coat exclusions, applied when PAINTED_CLIMB is on. 'gray' is painted as a
+// green-eyed gray+white bicolor, but the gray coat is solid gray with gold eyes.
 const CLIMB_FRAME_SKIP = new Set(['gray']);
 let climbImgs = {};   // { coat: { idle, up1, up2, down1, down2: Image } }
 (function loadClimbFrames() {
+  if (!PAINTED_CLIMB) return;
   if (typeof CLIMB_FRAMES === 'undefined') return;
   for (const coat of Object.keys(CLIMB_FRAMES)) {
     if (CLIMB_FRAME_SKIP.has(coat)) continue;   // mismatched art -> use procedural climb

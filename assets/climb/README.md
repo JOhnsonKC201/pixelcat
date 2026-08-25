@@ -1,5 +1,24 @@
 # Scroll rope-climb sprite frames (per coat)
 
+> **⚠️ These are currently GATED OFF.** `PAINTED_CLIMB = false` in
+> `src/renderer.js` stops any of this art loading, so every coat and both species
+> use the **procedural** climb instead. The painted scenes are a different art
+> language from the pet itself: the sprite is a chunky ~24x30-cell flat-filled
+> character, while these are fine-grained and softly shaded, so the pet visibly
+> changed style *and* size mid-scroll (measured at 169px wide sitting against 75px
+> climbing). Tuxedo is the shipped default coat and had painted art, so every new
+> user hit that break on their first scroll.
+>
+> The art below is still shipped and the frame picker is still covered by
+> `tests/climb.test.js`. To restore it: repaint to match the sprite style (see
+> `~/pixelpets-frame-pack/prompts/`, which now specify that style explicitly), then
+> flip `PAINTED_CLIMB` back to `true`.
+>
+> Note that while gated off, `src/climb-frames.js` is ~4.7 MB of base64 that ships
+> and parses at startup for nothing. Moving the coat folders under
+> `assets/climb/_disabled/` and re-running `npm run climb-frames` would empty it
+> (the embed script skips `_`-prefixed directories).
+
 The cat that climbs a yarn rope while you scroll. Frames are **per coat**: each coat
 folder holds 5 self-contained painted scenes (cat + rope + yarn ball). A coat
 **with** its own folder uses the painted art; a coat **without** one uses the
