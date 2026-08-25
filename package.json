@@ -15,6 +15,7 @@
     "sheet": "electron . --sheet",
     "sheet:dog": "node scripts/pet-sheet.js dog",
     "sheet:cat": "node scripts/pet-sheet.js cat",
+    "climb-frames": "node scripts/embed-climb-frames.js",
     "poses:cat": "node scripts/pet-sheet.js cat --all",
     "poses:dog": "node scripts/pet-sheet.js dog --all",
     "icon": "node scripts/make-logo-icons.js",

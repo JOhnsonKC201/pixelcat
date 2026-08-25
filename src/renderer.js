@@ -1017,6 +1017,9 @@ const STRETCH_INTERVAL = 1000 * 60 * 20, STRETCH_MS = 1700, DONE_MS = 760;
 // turns and decays once it stops. `scrollDirRaw` is -1 scrolling up, +1 down, and
 // `scrollRate` is the smoothed wheel speed that sets how fast the leaf travels.
 let paperLen = 0, paperUntil = 0, scrollPulses = 0, scrollDirRaw = -1, scrollRate = 0;
+// Painted-climb only: the eased -1..+1 heading and the frame accumulator that
+// pickClimbImg() steps through idle/up1/up2/down1/down2.
+let climbDir = -1, climbAnim = 0;
 // Scroll swat: a leaf streaks past in the direction you are scrolling and the pet
 // rears up and takes swipes at it. Same scroll energy as before, but the pose is
 // the PROVEN bat rig, whose arm bows outward to stay clear of the skull.
@@ -1466,6 +1469,95 @@ function drawPomoTimer(x, y, t) {
 
 // Should the sprite be mirrored right now? Only while walking left.
 const faceLeftAt = (t) => roamUntil > t && !!roamFrom && !!roamTo && roamTo.x < roamFrom.x;
+
+// ---- painted rope climb (per-coat art) --------------------------------------
+// Only the PAINTED half is here. The procedural climb pose that used to cover
+// every other coat is gone for good: eyeBox() splits the grid at column 12 so the
+// face has to straddle that seam, which pinned the body at 11.25 while the rope sat
+// at 18.4 - leaving the arm no reach that did not cross the face. The only place it
+// could grip was above the head, where a 4x3-cell mitt reads as a lump on the skull.
+// Coats WITHOUT painted art swipe at the scroll leaf instead (see swatLeaf), which
+// uses the bat rig, whose arm bows outward specifically to clear the skull.
+//
+// Note these frames are whole SCENES: the rope and the floor ball are painted into
+// the art, which is why nothing here draws a strand. drawRope/ropeGeom belonged to
+// the procedural climb and went with it.
+// --- raster climb: painted PER-COAT sprite frames. A coat with its own set climbs
+// with the painted art; a coat WITHOUT one uses the procedural climb in its colours ---
+const CLIMB_SCENE_H = 2.4;      // full painted scene (cat+rope+ball) height as a multiple of the seated sprite
+const CLIMB_ANCHOR_X = 0.5;     // horizontal anchor fraction of the frame (rope/cat centre over pos.x)
+const CLIMB_DROP = 4;           // sink the scene a touch so the ball rests on the floor line
+const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-');
+// Painted climb art is ON, and that is a deliberate trade.
+//
+// The painted rope-climb scenes are a different art language from the pet itself:
+// the pet is a chunky ~24x30-cell sprite with flat fills and a pale sticker
+// outline, while these are fine-grained and softly shaded, so the pet changes
+// style and size mid-scroll. That was measured and it is real.
+//
+// It is still the better of two bad options today, because the PROCEDURAL climb
+// does not read at this sprite size. A paw reaching overhead is about 4x3 cells of
+// pale colour, which renders as a white blob on the cat's skull rather than a grip,
+// and the front-facing symmetrical body reads as "cat standing next to a string" -
+// exactly what composeClimb was written to avoid. A climb that looks right and
+// matches nothing beats a climb that matches and looks broken.
+//
+// The real fix is painted art drawn IN the sprite's own chunky flat style, which
+// removes the trade entirely. The prompts in ~/pixelpets-frame-pack/prompts/ now
+// specify that style explicitly; they did not before, which is why this art clashes.
+//
+// Coverage today: only tuxedo, orange-tabby and mackerel-tabby are painted (gray is
+// skipped below). The other 11 coats and every dog still use the procedural climb.
+const PAINTED_CLIMB = true;
+// Per-coat exclusions, applied when PAINTED_CLIMB is on. 'gray' is painted as a
+// green-eyed gray+white bicolor, but the gray coat is solid gray with gold eyes.
+const CLIMB_FRAME_SKIP = new Set(['gray']);
+let climbImgs = {};   // { coat: { idle, up1, up2, down1, down2: Image } }
+(function loadClimbFrames() {
+  if (!PAINTED_CLIMB) return;
+  if (typeof CLIMB_FRAMES === 'undefined') return;
+  for (const coat of Object.keys(CLIMB_FRAMES)) {
+    if (CLIMB_FRAME_SKIP.has(coat)) continue;   // mismatched art -> use procedural climb
+    climbImgs[coat] = climbImgs[coat] || {};
+    for (const frame of Object.keys(CLIMB_FRAMES[coat])) {
+      const im = new Image();
+      im.onload = () => { climbImgs[coat][frame] = im; if (typeof resumeRaf === 'function') resumeRaf(); };
+      im.src = CLIMB_FRAMES[coat][frame];
+    }
+  }
+})();
+
+// True only when THIS coat has its own decoded painted set (no cross-coat fallback).
+// The painted sets are cat-only art, so a dog always falls back to the procedural
+// climb in its own colours - even if a breed (or an imported custom coat) happens to
+// share a painted cat coat's name.
+const coatHasFrames = (coat) => {
+  if (isDog()) return false;
+  const f = climbImgs[coat];
+  return !!(f && f.idle && f.idle.complete);
+};
+
+// Pick a frame for this coat: idle when hanging, alternating up1/up2 climbing up,
+// down1/down2 climbing down. Returns null if the coat has no painted set.
+function pickClimbImg(t, climbing, dir, coat) {
+  const f = climbImgs[coat];
+  if (!f) return null;
+  if (!climbing || Math.abs(dir) < 0.25) return f.idle;
+  const a = Math.floor(climbAnim) % 2;   // alternation rate scales with scroll intensity (see climbFps)
+  if (dir < 0) return (a ? f.up2 : f.up1) || f.idle;
+  return (a ? f.down2 : f.down1) || f.idle;
+}
+
+// Blit the painted climb scene (cat + rope + ball, one self-contained image)
+// anchored so the yarn ball rests on the floor line.
+function drawClimbFrame(pos, t, climbing, dir, coat, bob) {
+  const img = pickClimbImg(t, climbing, dir, coat);
+  if (!img || !img.naturalHeight) return;
+  const h = Math.round(SH * CLIMB_SCENE_H), w = Math.round(img.naturalWidth * (h / img.naturalHeight));
+  const dx = Math.round(pos.x - w * CLIMB_ANCHOR_X);
+  const dy = Math.round(pos.y - h + CLIMB_DROP - (bob || 0));   // continuous heave on top of the crisp pose swap
+  ctx.drawImage(img, dx, dy, w, h);
+}
 
 // Grooming: the LIFT ENVELOPE only. The raised limb itself is a composed pose now
 // (composePawUp), so all that is left here is the timing that drives it plus the
@@ -1941,6 +2033,12 @@ function draw(t) {
   if (FORCED_STATE === 'paper') { paperLen = 50; scrollDirRaw = qp.get('dir') === 'down' ? 1 : -1; }   // --dir=up|down for shots
   else if (t > paperUntil) paperLen = Math.max(0, paperLen - dt * 0.06);
   const paperActive = FORCED_STATE === 'paper' || paperLen > 1;
+  // Which scroll reaction this coat gets. Coats WITH painted climb art climb the
+  // rope; every other coat and every dog swipes at a leaf instead, because the
+  // procedural climb pose they used to fall back on could not be made legible.
+  const paintedClimb = paperActive && coatHasFrames(coatSlug(PATTERNS[patternIndex] ? PATTERNS[patternIndex].name : ''));
+  const climbing = paperActive && (t < paperUntil || FORCED_STATE === 'paper');   // wheel turning vs coasting
+  climbDir += (scrollDirRaw - climbDir) * Math.min(1, dt * 0.012);                 // eased -1 (up) .. +1 (down)
   const instRate = dt > 0 ? pulses / (dt / 1000) : 0;                              // wheel ticks/sec this frame (spiky)
   scrollRate += (instRate - scrollRate) * Math.min(1, dt * 0.005);                 // heavily smoothed scroll speed
   // Leaf physics. It enters from the edge you are scrolling FROM and streaks past,
@@ -1948,7 +2046,7 @@ function draw(t) {
   // smoothed wheel rate: a gentle scroll drifts it, a hard flick whips it past.
   const swatDir = scrollDirRaw < 0 ? -1 : 1;                       // -1 up, +1 down
   const swatTop = pos.y - SH - 86, swatBot = pos.y + 8;
-  if (paperActive) {
+  if (paperActive && !paintedClimb) {
     if (!swatLeaf) {
       swatT0 = t;
       swatLeaf = {
@@ -1972,6 +2070,13 @@ function draw(t) {
   } else if (swatLeaf) {
     swatLeaf = null;
   }
+  // Painted climb cadence: the frames beat at the scroll's pace, and the scene
+  // heaves with each hand-over-hand pull so it does not hang frozen.
+  const climbFps = climbing ? clamp(1 + scrollRate * 0.09, 1, 6) : 0;             // gentle scroll ~1fps .. hard flick ~6fps
+  climbAnim += (dt / 1000) * climbFps;
+  const climbStroke = (t / (climbing ? 460 : 1100)) % 1;
+  const climbBob = paperActive ? Math.sin(climbStroke * Math.PI * 2) * (climbing ? 2.2 + Math.min(scrollRate, 45) * 0.045 : 1.1) : 0;
+
   // Mouse-hunt: when enabled in settings, a fast cursor flick (far enough away)
   // makes the cat crouch, stalk, and pounce. Off by config (or when the cat is set
   // to ignore the cursor) -> the cat stays put.
@@ -2024,7 +2129,7 @@ function draw(t) {
   // Scrolling rears the pet up at the leaf. Note batting excludes paperActive, so
   // the butterfly stands down while you scroll and these two can never fight over
   // the same pose in one frame.
-  const swatting = !!swatLeaf && paperActive && !hunting && !typing && !petting && !bodyPet && !grabbing && !startleActive;
+  const swatting = !!swatLeaf && paperActive && !paintedClimb && !hunting && !typing && !petting && !bodyPet && !grabbing && !startleActive;
 
   // A real cat abandons its stroll the instant you interact. Cancel any active roam
   // so it never slides while petted/typing, and never resumes from a stale path
@@ -2301,11 +2406,21 @@ function draw(t) {
     if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
     else if (doneHopT0 >= 0 && t - doneHopT0 < DONE_MS) { hop = Math.sin(((t - doneHopT0) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
 
+    // The painted scene is a whole picture (cat + rope + ball) and replaces the
+    // sprite rather than drawing over it, so it gets its own branch. Computed here
+    // rather than with paintedClimb because `stretching` only exists in this scope.
+    const climbRaster = paintedClimb && !petting && !stretching;
     if (typing || FORCED_STATE === 'typing' || FORCED_STATE === 'overheat') {
       // Front-facing "keyboard kneading": the cat leans forward over two big
       // keycaps and kneads them with alternating paws (Comnyang-style).
       renderTypeFront(t, palRGB, pal, overheat, blinking, look);
       sendHot(pos.x - TW / 2 - 16, pos.y - TH - 8, TW + 32, TH + 16, false);
+    } else if (climbRaster) {
+      // Painterly climb: the frame carries its own rope and floor ball, so this
+      // replaces the seated sprite entirely for the length of the scroll.
+      drawShadow(pos.x, pos.y, 0.16, 30);
+      drawClimbFrame(pos, t, climbing, climbDir, coatSlug(P.name), climbBob);
+      sendHot(pos.x - SW / 2 - 12, pos.y - SH * 2.4, SW + 24, SH * 2.4 + 20, false);
     } else if (batting || swatting) {
       // Rear up on the haunches and swipe overhead with both paws: at the butterfly
       // when it visits, at the streaking leaf while you scroll.

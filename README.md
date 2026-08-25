@@ -34,7 +34,7 @@ scratch: nearly every sprite, animation, and sound is original and procedural.
 &nbsp;
 [![Play in your browser](https://img.shields.io/badge/Play_in_your_browser-15161d?style=for-the-badge)](https://pixelcat-jet.vercel.app)
 
-<sub>The browser demo runs the real renderer: pet it, type at it, scroll to set it swiping, and wait for the butterfly.</sub>
+<sub>The browser demo runs the real renderer: pet it, type at it, scroll to see it react, and wait for the butterfly.</sub>
 
 <br />
 <br />
@@ -73,7 +73,7 @@ coat choice, so switching back and forth never loses your pick.
 | Play | bats a butterfly | **fetch**: chases the ball down, carries it home, drops it |
 | Left alone | a butterfly flutters in | starts its own game of fetch |
 | After exertion | grooms | pants, tongue out |
-| Scroll | rears up and swipes at a leaf blowing past | rears into a beg and takes a swipe at the same leaf |
+| Scroll | climbs a yarn rope, or swipes at a blowing leaf, depending on the coat | rears into a beg and swipes at the leaf |
 | Reward | a fish treat | a tennis ball |
 
 The dog is not a recoloured cat. It has its own sprite module with a muzzle that
@@ -183,7 +183,7 @@ to your cursor, to your typing, and to its own internal mood.
 | **Tap it** | A quick pet: happy eyes, hearts, a chirp. |
 | **Move your cursor** | The cat watches it and blinks now and then. Flick the cursor fast and it crouches, stalks, and pounces. A sudden jolt startles it: it puffs up, freezes, then bolts or creeps back. |
 | **Type in any app** | It leans onto two big keys and kneads them with its paws. Type fast enough and it overheats, turning red with steam, then cools down. |
-| **Scroll anywhere** | A leaf blows past in the direction you are scrolling, travelling faster the harder you flick the wheel. The pet rears up on its haunches, tracks the leaf, and takes swipes at it as it goes by. |
+| **Scroll anywhere** | Coats with hand-painted climb art grab a yarn rope and haul themselves up it, hand over hand, with a ball of yarn on the floor below. Every other coat, and every dog, rears up and swipes at a leaf blowing past in the direction you are scrolling, faster the harder you flick the wheel. |
 | **Wait for a visitor** | Once in a while a butterfly flutters in. The cat tracks it, swats at it, and occasionally pounces and catches it between its paws before it flutters off. Step away from the keyboard and one comes out on its own, so the pet always has something to play with. Keep a dog instead and it starts its own game of fetch rather than waiting on a butterfly. |
 | **Leave it be** | Left alone it keeps itself busy: it bats a drifting leaf with a paw, washes its face, loafs, and its whiskers twitch. Lively without ever getting in your way. |
 | **Come back** | Return after being away and the cat notices you: happy eyes, a little heart, and a friendly chirp hello. |
@@ -350,7 +350,7 @@ ignored (no backlog replay), and calling it while the pet is closed is harmless.
 | **Rest cursor on its head** | Happy eyes, floating hearts, and a purr |
 | **Rest cursor on its body** | Leans and arches into your hand, tail up, trilling |
 | **Type** (any app) | Front-paw kneading; fast typing overheats it |
-| **Scroll** (any app) | Rears up and swipes at a leaf blowing past, with your scroll |
+| **Scroll** (any app) | Climbs a yarn rope, or rears up and swipes at a blowing leaf |
 | **Double-click** the cat | Opens Settings (name, timers, reminders, coat) |
 | **Tray icon** | Settings, Start break now, coat picker, play area, sound and hunt and mood toggles, Quit |
 

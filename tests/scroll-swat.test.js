@@ -14,9 +14,20 @@ const { loadOverlay } = require('../scripts/overlay-vm.js');
 
 const STEP = 60;
 
-function scrollingOverlay(dir) {
+// A coat WITHOUT painted climb art. Coats that have it (tuxedo, orange-tabby,
+// mackerel-tabby) climb the rope instead, and the shipped default IS tuxedo, so a
+// test that forgets this silently exercises the wrong reaction and sees no leaf.
+const UNPAINTED = 'Siamese';
+
+function unpaintedOverlay(soundOn = false) {
   const h = loadOverlay();
-  h.ipc('onConfig', { species: 'cat', soundOn: false, followCursor: true, floorLock: true, butterflyOn: false });
+  h.ipc('onConfig', { species: 'cat', soundOn, followCursor: true, floorLock: true, butterflyOn: false });
+  h.run(`patternIndex = PATTERNS.findIndex((p) => p.name === ${JSON.stringify(UNPAINTED)})`);
+  return h;
+}
+
+function scrollingOverlay(dir) {
+  const h = unpaintedOverlay();
   for (let i = 0; i < 4; i++) h.ipc('onScroll', dir);
   return h;
 }
@@ -34,8 +45,7 @@ function sample(h, ms, dir, keepScrolling = true) {
 }
 
 test('nothing is flying past until you scroll', () => {
-  const h = loadOverlay();
-  h.ipc('onConfig', { species: 'cat', soundOn: false, butterflyOn: false });
+  const h = unpaintedOverlay();
   for (let t = STEP; t <= 600; t += STEP) h.run(`draw(${t})`);
   assert.strictEqual(h.run('swatLeaf'), null, 'a leaf should only appear once the wheel turns');
 });
@@ -107,10 +117,9 @@ test('the swipe whoosh fires once per stroke, not once per frame', () => {
   // would fire the whoosh 16 times a second and turn into a hiss. One stroke is
   // one half-period of the swing, and the sound belongs at the START of a stroke,
   // when the paw is accelerating.
-  const h = loadOverlay();
   // sound ON for this one: the whoosh is gated on config.soundOn, and the other
   // tests here run silent.
-  h.ipc('onConfig', { species: 'cat', soundOn: true, followCursor: true, floorLock: true, butterflyOn: false });
+  const h = unpaintedOverlay(true);
   h.run('var __swipes = 0; playSwipe = function () { __swipes++; };');
   for (let i = 0; i < 4; i++) h.ipc('onScroll', 1);
   const frames = 40;
@@ -122,4 +131,40 @@ test('the swipe whoosh fires once per stroke, not once per frame', () => {
   assert.ok(swipes > 0, 'a swiping pet should make some noise');
   assert.ok(swipes < frames / 2,
     `${swipes} whooshes in ${frames} frames means it is firing per frame, not per stroke`);
+});
+
+test('painted coats climb the rope, everyone else swipes at the leaf', () => {
+  // The split that replaced "one scroll reaction for all". Coats that ship painted
+  // climb art keep the rope; the rest get the leaf, because the procedural climb
+  // pose they used to fall back on could not be made legible at sprite size.
+  const h = loadOverlay();
+  h.ipc('onConfig', { species: 'cat', soundOn: false, followCursor: true, floorLock: true, butterflyOn: false });
+
+  const reaction = (coat) => {
+    h.run(`patternIndex = PATTERNS.findIndex((p) => p.name === ${JSON.stringify(coat)})`);
+    h.run('swatLeaf = null; paperLen = 0; paperUntil = 0;');
+    for (let i = 0; i < 4; i++) h.ipc('onScroll', 1);
+    for (let t = 60; t <= 900; t += 60) h.run(`draw(${t})`);
+    return h.run('swatLeaf ? "leaf" : "rope"');
+  };
+
+  assert.strictEqual(reaction('Tuxedo'), 'rope', 'tuxedo ships painted art and is the default coat');
+  assert.strictEqual(reaction('Orange Tabby'), 'rope');
+  assert.strictEqual(reaction('Mackerel Tabby'), 'rope');
+  assert.strictEqual(reaction('Siamese'), 'leaf', 'a coat with no painted art swipes instead');
+  assert.strictEqual(reaction('Brown Tabby'), 'leaf');
+  // gray SHIPS frames but is excluded, because its art is a green-eyed bicolor
+  // while the coat is solid gray with gold eyes. It must take the leaf, not the rope.
+  assert.strictEqual(reaction('Gray'), 'leaf', 'gray is on CLIMB_FRAME_SKIP, so it must not climb');
+});
+
+test('a dog never climbs, whatever its breed is called', () => {
+  // coatHasFrames() is cat-only: the painted sets are cat art, so a breed that
+  // happened to share a painted coat's slug must still swipe.
+  const h = loadOverlay();
+  h.ipc('onConfig', { species: 'dog', soundOn: false, followCursor: true, floorLock: true, butterflyOn: false });
+  h.run('setSpecies("dog")');
+  for (let i = 0; i < 4; i++) h.ipc('onScroll', 1);
+  for (let t = 60; t <= 900; t += 60) h.run(`draw(${t})`);
+  assert.ok(h.run('swatLeaf !== null'), 'a dog should get the leaf, never the painted cat climb');
 });
