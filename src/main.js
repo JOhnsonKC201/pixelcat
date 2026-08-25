@@ -35,6 +35,11 @@ let settingsWin = null;                                // settings window (when 
 let tray = null;
 let cfg = null;                                        // current settings (main = source of truth)
 let themesCache = [];                                  // user-defined custom coats (themes.json)
+// Renderer crash-loop guard. Module scope so the count survives the reload it
+// triggers; see the render-process-gone handler in createWindow().
+let renderCrashes = 0, lastRenderCrashAt = 0;
+const RELOAD_MAX = 5;                                  // consecutive reloads before giving up
+const RELOAD_RESET_MS = 60000;                         // uptime that counts as "recovered"
 let cursorTimer;
 let topTimer;                                          // re-asserts always-on-top
 let settingArea = false, areaTimer = null;             // "set play area (drag)" mode
@@ -154,8 +159,12 @@ function createWindow() {
   if (patternArg) params.push(`pattern=${patternArg}`);
   if (dirArg) params.push(`dir=${dirArg}`);
   if (speciesArg) params.push(`species=${speciesArg}`);
-  if (process.argv.includes('--bfly')) params.push('bfly=1');   // force the butterfly visitor (QA shots)
-  if (process.argv.includes('--treat')) params.push('treat=1'); // force a dropped treat (QA shots)
+  // startsWith, not includes: every other preview flag takes a --flag=value form,
+  // so `--treat=1` (the spelling renderer.js's own comment documents) was silently
+  // ignored here and the QA shot came back with no fish. Both spellings work now.
+  const hasFlag = (name) => process.argv.some((a) => a === `--${name}` || a.startsWith(`--${name}=`));
+  if (hasFlag('bfly')) params.push('bfly=1');    // force the butterfly visitor (QA shots)
+  if (hasFlag('treat')) params.push('treat=1');  // force a dropped treat (QA shots)
   if (noteArg) params.push(`note=${encodeURIComponent(noteArg)}`);   // force a speech bubble (QA shots)
   if (SHOT) params.push('shot=1');
   if (SHEET) params.push('sheet=1');
@@ -163,11 +172,27 @@ function createWindow() {
 
   // Log GPU/renderer crashes - and, for the live pet, auto-recover by reloading
   // so a transparent-overlay GPU crash never leaves a dead, invisible window.
+  // Backed off and capped: a transparent always-on-top compositor meets every
+  // consumer GPU driver in the wild, and a driver that crashes the renderer on
+  // load would otherwise reload every 400ms forever - burning CPU, spamming the
+  // log and flickering the overlay with no way for the user to see why. After
+  // RELOAD_MAX consecutive crashes it stops and says so, rather than retrying
+  // into the same wall in silence.
   win.webContents.on('render-process-gone', (_e, details) => {
     console.log('[render-process-gone]', JSON.stringify(details));
-    if (!SHOT && win && !win.isDestroyed() && details.reason !== 'clean-exit') {
-      setTimeout(() => { if (win && !win.isDestroyed()) win.reload(); }, 400);
+    if (SHOT || !win || win.isDestroyed() || details.reason === 'clean-exit') return;
+    // A renderer that has stayed up a while is a fresh fault, not a crash loop.
+    if (Date.now() - lastRenderCrashAt > RELOAD_RESET_MS) renderCrashes = 0;
+    lastRenderCrashAt = Date.now();
+    renderCrashes += 1;
+    if (renderCrashes > RELOAD_MAX) {
+      console.log(`[render-process-gone] ${renderCrashes} crashes in a row; giving up on reload`);
+      notify('{name} kept crashing, so I stopped reloading. Restarting the app may help.',
+        { dedupeKey: 'render-crash-loop', dedupeMs: 60000, source: 'system' });
+      return;
     }
+    const wait = Math.min(400 * 2 ** (renderCrashes - 1), 15000);   // 400ms, 800, 1.6s ... capped
+    setTimeout(() => { if (win && !win.isDestroyed()) win.reload(); }, wait);
   });
   win.webContents.on('console-message', (_e, _l, message) => console.log('[r]', message));
 
@@ -563,11 +588,24 @@ function loadNotifyHistory() {
   try { const a = JSON.parse(fs.readFileSync(notifyHistoryPath(), 'utf8')); if (Array.isArray(a)) notifyHistory = a.slice(-NOTIFY_HISTORY_MAX); }
   catch (e) { notifyHistory = []; }
 }
+// Written the same tmp-then-rename way as settings.json (config.js) and
+// themes.json (themes.js), so a crash mid-write cannot leave a truncated file
+// behind. The loader already resets to [] on a parse failure, so the blast
+// radius was only a lost recap - but the rest of the codebase writes atomically
+// and this was the one file that did not.
+function writeNotifyHistory() {
+  const fp = notifyHistoryPath();
+  try {
+    const tmp = `${fp}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(notifyHistory.slice(-NOTIFY_HISTORY_MAX)));
+    fs.renameSync(tmp, fp);
+  } catch (e) { /* best effort */ }
+}
 function saveNotifyHistorySoon() {   // debounced: avoid a disk write per alert
   if (historySaveTimer) return;
   historySaveTimer = setTimeout(() => {
     historySaveTimer = null;
-    try { fs.writeFileSync(notifyHistoryPath(), JSON.stringify(notifyHistory.slice(-NOTIFY_HISTORY_MAX))); } catch (e) { /* best effort */ }
+    writeNotifyHistory();
   }, 1500);
 }
 function recordNotify(source, message) {
@@ -667,7 +705,7 @@ function cleanup() {
   if (pomoTimer) clearTimeout(pomoTimer);
   if (historySaveTimer) {   // flush any pending history write now, then cancel the debounce so it can't fire mid-teardown
     clearTimeout(historySaveTimer); historySaveTimer = null;
-    try { fs.writeFileSync(notifyHistoryPath(), JSON.stringify(notifyHistory.slice(-NOTIFY_HISTORY_MAX))); } catch (e) { /* best effort */ }
+    writeNotifyHistory();
   }
   if (agentWatcher) { try { agentWatcher.close(); } catch (e) { /* ignore */ } }
   if (hookStarted) { try { require('uiohook-napi').uIOhook.stop(); } catch (e) { /* ignore */ } }
