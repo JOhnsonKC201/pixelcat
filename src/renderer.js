@@ -616,7 +616,7 @@ huntSprites = buildHuntSprites(SPECIES_DEFS);
 // species' index: a dog falling back landed on coat 4 of the breed list (a husky),
 // because 4 is where the cat's Tuxedo sits.
 function defaultPatternIndex() {
-  return Math.max(0, PATTERNS.findIndex((p) => p.name === (isDog() ? 'Golden Retriever' : 'Tuxedo')));
+  return Math.max(0, PATTERNS.findIndex((p) => p.name === (isDog() ? 'Black Lab' : 'Tuxedo')));
 }
 const coatKey = (sp) => (sp === 'dog' ? 'dogPattern' : 'pattern');
 const storedPattern = localStorage.getItem(coatKey(species));
@@ -708,7 +708,12 @@ function setSpecies(next, coatIdx) {
     // there is no reloader, so wiping them on a species swap would kill the cat's
     // painted rope-climb for the rest of the session. coatHasFrames() gates them by
     // species instead, so a dog never borrows cat art.
-    ball = null; pantUntil = 0; wagBoost = 0;   // drop any in-flight dog-only state
+    // Drop any in-flight give-slot state. Both directions matter: updateTreat()
+    // and drawTreat() run every frame regardless of species, so a fish left over
+    // from the cat would otherwise be inherited by the dog, which walks to it and
+    // starts eating it.
+    ball = null; pantUntil = 0; wagBoost = 0;   // dog-only state
+    treat = null;                               // cat-only state
     applyThemes(themeList);   // replay the custom coats onto the new tables (main won't re-send them)
   }
   const stored = coatIdx != null ? coatIdx : Number(localStorage.getItem(coatKey(species)));
@@ -1370,7 +1375,12 @@ function updateBall(t, dt, f) {
       if (Math.abs(ball.vy) > 1.6) { ball.vy = -ball.vy * 0.46; ball.vx *= 0.72; }
       else { ball.vy = 0; ball.vx = 0; ball.phase = 'rest'; ball.restAt = t; }
     }
-    if (ball.x < EDGE_L || ball.x > viewW - EDGE_R) { ball.vx = -ball.vx * 0.5; ball.x = clamp(ball.x, EDGE_L, viewW - EDGE_R); }
+    // Bounce off the PLAY AREA edge, not the raw screen edge: the dog's approach
+    // point is zone-clamped, so a ball that flew past the zone left the dog
+    // stopped at the boundary unable to reach it. If the clamp moved the ball,
+    // it hit a wall. zoneClampX is the screen clamp when no play area is set.
+    const bx = zoneClampX(ball.x);
+    if (bx !== ball.x) { ball.vx = -ball.vx * 0.5; ball.x = bx; }
     return;
   }
   if (ball.phase === 'carry') {                   // held in the mouth, tracks the muzzle
@@ -1435,7 +1445,11 @@ function treatApproachX() { return zoneClampX(treat.x - Math.sign(treat.x - pos.
 function dropTreat() {
   if (SHOT || typeof pos === 'undefined' || !pos) return;
   const side = pos.x < viewW / 2 ? 1 : -1;                    // drop toward the roomier side
-  const tx = clamp(pos.x + side * (130 + Math.random() * 90), EDGE_L, viewW - EDGE_R);
+  // zoneClampX, not the raw screen clamp: the cat's approach point is already
+  // zone-clamped, so dropping the fish outside a constrained play area left the
+  // cat stopped at the zone edge with its treat stranded beyond it. zoneClampX
+  // degrades to exactly this screen clamp when no play area is set.
+  const tx = zoneClampX(pos.x + side * (130 + Math.random() * 90));
   treat = { x: tx, y: restingY(), phase: 'walk', nomUntil: 0 };
   addEnergy(8);                                               // a treat is exciting
   resumeRaf();
