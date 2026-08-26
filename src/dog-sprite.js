@@ -18,130 +18,195 @@
 let P = null;   // primitives, when running under Node
 const _c = () => (P || { CELL, setCell, ellipse, triangle, buildSprite });
 
+// ---- the front-facing face --------------------------------------------------
+// sit, type and beg all wear the SAME face. It used to be typed out three times
+// over, which is exactly why the eye offsets had already drifted apart between
+// them; one helper means a change to the face lands on every pose at once.
+//
+// The proportions here are deliberate kindchenschema (baby schema), because that -
+// not anatomical accuracy - is what makes a 24-cell sprite lovable:
+//   * eyes LARGE, and set LOW on the skull instead of on its midline
+//   * eyes WIDE apart, which leaves a tall round forehead above them
+//   * muzzle SHORT and broad - it still breaks the skull line (that is the dog
+//     cue) but reads as a stubby puppy snout rather than a working snout
+// None of that inflates the SKULL, which stays small on purpose - see the note in
+// composeSitDog about why a big round skull turns a pixel quadruped into a teddy.
+//   o = { cx, headY, headRx, headRy, snoutY }
+function dogFace(B, o) {
+  const { ellipse } = _c();
+  const { cx, headY, headRx, headRy, snoutY } = o;
+  const eRx = B.eyeRx || 2.0, eRy = B.eyeRy || 2.2;
+  const snoutRx = B.snoutRx || 3.5, snoutRy = B.snoutRy || 2.2;
+
+  // --- THE SNOUT: the single most important dog cue -------------------------
+  // Drawn after the skull, centred low enough that its lower arc breaks the
+  // skull's silhouette. carveJaw() then traces a jaw line around it at the end of
+  // the pose, which is what actually sells the protrusion at 4px/cell.
+  ellipse(cx, snoutY, snoutRx, snoutRy, 'W');
+  if (B.snoutDark) ellipse(cx, snoutY - snoutRy * 0.18, snoutRx * 0.95, snoutRy * 0.80, 'K');   // muzzle mask (shepherd/husky/pug)
+
+  // nose: big, dark, and parked at the TIP of the snout, not up on the face. Kept
+  // nearly round rather than a wide bar - an oversized rounded nose is itself a
+  // baby-schema cue, and the bar version read as a moustache.
+  ellipse(cx, snoutY - snoutRy * 0.34, 1.5, 1.2, 'N');
+
+  // --- eyes ----------------------------------------------------------------
+  // Bigger than they were. The old note here said big eyes read as kitten rather
+  // than canine - true of big eyes on a big round skull, but on a SMALL skull with
+  // a short muzzle they read as puppy, which is the whole point. The renderer
+  // stamps a dark pupil and a sparkle inside whatever box these leave behind, so
+  // growing the iris grows the pupil with it.
+  const eyeY = headY + headRy * 0.10;
+  // As wide apart as the skull allows, held inside two hard limits: an eye must
+  // not reach the grid's centre column (eyeBox() splits the sprite there to tell
+  // left eye from right, so an eye touching it registers as the wrong one), and it
+  // must stay clear of the ear seam carveEars() traces down the cheek.
+  const eyeOff = Math.max(eRx + 0.4, Math.min(eRx + 1.5, headRx - eRx - 1.2));
+  ellipse(cx - eyeOff, eyeY, eRx, eRy, 'E');
+  ellipse(cx + eyeOff, eyeY, eRx, eRy, 'E');
+  // tan "eyebrow" pips - a strong breed cue on shepherds, beagles, rotties
+  if (B.brows) {
+    ellipse(cx - eyeOff, eyeY - eRy - 1.1, 1.3, 0.9, 'X');
+    ellipse(cx + eyeOff, eyeY - eRy - 1.1, 1.3, 0.9, 'X');
+  }
+}
+
+// ---- ears -------------------------------------------------------------------
+// Hanging ears are drawn BEFORE the skull so they read as attached behind it.
+// Shape matters more than size: this used to be one long slab per side running
+// from the crown to below the jaw, which widened the head all the way up and made
+// every drop-eared breed read as a lamb in a bonnet. A real drop ear is a
+// TEARDROP - a narrow root at the temple, a fat lobe swinging free below the cheek
+// - and drawing it that way is what leaves the crown bare, which is where the tall
+// round puppy forehead comes from.
+//   o = { cx, headY, headRx, headRy }
+function hangEars(B, o) {
+  const { ellipse } = _c();
+  const ear = B.ear || 'floppy';
+  if (ear !== 'floppy' && ear !== 'long' && ear !== 'round') return;
+  const { cx, headY, headRx, headRy } = o;
+  const drop = ear === 'long' ? 2.6 : ear === 'round' ? 0.9 : 1.6;   // how far past the jaw the lobe swings
+  const lobe = ear === 'round' ? 2.9 : ear === 'long' ? 2.3 : 2.6;   // poodle ears are pompoms, hound ears are straps
+  for (const s of [-1, 1]) {
+    ellipse(cx + s * (headRx - 1.6), headY + headRy * 0.20, 2.0, headRy * 0.70, 'K');            // root, tucked behind the temple
+    ellipse(cx + s * (headRx - 0.7), headY + headRy * 0.74 + drop, lobe, lobe * 0.94, 'K');      // lobe, hanging clear of the jaw
+  }
+}
+
+// Perked and rose ears sit ON TOP of the skull, so they are drawn after it.
+//   o = { cx, headY, headRx, headRy, apex }   apex = grid row the tips reach
+function perkEars(B, o) {
+  const { ellipse, triangle } = _c();
+  const ear = B.ear || 'floppy';
+  const { cx, headY, headRx, headRy } = o;
+  // rose ear (pug/bulldog): a small folded nub tucked high on the skull
+  if (ear === 'rose') {
+    for (const s of [-1, 1]) ellipse(cx + s * (headRx - 1.0), headY - headRy * 0.62, 1.9, 2.0, 'K');
+    return;
+  }
+  if (ear !== 'perk' && ear !== 'semi' && ear !== 'big') return;
+  // Dog perk-ears are broader at the base and blunter than a cat's needle. The
+  // apex is clamped to row 0.4 by the caller for the same reason the cat's ears
+  // were: outlineHalo() cannot write above row 0, so a tip drawn off the top of
+  // the grid comes back sliced flat AND with no outline on it.
+  // Set OUT on the skull as a fraction of its width, not at a fixed column: a
+  // fixed offset put the small-headed breeds' ears entirely inside the silhouette,
+  // where they read as markings rather than as ears.
+  const ew = ear === 'big' ? 3.0 : 2.6, eo = headRx * (ear === 'big' ? 0.70 : 0.62);
+  const apex = o.apex + (ear === 'big' ? 0 : ear === 'semi' ? 1.3 : 0.5);
+  const base = headY - headRy * 0.28;
+  for (const s of [-1, 1]) {
+    triangle(cx + s * (eo + 0.6), apex, cx + s * (eo + ew), base + 1.9, cx + s * (eo - ew), base, 'K');
+    ellipse(cx + s * (eo + 0.6), apex + 1.0, 1.3, 1.2, 'K');     // blunt the tip - a needle tip is a cat
+    const iw = ew * 0.5;
+    triangle(cx + s * (eo + 0.4), apex + 2.2, cx + s * (eo + iw), base + 1.2, cx + s * (eo - iw), base + 0.3, 'I');
+    // semi-perk (collie / shiba): the top third folds forward over itself
+    if (ear === 'semi') ellipse(cx + s * (eo + 0.3), apex + 1.1, 1.8, 1.4, 'K');
+  }
+}
+
+// Seam a hanging ear off the cheek. On a solid coat the flap and the skull are the
+// same colour, so nothing DRAWN survives - only a carved gap the halo can trace.
+// The seam follows the skull's own elliptical edge rather than running down a
+// straight column: a column only lines up with the head at one row, and the old
+// one was parked far enough inboard that it sliced a cell off each eye. Starting
+// it above the eyes is safe precisely because the skull is at its widest there.
+function carveEars(B, o) {
+  const { setCell } = _c();
+  const ear = B.ear || 'floppy';
+  if (ear !== 'floppy' && ear !== 'long' && ear !== 'round') return;
+  const { cx, headY, headRx, headRy } = o;
+  const top = Math.round(headY - headRy * 0.55), bot = Math.round(headY + headRy * 0.72);
+  for (let r = top; r <= bot; r++) {
+    const dy = (r - headY) / headRy;
+    if (Math.abs(dy) >= 1) continue;
+    const half = headRx * Math.sqrt(1 - dy * dy);
+    setCell(Math.round(cx - half), r, '.');
+    setCell(Math.round(cx + half), r, '.');
+  }
+}
+
 // ---- sitting dog ------------------------------------------------------------
 // Parametric like composeSit: a build descriptor B varies the silhouette so each
 // breed is a different DOG, not a palette swap.
 //   B = { bodyW, headRx, headRy, snoutRx, snoutRy, snoutY, ear, legLen,
 //         eyeRx, eyeRy, brows, fluff, marking }
 function composeSitDog(B) {
-  const { setCell, ellipse, triangle } = _c();
+  const { setCell, ellipse } = _c();
   B = B || {};
   const CX = 12;
   const bw = B.bodyW || 1;
-  // Head deliberately SMALLER than the cat's relative to the body. An oversized
-  // round skull is what makes a small pixel quadruped read as a meerkat or a
-  // teddy; a dog's head is roughly a third of its seated height.
+  // Head still deliberately SMALLER than the cat's. An oversized round skull is
+  // what makes a small pixel quadruped read as a meerkat or a teddy, and that has
+  // not stopped being true just because the brief asked for a cuter dog. The puppy
+  // proportion is bought two other ways instead: inside the head (see dogFace) and
+  // by trimming the BODY - a narrower chest and stubbier legs move the head-to-body
+  // ratio the cute way round without the skull ever growing enough to read as a bear.
   const headRx = B.headRx || 5.6, headRy = B.headRy || 4.7;
   const headY = 6.8;
-  const snoutRx = B.snoutRx || 3.3, snoutRy = B.snoutRy || 2.8;
-  const snoutY = B.snoutY == null ? 10.6 : B.snoutY;
-  const ear = B.ear || 'floppy';
+  const snoutRx = B.snoutRx || 3.5, snoutRy = B.snoutRy || 2.2;
+  const snoutY = B.snoutY == null ? 11.0 : B.snoutY;
   const legLen = B.legLen == null ? 1 : B.legLen;
-  const eRx = B.eyeRx || 1.7, eRy = B.eyeRy || 1.8;
   const fluff = !!B.fluff;
+  const head = { cx: CX, headY, headRx, headRy };
 
   // --- body: rump, then a BROAD chest, then a neck ---------------------------
   // The chest is the tell. A cat's sitting silhouette tapers to a narrow front;
   // a dog's flares out. The neck sits LOW so it never swallows the muzzle - that
   // was what flattened the face into a cat's in the first pass.
-  ellipse(CX, 25.6, 7.7 * bw, 4.4, 'C');                       // haunch / seated rump
-  ellipse(CX, 20.0, 5.9 * bw, 6.2, 'C');                       // chest (wider than the cat's 5.2)
-  ellipse(CX, 15.2, 3.7 * bw, 3.0, 'C');                       // neck
-  if (fluff) { ellipse(CX - 5.2 * bw, 18.0, 2.2, 3.2, 'C'); ellipse(CX + 5.2 * bw, 18.0, 2.2, 3.2, 'C'); }  // shoulder floof
+  ellipse(CX, 25.8, 7.2 * bw, 4.3, 'C');                       // haunch / seated rump
+  ellipse(CX, 20.4, 5.4 * bw, 6.0, 'C');                       // chest (still flared, but trimmed: see the head note)
+  ellipse(CX, 15.4, 3.5 * bw, 3.0, 'C');                       // neck
+  if (fluff) { ellipse(CX - 4.9 * bw, 18.2, 2.2, 3.2, 'C'); ellipse(CX + 4.9 * bw, 18.2, 2.2, 3.2, 'C'); }  // shoulder floof
 
-  // --- hanging ears go BEHIND the skull so they read as attached -------------
-  // They must extend clearly BELOW the jaw or they just look like a lumpy head.
-  const earOx = headRx - 0.6;
-  if (ear === 'floppy' || ear === 'long' || ear === 'round') {
-    const drop = ear === 'long' ? 5.6 : ear === 'round' ? 3.6 : 4.4;
-    const eyC = ear === 'long' ? 10.4 : ear === 'round' ? 7.6 : 9.0;
-    const exr = ear === 'round' ? 2.6 : 2.2;
-    ellipse(CX - earOx, eyC, exr, drop, 'K');
-    ellipse(CX + earOx, eyC, exr, drop, 'K');
-  }
-
-  // --- skull ---------------------------------------------------------------
-  ellipse(CX, headY, headRx, headRy, 'C');
-
-  // --- perked ears sit ON TOP of the skull ---------------------------------
-  // Dog perk-ears are broader at the base and less needle-like than a cat's.
-  if (ear === 'perk' || ear === 'semi' || ear === 'big') {
-    const ew = ear === 'big' ? 2.9 : 2.5, eo = ear === 'big' ? 3.9 : 3.6;
-    const apex = ear === 'big' ? -1.6 : ear === 'semi' ? 0.6 : -0.6;
-    triangle(CX - eo - 0.6, apex, CX - eo - ew, 7.4, CX - eo + ew, 5.6, 'K');
-    triangle(CX + eo + 0.6, apex, CX + eo + ew, 7.4, CX + eo - ew, 5.6, 'K');
-    const iw = ew * 0.5;
-    triangle(CX - eo - 0.4, apex + 2.0, CX - eo - iw, 6.9, CX - eo + iw, 5.8, 'I');
-    triangle(CX + eo + 0.4, apex + 2.0, CX + eo + iw, 6.9, CX + eo - iw, 5.8, 'I');
-    // semi-perk (collie / shiba): the top third folds forward over itself
-    if (ear === 'semi') {
-      ellipse(CX - eo - 0.2, apex + 1.2, 1.7, 1.3, 'K');
-      ellipse(CX + eo + 0.2, apex + 1.2, 1.7, 1.3, 'K');
-    }
-  }
-  // rose ear (pug/bulldog): a small folded nub tucked high on the skull
-  if (ear === 'rose') {
-    ellipse(CX - headRx + 0.8, 3.8, 1.8, 1.9, 'K');
-    ellipse(CX + headRx - 0.8, 3.8, 1.8, 1.9, 'K');
-  }
-
-  // --- THE SNOUT: the single most important dog cue -------------------------
-  // Drawn after the skull, centred low enough that its lower arc breaks the
-  // skull's silhouette. The carve pass at the bottom of this function then traces
-  // a jaw line around it, which is what actually sells the protrusion at 4px/cell.
-  ellipse(CX, snoutY, snoutRx, snoutRy, 'W');
-  if (B.snoutDark) ellipse(CX, snoutY - snoutRy * 0.2, snoutRx * 0.95, snoutRy * 0.78, 'K');   // muzzle mask (shepherd/husky/pug)
-
-  // nose: big, dark, and parked at the TIP of the snout, not up on the face
-  const noseY = snoutY - snoutRy * 0.30;
-  ellipse(CX, noseY, 1.6, 1.1, 'N');
-
-  // mouth: carved to '.' so outlineHalo() paints it dark on ANY coat, including
-  // solid blacks where a drawn line would vanish. A shallow dog grin, not a cat's
-  // tight w-mouth: a short stem under the nose, then two flares.
-  const my = Math.round(noseY + 1.4);
-  setCell(CX, my, '.');
-  setCell(CX - 1, my + 1, '.'); setCell(CX + 1, my + 1, '.');
-  setCell(CX - 2, my + 1, '.'); setCell(CX + 2, my + 1, '.');
-
-  // --- eyes ----------------------------------------------------------------
-  // Set wide and high on the skull, ABOVE the muzzle line, which is what gives a
-  // dog its forward-facing look. Smaller than the cat's - big round eyes read as
-  // kitten, not canine.
-  const eyeY = headY - 0.6;
-  ellipse(CX - 3.0, eyeY, eRx, eRy, 'E');
-  ellipse(CX + 3.0, eyeY, eRx, eRy, 'E');
-  // tan "eyebrow" pips - a strong breed cue on shepherds, beagles, rotties
-  if (B.brows) { ellipse(CX - 3.0, eyeY - 2.5, 1.3, 0.9, 'X'); ellipse(CX + 3.0, eyeY - 2.5, 1.3, 0.9, 'X'); }
+  hangEars(B, head);
+  ellipse(CX, headY, headRx, headRy, 'C');                     // skull
+  perkEars(B, { ...head, apex: 0.4 });
+  dogFace(B, { ...head, snoutY });
 
   // --- front legs + paws ----------------------------------------------------
-  // legLen shrinks for the dwarf breeds (corgi, dachshund) - short legs are the
-  // whole point of those silhouettes, so they scale rather than just recolour.
+  // Short and stubby on purpose - stumpy limbs are a baby-schema cue, and a
+  // shorter column leaves more of the sprite to the head. legLen shrinks them
+  // further for the dwarf breeds (corgi, dachshund), where short legs are the
+  // whole point of the silhouette rather than a recolour.
   const pawY = 28.4;
-  const legRy = 5.0 * legLen, legCy = pawY - legRy * 0.84;
-  ellipse(CX - 2.3, legCy, 1.8, legRy, 'C');
-  ellipse(CX + 2.3, legCy, 1.8, legRy, 'C');
-  ellipse(CX - 2.3, pawY, 2.1, 1.7, 'W', ['C']);
-  ellipse(CX + 2.3, pawY, 2.1, 1.7, 'W', ['C']);
+  const legRy = 4.3 * legLen, legCy = pawY - legRy * 0.80;
+  ellipse(CX - 2.6, legCy, 1.9, legRy, 'C');
+  ellipse(CX + 2.6, legCy, 1.9, legRy, 'C');
+  ellipse(CX - 2.6, pawY, 2.3, 1.8, 'W', ['C']);
+  ellipse(CX + 2.6, pawY, 2.3, 1.8, 'W', ['C']);
 
   // --- chest blaze ----------------------------------------------------------
   // Most dogs carry a lighter bib; on solid coats white==coat so this is a no-op.
-  ellipse(CX, 20.5, fluff ? 3.0 : 2.4, 4.8, 'W', ['C']);
+  ellipse(CX, 21.0, fluff ? 3.0 : 2.4, 4.6, 'W', ['C']);
 
-  applyMarking(B.marking, { cx: CX, top: 14.0, bot: 29.0, w: 6.6 * bw, headY, headRx });
+  applyMarking(B.marking, { cx: CX, top: 14.4, bot: 29.0, w: 6.2 * bw, headY, headRx });
 
   // --- carve separations LAST so the halo traces them on every coat ----------
   // This is the only way internal edges survive on solid blacks, where every
   // drawn line is the same colour as the coat.
-  carveJaw(CX, snoutY, snoutRx, snoutRy);
-  if (ear === 'floppy' || ear === 'long' || ear === 'round') {
-    // seam each hanging ear off the cheek so it reads as a separate flap
-    const seamTop = Math.round(headY - 1), seamBot = Math.round(headY + headRy + 1.6);
-    for (let r = seamTop; r <= seamBot; r++) {
-      setCell(Math.round(CX - earOx + 2.0), r, '.');
-      setCell(Math.round(CX + earOx - 2.0), r, '.');
-    }
-  }
+  carveJaw(CX, snoutY, snoutRx, snoutRy, true);
+  carveEars(B, head);
   for (let r = 22; r <= 29; r++) setCell(CX, r, '.');                                  // between the front legs
   for (let r = 24; r <= 29; r++) { setCell(CX - 5, r, '.'); setCell(CX + 5, r, '.'); }  // leg vs haunch
   setCell(CX - 2, 29, '.'); setCell(CX + 2, 29, '.');                                   // toe splits
@@ -149,7 +214,17 @@ function composeSitDog(B) {
 
 // Trace the underside of the muzzle so it reads as a volume standing proud of the
 // skull rather than a paler patch painted on a flat face. Used by every pose.
-function carveJaw(cx, sy, srx, sry) {
+// `smile` adds the mouth, which only the front-facing poses want - and adding it
+// HERE rather than while drawing the face means it is carved after applyMarking,
+// so a solid breed marking can no longer bury it.
+//
+// The mouth is three cells on ONE row, tucked directly under the nose. It used to
+// be five cells across two rows, and the lower row landed inside this jaw arc - the
+// arc's ends rise as they wrap the muzzle, so the two carves sandwiched single
+// muzzle cells between them and the leftovers read, unmistakably, as a mouthful of
+// TEETH on every light coat. One row above the arc's reach is the only clean place
+// a mouth fits on a muzzle this short.
+function carveJaw(cx, sy, srx, sry, smile) {
   const { setCell } = _c();
   const wide = Math.round(srx + 0.4);
   for (let dc = -wide; dc <= wide; dc++) {
@@ -157,6 +232,9 @@ function carveJaw(cx, sy, srx, sry) {
     const r = Math.round(sy + sry * Math.sqrt(Math.max(0, 1 - t * t)) + 0.9);
     setCell(cx + dc, r, '.');
   }
+  if (!smile) return;
+  const my = Math.round(sy - sry * 0.34 + 1.5);
+  for (let dc = -1; dc <= 1; dc++) setCell(cx + dc, my, '.');
 }
 
 // ---- breed markings ---------------------------------------------------------
@@ -268,136 +346,153 @@ function composeBowDog(B) {
 // Same "paws on the home row" idea as the cat, but a dog leans its whole chest
 // onto the desk and lets the snout hang over the keys.
 function composeTypeDog(B) {
-  const { setCell, ellipse, triangle } = _c();
+  const { ellipse } = _c();
   B = B || {};
   const CX = 12;
-  const ear = B.ear || 'floppy';
   const headRx = B.headRx || 5.5, headRy = B.headRy || 4.6;
   const headY = 6.4;
-  const snoutRx = B.snoutRx || 3.2, snoutRy = B.snoutRy || 2.7;
-  const snoutY = B.snoutY == null ? 10.2 : B.snoutY - 0.4;
+  const snoutRx = B.snoutRx || 3.5, snoutRy = B.snoutRy || 2.2;
+  const snoutY = B.snoutY == null ? 10.6 : B.snoutY - 0.4;
+  const head = { cx: CX, headY, headRx, headRy };
   // The renderer paints the keys and the kneading paws over this, so the sprite is
   // just head + a chest spread wide across the desk edge.
   ellipse(CX, 18.6, 7.2, 5.2, 'C');               // chest, flattened onto the desk
   ellipse(CX, 14.2, 3.6, 3.0, 'C');               // neck
-  const earOx = headRx - 0.6;
-  if (ear === 'floppy' || ear === 'long' || ear === 'round') {
-    const drop = ear === 'long' ? 5.4 : ear === 'round' ? 3.5 : 4.2;
-    ellipse(CX - earOx, 8.6, 2.2, drop, 'K');
-    ellipse(CX + earOx, 8.6, 2.2, drop, 'K');
-  }
+  hangEars(B, head);
   ellipse(CX, headY, headRx, headRy, 'C');
-  if (ear === 'perk' || ear === 'semi' || ear === 'big') {
-    const ew = ear === 'big' ? 2.9 : 2.5, eo = ear === 'big' ? 3.9 : 3.6;
-    const apex = ear === 'big' ? -1.8 : -0.8;
-    triangle(CX - eo - 0.6, apex, CX - eo - ew, 7.0, CX - eo + ew, 5.2, 'K');
-    triangle(CX + eo + 0.6, apex, CX + eo + ew, 7.0, CX + eo - ew, 5.2, 'K');
-    const iw = ew * 0.5;
-    triangle(CX - eo - 0.4, apex + 2.0, CX - eo - iw, 6.5, CX - eo + iw, 5.4, 'I');
-    triangle(CX + eo + 0.4, apex + 2.0, CX + eo + iw, 6.5, CX + eo - iw, 5.4, 'I');
-  }
-  ellipse(CX, snoutY, snoutRx, snoutRy, 'W');     // snout hanging over the keys
-  if (B.snoutDark) ellipse(CX, snoutY - snoutRy * 0.2, snoutRx * 0.95, snoutRy * 0.78, 'K');
-  ellipse(CX, snoutY - snoutRy * 0.30, 1.6, 1.1, 'N');
-  ellipse(CX - 3.0, headY - 0.6, 1.7, 1.8, 'E');
-  ellipse(CX + 3.0, headY - 0.6, 1.7, 1.8, 'E');
-  if (B.brows) { ellipse(CX - 3.0, headY - 3.1, 1.3, 0.9, 'X'); ellipse(CX + 3.0, headY - 3.1, 1.3, 0.9, 'X'); }
+  perkEars(B, { ...head, apex: 0.4 });
+  dogFace(B, { ...head, snoutY });                // snout hangs over the keys
   ellipse(CX, 19.0, 2.6, 4.0, 'W', ['C']);        // chest blaze
   applyMarking(B.marking, { cx: CX, top: 13.5, bot: 23.5, w: 6.6, headY, headRx });
-  carveJaw(CX, snoutY, snoutRx, snoutRy);
-  if (ear === 'floppy' || ear === 'long' || ear === 'round') {
-    for (let r = Math.round(headY - 1); r <= Math.round(headY + headRy + 1.4); r++) {
-      setCell(Math.round(CX - earOx + 2.0), r, '.');
-      setCell(Math.round(CX + earOx - 2.0), r, '.');
-    }
-  }
+  carveJaw(CX, snoutY, snoutRx, snoutRy, true);
+  carveEars(B, head);
 }
 
 // ---- curled dog (the loaf answer): nose-to-tail donut ------------------------
-// Cats loaf into a brick. Dogs curl into a spiral with the nose tucked against a
-// hind leg and the tail wrapped over the face, so the silhouette is a ring.
+// Cats loaf into a brick. Dogs curl into a spiral, and the read has to survive at
+// 24x30 cells on a solid black coat, where nothing DRAWN separates one volume from
+// the next. The old pass had the right ingredients - body, hip, head, tail arc -
+// and still came out an amorphous lump, for three reasons worth writing down:
+//
+//   1. every mass sat at the same height, so the back never arched ABOVE anything
+//      and the silhouette was one flat oval;
+//   2. the tail swept the entire lower half of the coil at a constant width, so it
+//      stopped being a tail and simply became the body's own outline;
+//   3. the head was a circle inside that oval with nothing carved between it and
+//      the shoulder, and the eye was a lone dot on a flank-coloured field.
+//
+// So this version stacks the masses instead of spreading them: a high rump, a back
+// that arcs clearly over a head DROPPED low and forward, a tail that tapers as it
+// wraps round the front, and the nose coming to rest on the tail tip. That
+// nose-to-tail closure is the whole reason a curled dog reads as asleep rather than
+// as a bag of fur. The shut eye is carved as a CURVE, not dotted - at this size a
+// dot is a pupil, and only a line says "closed".
 function composeCurlDog(B) {
   const { setCell, ellipse, triangle } = _c();
   B = B || {};
-  const CX = 12, CY = 22;
   const bw = B.bodyW || 1;
   const ear = B.ear || 'floppy';
-  // Cats loaf into a brick; dogs coil into a spiral with the nose tucked in and the
-  // tail wrapped over the paws, so the target silhouette is a RING. The tail arc
-  // along the lower left is what distinguishes it from a sleeping cat.
-  ellipse(CX - 0.5, CY - 0.4, 7.2 * bw, 4.6, 'C');// the coiled body mass
-  ellipse(CX - 4.8, CY - 1.8, 3.4, 3.6, 'C');     // hip, folded forward
-  ellipse(CX + 4.6, CY - 3.8, 3.9, 3.4, 'C');     // head laid down on the flank
+  const BX = 10.0, BY = 20.2, BRX = 7.0 * bw, BRY = 5.2;   // the coiled body
+  const HX = 17.4, HY = 22.2, HRX = 4.3, HRY = 4.1;        // head: RIGHT, and dropped LOW under the backline
+
+  // --- the tail, drawn FIRST so the body covers all but its outer edge ---------
+  // A tail the same colour as the coat can only read two ways at 4px per cell: as a
+  // bulge in the silhouette, or from behind a carved gap. This one uses the
+  // silhouette, and deliberately NOT the gap: drawn BEHIND the body, the only part
+  // of it that survives is the part hanging below the belly, and a silhouette bulge
+  // gets outlined by the halo for free. Carving it free instead was tried twice and
+  // is worse both ways - a full-length seam sweeps one long smiling curve across a
+  // blank flank (a grin the dog did not ask for), and a short seam over just the
+  // front half lands as a row of disconnected dots. The body ellipse is held clear
+  // of the floor so this bulge has somewhere to show; the pale tip does the rest.
+  const TAIL = [[2.8, 25.0, 2.00], [4.1, 25.8, 1.95], [5.4, 26.4, 1.90], [6.8, 26.9, 1.85],
+    [8.2, 27.2, 1.80], [9.6, 27.3, 1.70], [11.0, 27.3, 1.60], [12.3, 27.0, 1.48], [13.4, 26.5, 1.35]];
+  for (const [c, r, w] of TAIL) ellipse(c, r, w, w * 0.88, 'C');
+  const tip = TAIL[TAIL.length - 1];
+  ellipse(tip[0], tip[1] + 0.3, 1.2, 1.0, 'W', ['C']);     // pale tail tip, come to rest under the chin
+
+  // --- the coil ---------------------------------------------------------------
+  // Three stacked heights, not one flat oval: the rump rides highest on the left,
+  // the back falls away to the right, and the head tucks in beneath it. The head
+  // also has to project past the body's own right edge or it is not a head, it is a
+  // bulge - that is what HX + HRX buys over BX + BRX. The body stops short of the
+  // floor on purpose; the floor belongs to the tail.
+  ellipse(6.2, 18.9, 4.9 * bw, 4.6, 'C');          // rump, hiked above the backline
+  ellipse(BX, BY, BRX, BRY, 'C');                  // curled body
+  ellipse(HX, HY, HRX, HRY, 'C');                  // head, laid down and tucked forward
+
+  // ear: hangs off the side of the skull and pools on the floor, which is what a
+  // sleeping dog's ear actually does - and what stops the head reading as a ball
   if (ear === 'floppy' || ear === 'long' || ear === 'round') {
-    ellipse(CX + 7.8, CY - 1.8, 2.0, 3.2, 'K');   // ear draped over the shoulder
+    ellipse(HX + 2.9, HY + 1.8, 2.2, ear === 'long' ? 3.2 : 2.7, 'K');
   } else {
-    triangle(CX + 7.2, CY - 7.4, CX + 5.2, CY - 3.6, CX + 8.8, CY - 3.2, 'K');
+    triangle(HX + 3.4, HY - 6.2, HX + 1.0, HY - 2.2, HX + 4.8, HY - 1.4, 'K');   // even a perked ear folds back in sleep
   }
-  // Face features are painted AFTER applyMarking below - in this pose the coiled
-  // body sits at the same rows as the head, so a solid marking (beagle tricolour)
-  // would otherwise bury the eye.
-  // the tail sweeps around the front and rests over the paws - closes the ring
-  for (let a = 0; a <= 14; a++) {
-    const th = Math.PI * (0.30 + a / 14 * 0.86);
-    ellipse(CX - 0.5 + Math.cos(th) * 8.4, CY - 0.4 + Math.sin(th) * 5.6, 1.8, 1.6, 'C');
+
+  // Face features are painted AFTER applyMarking - in this pose the coiled body
+  // sits at the same rows as the head, so a solid marking (beagle tricolour) would
+  // otherwise bury the eye.
+  applyMarking(B.marking, { cx: BX, top: 15.0, bot: 25.0, w: 7.0 * bw, headY: HY, headRx: HRX });
+
+  const SX = 14.8, SY = 24.3, SRX = 2.5, SRY = 1.7;// muzzle, laid flat and pointing back into the coil
+  ellipse(SX, SY, SRX, SRY, 'W');
+  ellipse(SX + 2.6, SY + 1.8, 2.0, 1.2, 'W', ['C']);   // a scrap of pale chest under the chin
+  ellipse(SX - 1.8, SY, 1.4, 1.1, 'N');            // nose at the tip, a whisker from the tail tip
+
+  // --- carve the separations LAST, so the halo traces them on every coat -------
+  carveJaw(SX, SY, SRX, SRY);
+  // Seam the head off the shoulder along the head's OWN edge, stopping above the
+  // muzzle. A straight column only lines up with a circle at one row; following the
+  // arc is what makes the head read as a separate ball resting against the body
+  // rather than as a bulge in it. It also runs near-vertically, which matters: the
+  // only other carve this pose ever carried was a long horizontal one across the
+  // flank, and a lone horizontal curve on a blank field reads as a grin.
+  for (let r = Math.round(HY - HRY); r <= Math.round(HY); r++) {
+    const dy = (r - HY) / HRY;
+    if (Math.abs(dy) >= 1) continue;
+    setCell(Math.round(HX - HRX * Math.sqrt(1 - dy * dy)), r, '.');
   }
-  ellipse(CX - 1.5, CY + 2.6, 4.8, 1.6, 'W', ['C']);// belly fur against the floor
-  applyMarking(B.marking, { cx: CX - 0.5, top: CY - 5.0, bot: CY + 5.0, w: 7.4 * bw, headY: CY - 3.2, headRx: 4.2 });
-  ellipse(CX + 1.6, CY - 1.6, 2.7, 2.1, 'W');     // snout tucked toward the tail
-  ellipse(CX + 0.2, CY - 1.2, 1.4, 1.0, 'N');
-  ellipse(CX + 5.2, CY - 4.2, 1.8, 0.7, 'E');     // eye closed to a contented slit
-  carveJaw(CX + 1.6, CY - 1.6, 2.7, 2.1);
-  // seam the tail off the body so the coil reads as two overlapping volumes
-  for (let a = 1; a <= 13; a++) {
-    const th = Math.PI * (0.30 + a / 14 * 0.86);
-    setCell(Math.round(CX - 0.5 + Math.cos(th) * 6.6), Math.round(CY - 0.4 + Math.sin(th) * 4.2), '.');
-  }
+  // --- the closed eye ---------------------------------------------------------
+  // Two things happen here and they reinforce each other. The 'E' slit gives
+  // eyeBox() something to find, so the renderer strokes its own closed-lid arc over
+  // this spot while the pet is loafing; the carved curve means the shut eye still
+  // reads everywhere the raw grid is painted with no lid drawn over it at all - the
+  // contact sheet, the settings preview, the tray icon. A dot cannot do that job: at
+  // this size a dot is a pupil, and only a line says "closed".
+  const EX = 17.6, EY = 21.0;
+  ellipse(EX, EY, 1.9, 0.7, 'E');
+  for (const [dc, dr] of [[-2, 0], [-1, 1], [0, 1], [1, 1], [2, 0]]) setCell(Math.round(EX) + dc, Math.round(EY) + dr, '.');
 }
 
 // ---- begging dog (the rear-up answer) ---------------------------------------
 // Up on the haunches with both front paws dangling at the chest. Cats bat at
 // things overhead; dogs BEG, so the paws hang loose rather than reaching.
 function composeBegDog(B) {
-  const { setCell, ellipse, triangle } = _c();
+  const { setCell, ellipse } = _c();
   B = B || {};
   const CX = 12;
   const bw = B.bodyW || 1;
-  const ear = B.ear || 'floppy';
   const headRx = B.headRx || 5.4, headRy = B.headRy || 4.6;
   const headY = 5.6;
-  const snoutRx = B.snoutRx || 3.2, snoutRy = B.snoutRy || 2.7;
-  const snoutY = B.snoutY == null ? 9.3 : B.snoutY - 1.3;
+  const snoutRx = B.snoutRx || 3.5, snoutRy = B.snoutRy || 2.2;
+  const snoutY = B.snoutY == null ? 9.8 : B.snoutY - 1.3;
+  const head = { cx: CX, headY, headRx, headRy };
   ellipse(CX, 26.4, 6.8 * bw, 3.6, 'C');          // seated base
   ellipse(CX, 19.4, 4.9 * bw, 7.4, 'C');          // torso stretched tall
   ellipse(CX, 13.4, 3.5, 3.0, 'C');               // neck, extended upward
-  const earOx = headRx - 0.6;
-  if (ear === 'floppy' || ear === 'long' || ear === 'round') {
-    const drop = ear === 'long' ? 5.4 : ear === 'round' ? 3.5 : 4.2;
-    ellipse(CX - earOx, 7.8, 2.2, drop, 'K');
-    ellipse(CX + earOx, 7.8, 2.2, drop, 'K');
-  }
+  hangEars(B, head);
   ellipse(CX, headY, headRx, headRy, 'C');
-  if (ear === 'perk' || ear === 'semi' || ear === 'big') {
-    const ew = ear === 'big' ? 2.9 : 2.5, eo = ear === 'big' ? 3.9 : 3.6;
-    const apex = ear === 'big' ? -2.6 : -1.6;
-    triangle(CX - eo - 0.6, apex, CX - eo - ew, 6.2, CX - eo + ew, 4.4, 'K');
-    triangle(CX + eo + 0.6, apex, CX + eo + ew, 6.2, CX + eo - ew, 4.4, 'K');
-    const iw = ew * 0.5;
-    triangle(CX - eo - 0.4, apex + 2.0, CX - eo - iw, 5.7, CX - eo + iw, 4.6, 'I');
-    triangle(CX + eo + 0.4, apex + 2.0, CX + eo + iw, 5.7, CX + eo - iw, 4.6, 'I');
-  }
-  ellipse(CX, snoutY, snoutRx, snoutRy, 'W');     // snout tipped up, hopeful
-  if (B.snoutDark) ellipse(CX, snoutY - snoutRy * 0.2, snoutRx * 0.95, snoutRy * 0.78, 'K');
-  ellipse(CX, snoutY - snoutRy * 0.30, 1.6, 1.1, 'N');
-  ellipse(CX - 3.0, headY - 0.6, 1.8, 1.9, 'E');
-  ellipse(CX + 3.0, headY - 0.6, 1.8, 1.9, 'E');
-  if (B.brows) { ellipse(CX - 3.0, headY - 3.1, 1.3, 0.9, 'X'); ellipse(CX + 3.0, headY - 3.1, 1.3, 0.9, 'X'); }
+  // The reared body already fills this grid to its top row, so the ear tips get less
+  // headroom here than in the seated pose - hence the lower apex.
+  perkEars(B, { ...head, apex: 0.4 });
+  dogFace(B, { ...head, snoutY });                // snout tipped up, hopeful
   // dangling front paws held close to the chest, wrists limp - the beg tell
   ellipse(CX - 3.0, 17.0, 1.5, 2.8, 'C'); ellipse(CX - 3.4, 19.6, 1.9, 1.5, 'W', ['C']);
   ellipse(CX + 3.0, 17.4, 1.5, 2.8, 'C'); ellipse(CX + 3.4, 20.0, 1.9, 1.5, 'W', ['C']);
   ellipse(CX, 19.6, 2.3, 4.6, 'W', ['C']);        // chest blaze
   applyMarking(B.marking, { cx: CX, top: 13.0, bot: 29.0, w: 5.6 * bw, headY, headRx });
-  carveJaw(CX, snoutY, snoutRx, snoutRy);
+  carveJaw(CX, snoutY, snoutRx, snoutRy, true);
+  carveEars(B, head);
   for (let r = 22; r <= 28; r++) setCell(CX, r, '.');
   // seam each dangling forearm off the chest
   for (let r = 15; r <= 20; r++) { setCell(CX - 5, r, '.'); setCell(CX + 5, r, '.'); }
