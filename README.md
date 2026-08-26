@@ -279,6 +279,36 @@ your pet, as a meow or a bark and a speech bubble, with an optional real
 desktop notification.
 
 <details open>
+<summary><b>Focus Guard</b>: the pet works out when to leave you alone</summary>
+
+A desktop pet that meows into the middle of a screen-share is a desktop pet you
+uninstall. Focus Guard is the pet noticing you are busy without being told.
+
+It reads "busy" from a calendar event that is actually happening now (an all-day
+block is explicitly not a meeting, so *Vacation* cannot silence it for a whole
+day), from Quiet Hours, or from Work mode. While you are busy the pet parks in
+its rest corner and stops chasing things, and email, reminders and agent
+messages **wait** rather than interrupt.
+
+Nothing is thrown away. Held messages still land in the tray recap as they
+arrive, and when you are free the pet sums them up in one line - *"While you
+were busy: 3 new emails and 1 reminder."* Calendar nudges always come through,
+because being told about the meeting you are about to miss is the opposite of an
+interruption, and you can name senders under **Always tell me about** so the
+people who matter reach you anyway.
+
+</details>
+
+<details>
+<summary><b>Quiet hours</b>: a nightly do-not-disturb window</summary>
+
+Set a From and To time and the pet goes silent between them - no meow, no
+desktop notification. The speech bubble still appears, so a reminder that lands
+at 3am is waiting for you in the morning rather than lost.
+
+</details>
+
+<details open>
 <summary><b>Timers</b>: break reminders and Pomodoro</summary>
 
 - Break timer: pick an interval and the cat grows big to stretch with you and
@@ -332,9 +362,13 @@ floating notes and the cat's strumming bob along in time with the beat.
 <summary><b>Mail and calendar</b>: IMAP unread alerts and <code>.ics</code> event nudges</summary>
 
 - Unread-mail alerts: point the cat at your IMAP inbox (Gmail, Outlook, anything
-  IMAP) and it tells you when new mail arrives. Your app password is stored
-  encrypted at rest (Electron `safeStorage`, which is DPAPI on Windows), never
-  in `settings.json`, and the IMAP connection runs in an isolated worker process.
+  IMAP) and it tells you who the mail is from - *"Alice: Budget review"* - so you
+  can decide from the bubble instead of going to look. Name the senders you never
+  want to miss under **Always tell me about**, and they reach you even while
+  Focus Guard is holding everything else back; a bare domain like `@acme.com`
+  covers everyone there. Your app password is stored encrypted at rest (Electron
+  `safeStorage`, which is DPAPI on Windows), never in `settings.json`, and the
+  IMAP connection runs in an isolated worker process.
 - Calendar nudges: paste your calendar's secret `.ics` URL (Google and Outlook
   both provide one) and the cat nudges you a few minutes before each event. The
   feed is fetched and parsed in an isolated worker.
