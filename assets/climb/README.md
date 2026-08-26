@@ -6,10 +6,18 @@
 > climbs the rope. Every coat WITHOUT one, and every dog, rears up and swipes at a
 > leaf blowing past instead (`swatLeaf` in renderer.js).
 >
-> Painted, so climbing: `tuxedo` (the shipped default), `orange-tabby`,
-> `mackerel-tabby`. `gray` ships frames but is on `CLIMB_FRAME_SKIP`, because its
-> art is a green-eyed gray-and-white bicolor while the coat is solid gray with gold
-> eyes; repaint it and drop it from that set to enable it.
+> Painted, so climbing: `mackerel-tabby` (the shipped default), `orange-tabby`,
+> `tuxedo`, and `tortoiseshell`.
+>
+> `tortoiseshell` is DERIVED, not drawn: it is the tuxedo frames re-tinted, since
+> the two share a base coat and differ only in bib colour and eye colour. See
+> `~/pixelpets-frame-pack/tools/recolour-climb.py`. That trick only works between
+> coats that are a palette apart, and it recolours regions rather than repainting
+> markings, so a real tortie's mottling is not reproduced.
+>
+> `gray` ships frames but is on `CLIMB_FRAME_SKIP`, because its art is a green-eyed
+> gray-and-white bicolor while the coat is solid gray with gold eyes; repaint it and
+> drop it from that set to enable it.
 >
 > There is no longer a procedural climb to fall back on, and that is deliberate.
 > `eyeBox()` splits the grid at column 12 so the face must straddle that seam,

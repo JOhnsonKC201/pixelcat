@@ -1568,8 +1568,8 @@ const coatSlug = (name) => String(name || '').toLowerCase().replace(/\s+/g, '-')
 // removes the trade entirely. The prompts in ~/pixelpets-frame-pack/prompts/ now
 // specify that style explicitly; they did not before, which is why this art clashes.
 //
-// Coverage today: only tuxedo, orange-tabby and mackerel-tabby are painted (gray is
-// skipped below). The other 11 coats and every dog still use the procedural climb.
+// Coverage today: tuxedo, orange-tabby, mackerel-tabby and tortoiseshell are painted
+// (gray is skipped below). The other 10 coats and every dog still use the leaf swipe.
 const PAINTED_CLIMB = true;
 // Per-coat exclusions, applied when PAINTED_CLIMB is on. 'gray' is painted as a
 // green-eyed gray+white bicolor, but the gray coat is solid gray with gold eyes.
