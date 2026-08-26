@@ -140,7 +140,19 @@ test('every persisted file is covered by the migration list', () => {
     while ((m = re.exec(body))) referenced.add(m[1]);
   }
   assert.ok(referenced.size > 0, 'expected to find userData readers in src/');
+  // Deliberately NOT migrated. These are per-INSTALL markers, not user data, and
+  // carrying one across the rename would be a bug rather than a fix:
+  //   .autostart-set records that we have already made the launch-at-login decision
+  //   for this bundle. On macOS the login item is registered per app bundle, so a
+  //   renamed install genuinely needs to make that decision again - migrating the
+  //   marker would leave the new bundle never registered and autostart silently dead.
+  const NOT_USER_DATA = new Set(['.autostart-set']);
   for (const name of referenced) {
+    if (NOT_USER_DATA.has(name)) {
+      assert.ok(!datadir.DATA_FILES.includes(name),
+        `${name} is a per-install marker and must NOT be in DATA_FILES`);
+      continue;
+    }
     assert.ok(datadir.DATA_FILES.includes(name),
       `${name} is stored in userData but is missing from datadir.DATA_FILES, so it would not survive the rename`);
   }

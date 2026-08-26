@@ -54,6 +54,7 @@ let lastMinuteKey = '';                                // 'YYYY-M-D-HH:MM' for r
 let firedThisMinute = new Set();                       // reminder ids already fired this minute
 let lastReminder = null;                                // last reminder fired (tray snooze)
 let hookStarted = false;
+let hookRetry = null;    // macOS: re-arm the input hook once Accessibility is granted (see startInputHook)
 let ignoring = true;                                   // current click-through state
 let onBattery = false;                                 // running unplugged (powerMonitor)
 let lowPowerBroadcast = null;                          // last effective low-power state sent to the overlay
@@ -89,7 +90,30 @@ if (process.platform === 'darwin' && app.dock && !SHOT && !SHEET) app.dock.hide(
 // Launch-at-login (unpackaged): run `electron.exe <appDir>` on login.
 const APP_DIR = path.resolve(__dirname, '..');
 function setAutostart(enabled) {
+  // `path` and `args` are documented win32-only and are silently dropped on macOS.
+  // Worse, from source process.execPath is Electron's own binary, so macOS would
+  // register Electron.app and the user would get a bare Electron window at login
+  // instead of a pet. Only register a packaged bundle there.
+  if (process.platform === 'darwin') {
+    if (!app.isPackaged) return;
+    try { app.setLoginItemSettings({ openAtLogin: enabled }); } catch (e) { /* not fatal */ }
+    return;
+  }
   app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath, args: enabled ? [APP_DIR] : [] });
+}
+
+// Whether we have ever enabled launch-at-login on this machine. Only consulted on
+// macOS, where the login item is user-visible and user-togglable: after the first
+// run the user owns that switch, not us. A missing/unreadable marker reads as "not
+// yet asked", so the worst case is asking once more, never overriding repeatedly.
+function autostartMarkerPath() { return path.join(app.getPath('userData'), '.autostart-set'); }
+function autostartAsked() { try { return fs.existsSync(autostartMarkerPath()); } catch (e) { return false; } }
+function markAutostartAsked() {
+  try {
+    const fp = autostartMarkerPath();
+    fs.mkdirSync(path.dirname(fp), { recursive: true });
+    fs.writeFileSync(fp, new Date().toISOString());
+  } catch (e) { /* best effort: at worst we offer again next launch */ }
 }
 
 // --- low-power state -------------------------------------------------------
@@ -144,14 +168,24 @@ function createWindow() {
     Object.assign(opts, { x: b.x + 80, y: b.y + 80, width: SHOT_CANVAS.w, height: SHOT_CANVAS.h + 40, focusable: true, show: !SHEET });
   } else {
     // Full-display, click-through overlay; non-focusable so it never steals keys.
-    Object.assign(opts, { x: b.x, y: b.y, width: b.width, height: b.height, focusable: false, enableLargerThanScreen: true });
+    // fullscreenable:false matters on macOS: a fullscreenable window gets
+    // NSWindowCollectionBehaviorFullScreenPrimary, which AppKit treats as mutually
+    // exclusive with the FullScreenAuxiliary behaviour that setVisibleOnAllWorkspaces
+    // asks for - and that conflict is the classic reason an always-on-top overlay
+    // vanishes the moment another app goes fullscreen.
+    Object.assign(opts, { x: b.x, y: b.y, width: b.width, height: b.height, focusable: false, enableLargerThanScreen: true, fullscreenable: false });
   }
   win = new BrowserWindow(opts);
   hardenNav(win);
   win.setAlwaysOnTop(true, 'screen-saver');
   // macOS: follow the user across Spaces and fullscreen apps (no-op elsewhere).
   if (process.platform === 'darwin' && !SHOT && !SHEET) {
-    try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch (e) { /* ignore */ }
+    // skipTransformProcessType is not optional here. Without it every call flips the
+    // process between UIElementApplication and ForegroundApplication, and Electron
+    // documents that this "will hide the window and dock for a short time every time
+    // it is called". app.dock.hide() above already made us a UIElement, so the
+    // transform buys nothing and costs a visible flicker.
+    try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true }); } catch (e) { /* ignore */ }
   }
   // Default: whole overlay passes clicks through; move events still forwarded so
   // the renderer can detect hover. Main re-derives this each cursor tick (below).
@@ -207,18 +241,7 @@ function createWindow() {
   // System-wide keyboard hook so the cat reacts to typing in ANY app.
   // (Skipped for --shot previews - a screenshot has no need for a global hook,
   // which also avoids a macOS Accessibility prompt for the preview process.)
-  if (!SHOT && !SHEET) {
-    try {
-      const { uIOhook } = require('uiohook-napi');
-      uIOhook.on('keydown', () => { if (win && !win.isDestroyed()) win.webContents.send('keydown'); });
-      // sign of rotation = scroll direction (-1 up / +1 down) so the cat can climb the right way
-      uIOhook.on('wheel', (e) => { if (win && !win.isDestroyed()) win.webContents.send('scroll', Math.sign(e && e.rotation) || -1); });
-      uIOhook.start();
-      hookStarted = true;
-    } catch (e) {
-      console.log('[keyhook-error]', e.message);
-    }
-  }
+  if (!SHOT && !SHEET) startInputHook();
 
   if (SHOT) {
     win.webContents.on('did-finish-load', () => {
@@ -342,17 +365,33 @@ function createWindow() {
     if (!win || win.isDestroyed()) return;
     if (cfg && cfg.onTop === false) return;       // user turned "always on top" off
     try {
-      win.setAlwaysOnTop(false);                  // toggle off->on forces a real re-raise on Windows
-      win.setAlwaysOnTop(true, 'screen-saver');
-      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      win.moveTop();
+      // The off->on toggle and moveTop() are a WINDOWS re-raise trick. On macOS they
+      // drop the window from NSScreenSaverWindowLevel to normal and back on every
+      // tick - 1.4 times a second, forever - which is window-server thrash the user
+      // sees as flicker and the battery sees as work.
+      if (process.platform !== 'darwin') {
+        win.setAlwaysOnTop(false);                // toggle off->on forces a real re-raise on Windows
+        win.setAlwaysOnTop(true, 'screen-saver');
+        win.moveTop();
+      } else {
+        win.setAlwaysOnTop(true, 'screen-saver');
+      }
+      // Collection behaviour is sticky, so this does not belong on the timer at all
+      // on macOS; it is set once at window creation. Re-assert only off-timer events
+      // (a display change can drop it).
     } catch (e) { /* ignore */ }
+  };
+  // Re-assert the Spaces/fullscreen behaviour only on the events that can actually
+  // drop it, never on the 700ms tick (see skipTransformProcessType above).
+  const reassertSpaces = () => {
+    if (process.platform !== 'darwin' || !win || win.isDestroyed()) return;
+    try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true }); } catch (e) { /* ignore */ }
   };
   reassertTop();                                  // claim the top immediately
   topTimer = setInterval(reassertTop, 700);       // and hold it (toggle re-raise each tick)
-  win.webContents.on('did-finish-load', reassertTop);
-  screen.on('display-metrics-changed', reassertTop);
-  screen.on('display-added', reassertTop);
+  win.webContents.on('did-finish-load', () => { reassertTop(); reassertSpaces(); });
+  screen.on('display-metrics-changed', () => { reassertTop(); reassertSpaces(); });
+  screen.on('display-added', () => { reassertTop(); reassertSpaces(); });
 }
 
 // ---- settings: load, broadcast, persist ------------------------------------
@@ -526,9 +565,58 @@ function openSettings() {
   });
   hardenNav(settingsWin);
   settingsWin.setMenuBarVisibility(false);
+  // macOS delivers Cmd+C/V/X/A as key equivalents from the Edit menu, and this app
+  // has no menu bar at all: app.dock.hide() makes it an accessory app, and no
+  // application menu is ever installed. Without this, Cmd+V is dead in the settings
+  // window - which is exactly where the two unTypeable secrets live, a 16-character
+  // Gmail app-password and a long secret .ics URL, both in masked fields. Wiring the
+  // edits directly is the version that cannot depend on menu-bar behaviour.
+  if (process.platform === 'darwin') {
+    settingsWin.webContents.on('before-input-event', (e, input) => {
+      if (!input.meta || input.type !== 'keyDown' || !input.key) return;
+      const wc = settingsWin.webContents;
+      switch (input.key.toLowerCase()) {
+        case 'c': wc.copy(); break;
+        case 'v': wc.paste(); break;
+        case 'x': wc.cut(); break;
+        case 'a': wc.selectAll(); break;
+        case 'z': if (input.shift) wc.redo(); else wc.undo(); break;
+        case 'w': settingsWin.close(); break;
+        default: return;
+      }
+      e.preventDefault();
+    });
+  }
   settingsWin.once('ready-to-show', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.show(); });
   settingsWin.loadFile(path.join(__dirname, 'settings.html'));
   settingsWin.on('closed', () => { settingsWin = null; });
+}
+
+// Start the system-wide input hook, and keep trying on macOS until it works.
+//
+// On macOS the very first start() call raises the Accessibility prompt and then
+// FAILS, because the prompt is asynchronous - the permission the user is about to
+// grant does not exist yet at the moment we ask. Starting once therefore leaves the
+// typing reaction and scroll-to-climb permanently dead: the user grants the
+// permission, nothing happens, and the only clue is a console line nobody can see
+// in a packaged .app. So we say what we need, and re-arm the moment it is granted.
+function startInputHook() {
+  try {
+    const { uIOhook } = require('uiohook-napi');
+    uIOhook.on('keydown', () => { if (win && !win.isDestroyed()) win.webContents.send('keydown'); });
+    // sign of rotation = scroll direction (-1 up / +1 down) so the cat can climb the right way
+    uIOhook.on('wheel', (e) => { if (win && !win.isDestroyed()) win.webContents.send('scroll', Math.sign(e && e.rotation) || -1); });
+    uIOhook.start();
+    hookStarted = true;
+    if (hookRetry) { clearInterval(hookRetry); hookRetry = null; }
+  } catch (e) {
+    console.log('[keyhook-error]', e.message);
+    if (process.platform === 'darwin' && !hookRetry) {
+      notify('Turn on Accessibility for pixelpets in System Settings > Privacy & Security so I can react to your typing.',
+        { source: 'system', dedupeKey: 'axapi', dedupeMs: 3600000, ttl: 12000, ignoreQuiet: true });
+      hookRetry = setInterval(startInputHook, 5000);   // picks the grant up without a restart
+    }
+  }
 }
 
 // ---- break timer + reminder scheduler (lives in MAIN; renderer may be paused) --
@@ -820,6 +908,7 @@ function cleanup() {
   tipTimers.forEach(clearTimeout); tipTimers = [];   // a hint must not fire mid-teardown
   if (areaTimer) clearTimeout(areaTimer);
   if (topTimer) clearInterval(topTimer);
+  if (hookRetry) { clearInterval(hookRetry); hookRetry = null; }
   if (agentTimer) clearInterval(agentTimer);
   if (scheduleTimer) clearInterval(scheduleTimer);
   if (pomoTimer) clearTimeout(pomoTimer);
@@ -956,7 +1045,14 @@ app.whenReady().then(() => {
   datadir.migrateFromLegacy(app);
   themesCache = themes.load();
   if (!SHOT && !SHEET) {
-    setAutostart(!process.argv.includes('--autostart=off'));
+    // Don't fight the user. macOS lists login items in System Settings > General,
+    // so a user who turns pixelpets off there has made an explicit choice; asserting
+    // openAtLogin on every launch would silently undo it. Ask once, on the first run
+    // that ever gets this far, and then leave it alone - the marker file mirrors the
+    // pattern datadir.js already uses for its one-time migration.
+    if (process.argv.includes('--autostart=off')) setAutostart(false);
+    else if (process.platform !== 'darwin') setAutostart(true);
+    else if (!autostartAsked()) { setAutostart(true); markAutostartAsked(); }
     if (process.argv.includes('--autostart=off')) { console.log('[autostart disabled]'); return app.quit(); }
     cfg = config.load();
     loadNotifyHistory();   // restore the recent-notifications recap from last session

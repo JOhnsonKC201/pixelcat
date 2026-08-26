@@ -149,8 +149,10 @@ You can also [play with the cat in your browser](https://pixelcat-jet.vercel.app
 >
 > - **Windows:** SmartScreen shows a blue *"Windows protected your PC"* screen.
 >   Click **More info**, then **Run anyway**.
-> - **macOS:** Gatekeeper refuses a double-click. **Right-click** the app, choose
->   **Open**, then confirm.
+> - **macOS:** Gatekeeper refuses a double-click. Try to open it once, then go to
+>   **System Settings > Privacy & Security** and click **Open Anyway**. (On macOS 14
+>   and earlier, right-clicking the app and choosing **Open** also works; macOS 15
+>   removed that shortcut.)
 >
 > Would rather not? [Play it in your browser](https://pixelcat-jet.vercel.app)
 > (the real renderer, nothing to install) or run it from source below. Both skip
@@ -459,7 +461,11 @@ and tray icons.
 
 **macOS:** `npm run dist:mac` (on a Mac) builds a dmg and zip for Apple Silicon
 and Intel; the release workflow also builds them in CI on every version tag.
-Builds are unsigned (right-click and choose Open the first time). The mac port
+Builds are ad-hoc signed rather than notarized, so Gatekeeper still asks before
+the first launch: open it once, then **System Settings > Privacy & Security >
+Open Anyway**. (The ad-hoc seal matters for more than the warning - macOS keys the
+Accessibility grant and the Keychain entry to a code signature, so without it both
+would be thrown away on every update.) The mac port
 is code-complete but not yet smoke-tested on real hardware. If you have a Mac,
 the checklist is: the overlay shows over all apps and Spaces (including
 fullscreen), clicks pass through except on the cat, the typing reaction works

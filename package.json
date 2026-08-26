@@ -52,6 +52,7 @@
     "appId": "com.johnsonkc.pixelcat",
     "productName": "pixelpets",
     "npmRebuild": false,
+    "afterPack": "scripts/adhoc-sign.js",
     "directories": {
       "output": "dist"
     },
@@ -71,6 +72,9 @@
     "mac": {
       "icon": "assets/icon-512.png",
       "category": "public.app-category.entertainment",
+      "extendInfo": {
+        "LSUIElement": 1
+      },
       "target": [
         {
           "target": "dmg",
