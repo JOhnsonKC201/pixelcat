@@ -460,7 +460,13 @@ function floorLockOn() { return !(config && config.floorLock === false); }
 // stays calm - no roaming, cursor-chase, startle-bolt, leaf-play, or butterfly.
 // Non-destructive: it overrides behavior while on; the underlying settings return
 // when it's off. config is null until the first onConfig, so unset reads as "off".
-function workModeOn() { return !!(config && config.workMode); }
+// Focus Guard (main.js) has decided we are busy: in a meeting, inside quiet hours,
+// or work mode. The pet behaves exactly as it does in work mode - parks in its rest
+// corner, no butterfly, no cursor chase, no startle-bolt, no leaf play - WITHOUT
+// touching config.workMode, so switching it on for a meeting can never silently
+// rewrite the user's own setting.
+let focusBusy = false;
+function workModeOn() { return focusBusy || !!(config && config.workMode); }
 function restingY() {
   return floorLockOn() ? clamp(groundBaselineY(), SH + 10, viewH - 2) : zoneClampY(groundBaselineY());
 }
@@ -1247,6 +1253,7 @@ if (window.cat) {
   if (window.cat.onTreat) window.cat.onTreat(() => dropTreat());
   if (window.cat.onBall) window.cat.onBall(() => throwBall());
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
+  if (window.cat.onFocus) window.cat.onFocus((d) => { focusBusy = !!(d && d.busy); resumeRaf(); });
   if (window.cat.onGeom) window.cat.onGeom((g) => {
     if (g && Number.isFinite(g.bottomInset)) geomBottomInset = g.bottomInset;
     if (g && Number.isFinite(g.bottomWorkY)) geomBottomWorkY = g.bottomWorkY;

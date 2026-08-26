@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('cat', {
   onPomo: sub('pomo', (d) => d),
   onGeom: sub('geom', (g) => g),
   onNotify: sub('notify', (d) => d),
+  onFocus: sub('focus', (d) => d),
   setHot: (o) => ipcRenderer.send('hot', o),
   openSettings: () => ipcRenderer.send('settings:open'),
   setPattern: (i) => ipcRenderer.send('settings:save-pattern', i),
