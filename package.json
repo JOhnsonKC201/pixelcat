@@ -26,6 +26,8 @@
     "test": "node --test",
     "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
     "hook": "node scripts/install-hook.js",
+    "ipad": "node tools/ipad-terminal/server.js",
+    "ipad:lan": "node tools/ipad-terminal/server.js --lan",
     "test:boot": "node scripts/bootcheck.js",
     "demo": "node scripts/make-demo-gif.js mp4",
     "demo:hero": "node scripts/make-demo-gif.js hero mp4",

@@ -506,6 +506,30 @@ fullscreen), clicks pass through except on the cat, the typing reaction works
 after granting Accessibility, the cat rests on the Dock edge (not the menu
 bar), the tray menu works in the menu bar, and login launch works.
 
+## Drive it from an iPad
+
+```
+npm run ipad:lan
+```
+
+That prints a URL. Open it in Safari on the iPad and you have a real terminal — `vim`,
+`top`, tab completion, colours — on **this** machine. Share → Add to Home Screen gives
+it an icon and a full-screen window.
+
+The honest limitation first, because it is the reason the tool works this way: nothing
+running on an iPad can control other iPad apps. iPadOS sandboxes every app, Apple
+exposes no API for cross-app control, and no terminal on the App Store gets around it —
+Shortcuts is the only sanctioned path, and only for apps that publish App Intents. So
+this puts the shell on the computer, where a shell is worth having, and lets the iPad be
+the screen and the keyboard.
+
+It is built for a tablet: a key bar supplies the Esc, Tab, Ctrl and arrows the soft
+keyboard lacks, and because Safari suspends a backgrounded tab, the shell outlives the
+connection and replays exactly the output you missed when you come back.
+
+It is a shell running as you, over plain HTTP. Fine on your own Wi-Fi, not fine anywhere
+else — see [`tools/ipad-terminal/`](tools/ipad-terminal/) for the full notes.
+
 ## How it works
 
 - The cat is one role-coded sprite (outline, coat, markings, white, patch, eye,
@@ -549,6 +573,7 @@ pixelpets/
     settings*.{html,js}    # settings window + its IPC bridge
     preload.js             # safe IPC bridge for the overlay
   scripts/                 # icon + demo/GIF generators, notify.js, install-hook.js
+  tools/ipad-terminal/     # browser terminal for this machine, driven from an iPad
   integrations/            # ready-made agent hook configs (5 agents)
   assets/                  # generated icons, showcase, hero + gallery clips
 ```

@@ -1,0 +1,17 @@
+{
+  "name": "pixelpets-ipad-terminal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser terminal for this machine, driven from an iPad",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "lan": "node server.js --lan"
+  },
+  "//": "Deliberately a package of its own, not part of the app. node-pty is a native module and xterm is browser-side - neither belongs in the Electron bundle, and hoisting them into the root manifest would ship both to every installer. Everything here is optional: with nothing installed the server still runs in line mode and loads xterm from a CDN.",
+  "optionalDependencies": {
+    "node-pty": "^1.0.0",
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0"
+  }
+}
