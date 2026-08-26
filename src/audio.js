@@ -1,6 +1,6 @@
 // Procedural sound (WebAudio). Everything here is synthesized in code; the ONE optional
 // asset is assets/meow.(ogg|mp3|wav) - drop one in and it replaces the synth meow (see
-// loadMeowSample). Loaded as a classic <script> before
+// Loaded as a classic <script> before
 // renderer.js, sharing the overlay's global scope: it reads `config` (volume/soundOn)
 // and `patternIndex`/`PATTERN_BUILD` (per-breed voice) and exposes audio()/playMeow()/
 // startPurr()/stopPurr()/playChirp()/playMrrp() that renderer.js calls. Extracted from
@@ -32,42 +32,12 @@ function audio() {
     }
     if (actx.state === 'suspended') actx.resume();
   } catch (e) { actx = null; }
-  if (actx) loadMeowSample(actx);
   return actx;
 }
 // Optional REAL meow: if a recording exists at assets/meow.(ogg|mp3|wav) it REPLACES the
 // synth meow. Loaded once via XHR - the overlay runs from file://, where fetch() is
 // blocked but XHR can read a local file. If it's absent or won't decode, the synth plays.
 // (This is the ONLY optional asset; everything else stays 100% synthesized.)
-let meowBuf = null, meowTried = false;
-function loadMeowSample(ac) {
-  if (meowTried || typeof XMLHttpRequest === 'undefined') return;
-  meowTried = true;
-  const files = ['../assets/meow.ogg', '../assets/meow.mp3', '../assets/meow.wav'];
-  (function tryNext(i) {
-    if (i >= files.length) return;
-    let xhr;
-    try { xhr = new XMLHttpRequest(); xhr.open('GET', files[i], true); xhr.responseType = 'arraybuffer'; }
-    catch (e) { return tryNext(i + 1); }
-    xhr.onload = () => {
-      if ((xhr.status && xhr.status >= 400) || !xhr.response) return tryNext(i + 1);
-      try { ac.decodeAudioData(xhr.response.slice(0), (buf) => { meowBuf = buf; }, () => tryNext(i + 1)); }
-      catch (e) { tryNext(i + 1); }
-    };
-    xhr.onerror = () => tryNext(i + 1);
-    try { xhr.send(); } catch (e) { tryNext(i + 1); }
-  })(0);
-}
-// Play the real recording (per-breed pitch + a little per-call variation), through the
-// shared master so Volume + the limiter apply just like the synth.
-function playMeowSample(ac) {
-  const v = voiceFor();
-  const s = ac.createBufferSource(); s.buffer = meowBuf;
-  s.playbackRate.value = v.pitch * (0.94 + Math.random() * 0.12);
-  const g = ac.createGain(); g.gain.value = 0.9 * (v.gain || 1);
-  s.connect(g).connect(master); s.start();
-  s.onended = () => { try { s.disconnect(); g.disconnect(); } catch (e) { /* ignore */ } };
-}
 // Is the overlay a dog right now? renderer.js defines isDog() and loads AFTER this
 // file, so this resolves at CALL time, never at load time.
 function voiceIsDog() { return typeof isDog === 'function' && isDog(); }
@@ -272,7 +242,6 @@ function playMeow() {
   // Still 100% synthesized; voiceFor() keeps each breed's own pitch/length.
   const ac = audio(); if (!ac) return;
   if (voiceIsDog()) { playBark(); return; }      // a dog does not meow
-  if (meowBuf) { playMeowSample(ac); return; }   // a real recording, if provided, replaces the synth
   const v = voiceFor();
   const t0 = ac.currentTime;
   const r = Math.random();

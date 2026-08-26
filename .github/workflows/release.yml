@@ -36,6 +36,24 @@ jobs:
           files: |
             dist/*.exe
             dist/*.blockmap
+          body: |
+            ### Install
+
+            **Windows:** run `pixelpets.Setup.*.exe`. SmartScreen will show a blue
+            "Windows protected your PC" screen because the build is not code-signed
+            (a certificate costs real money for a free app). Click **More info**,
+            then **Run anyway**.
+
+            **macOS:** open the `.dmg`, then **right-click the app and choose Open**
+            and confirm. A double-click will be refused by Gatekeeper, for the same
+            reason.
+
+            Prefer not to? [Play it in your browser](https://pixelcat-jet.vercel.app)
+            or run it from source: `npm install && npm start`.
+
+            The keyboard hook forwards a single "a key was pressed" boolean and never
+            what you typed. See [SECURITY.md](https://github.com/JOhnsonKC201/pixelpets/blob/main/SECURITY.md).
+
           generate_release_notes: true
 
   build-macos:
@@ -58,4 +76,22 @@ jobs:
           files: |
             dist/*.dmg
             dist/*.zip
+          body: |
+            ### Install
+
+            **Windows:** run `pixelpets.Setup.*.exe`. SmartScreen will show a blue
+            "Windows protected your PC" screen because the build is not code-signed
+            (a certificate costs real money for a free app). Click **More info**,
+            then **Run anyway**.
+
+            **macOS:** open the `.dmg`, then **right-click the app and choose Open**
+            and confirm. A double-click will be refused by Gatekeeper, for the same
+            reason.
+
+            Prefer not to? [Play it in your browser](https://pixelcat-jet.vercel.app)
+            or run it from source: `npm install && npm start`.
+
+            The keyboard hook forwards a single "a key was pressed" boolean and never
+            what you typed. See [SECURITY.md](https://github.com/JOhnsonKC201/pixelpets/blob/main/SECURITY.md).
+
           generate_release_notes: true

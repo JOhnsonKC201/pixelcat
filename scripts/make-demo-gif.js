@@ -176,7 +176,10 @@ function buildPoses(i) {
 }
 function sitFor(i) { return buildSprite(24, 30, () => composeSit(buildFor(i))); }
 let SP = buildPoses(0);   // default: Orange Tabby (the demo recipe)
-const TUX = Math.max(0, S.PATTERNS.findIndex((p) => p.name === 'Tuxedo'));   // the "Black Tuxedo" hero/gallery coat
+// The hero/gallery coat is the DEFAULT coat, so the storefront shows what a new
+// install actually opens on. It also ships painted climb art, which the scroll
+// clip needs.
+const TUX = Math.max(0, S.PATTERNS.findIndex((p) => p.name === 'Mackerel Tabby'));
 
 // ---- canvas + raster helpers ------------------------------------------------
 let W = 480, H = 340, PX = 6;            // output size (mutable per recipe); PX = output px per grid cell
@@ -429,15 +432,67 @@ function sceneMochi(frames, o = {}) {
   }
 }
 
-// The scroll clip used to blit the app's own painted rope-climb frames from
-// assets/climb/. The rope climb is gone (see CHANGELOG), and its replacement
-// (rear up and swipe at a leaf) is composed in renderer.js, which is a browser
-// script this pure-Node generator cannot import - which is why the old scene
-// reached for PNGs in the first place. Regenerating that clip means stitching
-// real `--shot --state=paper` renders instead of drawing it here.
+// ---- painted raster climb (the app's own hand-painted per-coat frames) ------
+// The scroll clip blits the SAME painted frames the app uses, which is why this
+// pure-Node script needs a PNG decoder. Coats without painted art swipe at a leaf
+// instead, and that pose is composed in renderer.js (a browser script this cannot
+// import) - so the clip stars a painted coat, which is also the default coat.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+// Tiny PNG decoder (zlib inflate + un-filter) so this pure-Node script can blit
+// the painterly climb frames that the app itself uses for the scroll rope-climb.
+function decodePng(file) {
+  const zlib = require('zlib');
+  const b = fs.readFileSync(file);
+  let p = 8, w = 0, h = 0, colorType = 6; const idat = [];
+  while (p < b.length) {
+    const len = b.readUInt32BE(p), type = b.toString('ascii', p + 4, p + 8), data = b.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') { w = data.readUInt32BE(0); h = data.readUInt32BE(4); colorType = data[9]; }
+    else if (type === 'IDAT') idat.push(data);
+    else if (type === 'IEND') break;
+    p += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const ch = colorType === 6 ? 4 : colorType === 2 ? 3 : 1, stride = w * ch;
+  const out = new Uint8ClampedArray(w * h * 4);
+  let cur = Buffer.alloc(stride), prev = Buffer.alloc(stride), rp = 0;
+  for (let y = 0; y < h; y++) {
+    const f = raw[rp++];
+    for (let x = 0; x < stride; x++) {
+      const rb = raw[rp++], a = x >= ch ? cur[x - ch] : 0, bb = prev[x], c = x >= ch ? prev[x - ch] : 0;
+      let v;
+      if (f === 1) v = rb + a; else if (f === 2) v = rb + bb; else if (f === 3) v = rb + ((a + bb) >> 1);
+      else if (f === 4) { const pp = a + bb - c, pa = Math.abs(pp - a), pb = Math.abs(pp - bb), pc = Math.abs(pp - c); v = rb + (pa <= pb && pa <= pc ? a : pb <= pc ? bb : c); }
+      else v = rb;
+      cur[x] = v & 255;
+    }
+    for (let x = 0; x < w; x++) {
+      const si = x * ch, di = (y * w + x) * 4;
+      out[di] = cur[si]; out[di + 1] = ch >= 3 ? cur[si + 1] : cur[si]; out[di + 2] = ch >= 3 ? cur[si + 2] : cur[si]; out[di + 3] = ch === 4 ? cur[si + 3] : 255;
+    }
+    const tmp = prev; prev = cur; cur = tmp;
+  }
+  return { width: w, height: h, data: out };
+}
+function blitImage(buf, img, dx, dy, dw, dh) {
+  for (let y = 0; y < dh; y++) {
+    const sy = Math.min(img.height - 1, (y * img.height / dh) | 0);
+    for (let x = 0; x < dw; x++) {
+      const sx = Math.min(img.width - 1, (x * img.width / dw) | 0), si = (sy * img.width + sx) * 4, a = img.data[si + 3] / 255;
+      if (a > 0.004) blend(buf, dx + x, dy + y, [img.data[si], img.data[si + 1], img.data[si + 2]], a);
+    }
+  }
+}
+let _climb = null;
+function climbFrames() {
+  if (_climb) return _climb;
+  // Same coat the rest of the media stars, and the one a new install opens on.
+  const dir = path.join(__dirname, '..', 'assets', 'climb', 'mackerel-tabby');
+  _climb = {};
+  for (const n of ['idle', 'up1', 'up2', 'down1', 'down2']) _climb[n] = decodePng(path.join(dir, `${n}.png`));
+  return _climb;
+}
 
-// ---- extra interaction scenes (butterfly / eat / sing) ----------------------
+// ---- extra interaction scenes (climb / butterfly / eat / sing) --------------
 // pixel-buffer triangle fill (fish tail)
 function fillTri(buf, ax, ay, bx, by, cx, cy, col, a) {
   const minx = Math.floor(Math.min(ax, bx, cx)), maxx = Math.ceil(Math.max(ax, bx, cx));
@@ -483,6 +538,22 @@ function drawNote(buf, x, y, col, a) {
   fillRect(buf, x + 2, y - 10, 4.5, 2, col, a);
 }
 
+// scroll rope-climb: cycle the painterly per-coat frames (hang -> up x3 -> down x3)
+function sceneClimb(frames, o = {}) {
+  const F = climbFrames();
+  const order = ['idle', 'idle'];
+  for (let k = 0; k < 3; k++) order.push('up1', 'up2');
+  order.push('idle', 'idle');
+  for (let k = 0; k < 3; k++) order.push('down1', 'down2');
+  const scale = (H - 22) / F.idle.height;
+  for (const name of order) {
+    const buf = newFrame();
+    caption(buf, o.caption, 2);
+    const img = F[name], dw = Math.round(img.width * scale), dh = Math.round(img.height * scale);
+    blitImage(buf, img, Math.round((W - dw) / 2), Math.round(H - dh - 8), dw, dh);
+    push(frames, buf, 150);
+  }
+}
 // plays with a butterfly: it loops overhead, the cat's eyes track it
 function sceneButterfly(frames, o = {}) {
   const n = o.n || 34;
@@ -610,6 +681,7 @@ function recipeHero(wantMp4) {
 // six looping micro-GIFs (340x260) -> assets/gallery/<name>.gif (+ .mp4 with `mp4`)
 function recipeGallery(wantMp4) {
   const items = [
+    ['climb', (f) => sceneClimb(f)],
     ['type', (f) => sceneType(f, { n: 24 })],
     ['butterfly', (f) => sceneButterfly(f, { n: 34 })],
     ['eat', (f) => sceneEat(f, { n: 30 })],

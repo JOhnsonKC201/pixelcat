@@ -93,6 +93,7 @@ npm run sheet:dog   # previews/dog-sheet.png - the five base poses only
 
 <table align="center">
 <tr>
+<td align="center"><img src="assets/gallery/climb.gif" width="240" alt="the cat climbs a yarn rope when you scroll" /><br /><sub><b>Reacts when you scroll</b></sub></td>
 <td align="center"><img src="assets/gallery/type.gif" width="240" alt="the cat kneads the keyboard when you type" /><br /><sub><b>Kneads when you type</b></sub></td>
 <td align="center"><img src="assets/gallery/butterfly.gif" width="240" alt="the cat tracks and plays with a butterfly" /><br /><sub><b>Plays with a butterfly</b></sub></td>
 </tr>
@@ -141,6 +142,23 @@ The Windows installer is the easy path. No git, no Node, just run it:
 [![Download the Windows installer](https://img.shields.io/badge/Download_the_Windows_installer-E8930C?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/JOhnsonKC201/pixelpets/releases/latest)
 
 You can also [play with the cat in your browser](https://pixelcat-jet.vercel.app) before installing anything.
+
+> [!IMPORTANT]
+> **Your OS will warn you the first time, and that is expected.** The builds are
+> not code-signed yet, because a certificate costs real money for a free app.
+>
+> - **Windows:** SmartScreen shows a blue *"Windows protected your PC"* screen.
+>   Click **More info**, then **Run anyway**.
+> - **macOS:** Gatekeeper refuses a double-click. **Right-click** the app, choose
+>   **Open**, then confirm.
+>
+> Would rather not? [Play it in your browser](https://pixelcat-jet.vercel.app)
+> (the real renderer, nothing to install) or run it from source below. Both skip
+> the installer entirely.
+>
+> What the app does on your machine is documented in
+> [Privacy](#privacy) and [SECURITY.md](SECURITY.md): the keyboard hook forwards
+> a single "a key was pressed" boolean and never what you typed.
 
 To run from source (for development, or on macOS) you need git and Node 20 or newer:
 
@@ -472,9 +490,8 @@ bar), the tray menu works in the menu bar, and login launch works.
 - Break timers and reminders are scheduled in the main process (the renderer
   throttles and pauses when idle), which pushes fire events to the cat over
   IPC. Sound is synthesized with Web Audio in the renderer, so there are no
-  audio assets to ship. Optionally, drop in an `assets/meow.ogg`, `.mp3`, or
-  `.wav` (your own recording, or a clip you have rights to) and it replaces the
-  synth meow.
+  audio assets to ship: every meow, bark, purr, pant, swipe and thud is
+  generated live, and so is the lo-fi jam.
 
 ### Project layout
 

@@ -2,7 +2,33 @@
 
 Notable changes to **pixelpets**. All art and sound are original/procedural (no asset files).
 
-## [Unreleased]
+## [0.4.0] - 2026-08-25
+
+### Scroll reaction
+- **Scrolling no longer makes every pet climb a rope.** Coats that ship hand-painted climb art still climb it. Every other coat, and every dog, now rears up and swipes at a leaf blowing past in the direction you are scrolling, faster the harder you flick the wheel. The procedural climb pose those coats used to fall back on could not be made to read at sprite size and has been removed: `eyeBox()` splits the grid at column 12 so the face has to straddle that seam, which pinned the body at column 11.25 while the rope sat at 18.4, leaving the arm no reach that did not cross the face. The only place it could grip was above the head, where a 4x3-cell mitt renders as a pale lump growing out of the skull rather than a paw. The swipe reuses the butterfly's bat rig, whose arm bows outward specifically to clear the skull, which is why the same overhead reach is legible there.
+- **The two reactions are mutually exclusive at the source**, so no leaf is ever in flight for a coat that is climbing.
+
+### Pets
+- **One dog breed.** The Black Lab is the only breed now. No migration is needed: `dogPattern` is clamped to the breed list, so a saved index simply collapses onto it.
+- **Mackerel Tabby is the out-of-box coat**, replacing Tuxedo. It ships painted climb art, so a new install gets the rope climb on its first scroll. Existing installs keep whatever coat they were on.
+- **First-run hints.** Nothing in the running app said that double-clicking opens Settings, right-clicking cycles the coat, or that scrolling does anything at all, so all of it was discoverable only by reading this repository first. Two short speech bubbles now appear once, ever, six and eighteen seconds after the pet arrives. They mark themselves seen before showing, so the automatic reload after a renderer crash cannot replay them.
+
+### Sound
+- **The swipe has a sound.** The rear-up bat was silent, and that pose drives both the butterfly and the scroll leaf, so the pet's most physical animation made no noise. It is filtered noise whose band sweeps up as the paw accelerates and falls away past the top of the arc. It fires once per stroke rather than once per frame, which is the difference between texture and a hiss.
+- **Dropping the pet lands.** Tapping it chirped and shaking it mrrped, but picking it up and dropping it was silent, on the one interaction that is entirely about physical feel. A low thud with a paw-pat on top, scaled by how far it fell, so setting it down gently is nearly inaudible. Gated on fall distance, because the same easing also runs when the floor line shifts under a pet already sitting on it, which is not a landing.
+- **Removed the optional meow sample.** The app documented dropping in an `assets/meow.*` recording to replace the synth meow. The page's own Content Security Policy has no `connect-src`, so it falls back to `default-src 'none'` and blocks the XHR that loaded it: the feature could never work, and logged three CSP violations on every launch while failing. Every sound is now genuinely synthesized.
+
+### Fixes
+- **The give slot stayed in its own lane.** Switching species mid-meal left the cat's fish behind for the dog to inherit and eat, because `setSpecies()` cleared the dog's ball but never the cat's treat while both update every frame. Separately, a dropped treat and a thrown ball clamped to the raw screen edge while the pet's approach point is clamped to the play area, so with a constrained play area the food landed outside the zone the pet is allowed into and sat there forever.
+- **The renderer crash handler cannot loop.** `render-process-gone` reloaded unconditionally after 400ms with no cap. A transparent always-on-top compositor meets every consumer GPU driver in the wild, and a driver that crashes the renderer on load would have reloaded forever: sustained CPU, log spam, and a flickering overlay with no way to see why. It now backs off exponentially to a 15s ceiling, gives up after five consecutive crashes and says so.
+- **Notification history is written atomically**, matching `settings.json` and `themes.json`. It was the one persisted file that could be left truncated by a crash mid-write.
+- **`--treat=1` works.** The preview flag was matched with an exact `includes('--treat')`, so the `=1` form the code's own comment documented was silently ignored. Added `--ball=1` alongside it, since the dog's fetch has the most complex state machine in the give slot and had no way to eyeball a frame of it.
+
+### Security
+- **Patched three high-severity advisories** reachable through the mail dependency (`ip-address` SSRF and trust-boundary bypasses via `socks`, and `nodemailer`'s raw-message option bypassing `disableFileAccess`). Neither was reachable from this app's own code paths, but electron-builder bundles `node_modules` into every release, so they shipped regardless. Production dependencies now audit clean.
+
+### Docs
+- **The download page says what your OS will do.** The builds are unsigned, so Windows SmartScreen shows a full-screen warning and macOS Gatekeeper refuses a double-click. Both the README and the release notes now say so up front, with the steps, rather than letting people meet it cold.
 
 ### Settings window
 - **Sections instead of one long scroll.** Everything lived in a single column: eleven cards, about 3400px of it, inside a window fixed at 560px. Reaching the pomodoro or the calendar meant scrolling past ten cards you were not looking for, with nothing to aim at and no sense of how much was left. The window is now five tabs - Pet, Play, Sound, Focus, Feeds - and the tallest of them is 1130px, with Sound fitting on screen whole. The rail is keyboard-drivable (arrows, Home/End) and carries the ARIA a tablist is supposed to.
