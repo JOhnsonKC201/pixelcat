@@ -40,7 +40,8 @@ selectTab('pet');
 // describing the same toggle differently (the settings window said "Butterfly
 // visits" at dog owners while the tray already said "Ball to chase").
 function applySpeciesText() {
-  const text = settingsText(curSpecies());
+  const isMac = !!(window.settings && window.settings.platform === 'darwin');
+  const text = settingsText(curSpecies(), { bar: isMac ? 'Dock' : 'taskbar' });
   for (const [id, s] of Object.entries(text)) { const el = $(id); if (el) el.textContent = s; }
 }
 

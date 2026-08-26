@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('settings', {
+  // The settings window is sandboxed with contextIsolation, so `process` does not
+  // exist in it and pets.js cannot read the platform for itself. Without this the
+  // copy would say "taskbar" to every Mac user.
+  platform: process.platform,
   get: () => ipcRenderer.invoke('settings:get'),
   save: (cfg) => ipcRenderer.invoke('settings:save', cfg),
   onConfig: (cb) => ipcRenderer.on('config', (_e, cfg) => cb(cfg)),

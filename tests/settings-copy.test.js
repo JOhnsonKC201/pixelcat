@@ -134,3 +134,29 @@ test('the renderer applies the copy instead of hard-coding it again', () => {
   assert.doesNotMatch(RENDERER_CODE, /'Breed'|"Breed"/, 'coat label is hard-coded again');
   assert.doesNotMatch(RENDERER_CODE, /meow & purr|bark & pant/, 'voice line is hard-coded again');
 });
+
+// ---- platform tokens ---------------------------------------------------------
+// macOS has no taskbar, so copy that says "taskbar" is simply wrong there. The
+// token is resolved inside settingsText so every surface agrees on the word.
+
+test('%bar% resolves to the right word for the platform', () => {
+  const onMac = pets.settingsText('cat', { bar: 'Dock' }).workModeSub;
+  const onWin = pets.settingsText('cat', { bar: 'taskbar' }).workModeSub;
+  assert.match(onMac, /on the Dock/);
+  assert.match(onWin, /on the taskbar/);
+  assert.ok(!/%bar%/.test(onMac), 'the token must not survive into user-facing copy');
+});
+
+test('platformTokens picks Dock only on darwin', () => {
+  // Reading process.platform directly is the whole point of the helper, so this
+  // pins the mapping rather than the current machine.
+  const t = pets.platformTokens();
+  assert.strictEqual(t.bar, process.platform === 'darwin' ? 'Dock' : 'taskbar');
+});
+
+test('an unknown token still survives untouched', () => {
+  // The existing contract: a typo shows up literally rather than blanking a
+  // sentence. Adding a second token source must not have broken that.
+  const out = pets.settingsText('cat', { bar: 'taskbar' });
+  for (const v of Object.values(out)) assert.ok(!/%(noun|playNoun|bar)%/.test(v), v);
+});

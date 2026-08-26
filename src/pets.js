@@ -80,7 +80,7 @@ const SETTINGS_TEXT = {
   huntSub: '%chase% when the mouse moves fast',
   playTitle: '%playToggleLabel%',
   playSub: 'a %playNoun% %playArrival% and the %noun% plays with it',
-  workModeSub: 'parks the %noun% in its rest corner on the taskbar & hides the %playNoun% while you work',
+  workModeSub: 'parks the %noun% in its rest corner on the %bar% & hides the %playNoun% while you work',
   onTopSub: 'keep the %noun% above other windows',
   soundSub: '%voiceLine% (synthesized)',
   pomoSub: 'a pixel timer floats next to the %noun%; it stretches with you on breaks',
@@ -92,14 +92,27 @@ const SETTINGS_TEXT = {
   testSound: '🔊 Test %voice%',
 };
 
+// Tokens that are not about the species. %bar% is the strip the pet rests on, and
+// macOS has no taskbar - copy that says "taskbar" to a Mac user is simply wrong.
+// Resolved here rather than at the call site so every surface agrees, and computed
+// per call so a test can exercise both platforms.
+function platformTokens() {
+  return { bar: (typeof process !== 'undefined' && process.platform === 'darwin') ? 'Dock' : 'taskbar' };
+}
+
 // Resolve SETTINGS_TEXT for one species: { elementId: finalString }. An unknown
 // %token% is left alone rather than blanked, so a typo shows up in the window as
 // literal "%typo%" instead of silently deleting half a sentence.
-function settingsText(species) {
+function settingsText(species, extra) {
   const sp = speciesOf(species);
+  const tokens = { ...platformTokens(), ...(extra && typeof extra === 'object' ? extra : {}) };
   const out = {};
   for (const [id, tpl] of Object.entries(SETTINGS_TEXT)) {
-    out[id] = tpl.replace(/%(\w+)%/g, (m, k) => (typeof sp[k] === 'string' ? sp[k] : m));
+    out[id] = tpl.replace(/%(\w+)%/g, (m, k) => {
+      if (typeof sp[k] === 'string') return sp[k];
+      if (typeof tokens[k] === 'string') return tokens[k];
+      return m;
+    });
   }
   return out;
 }
@@ -113,7 +126,7 @@ const defaultCoatIndex = (s) => {
   return Math.max(0, sp.coats.indexOf(sp.defaultCoat));
 };
 
-const api = { SPECIES, SPECIES_IDS, CAT_COATS, DOG_COATS, isSpecies, speciesOf, coatsFor, defaultCoatIndex, SETTINGS_TEXT, settingsText };
+const api = { SPECIES, SPECIES_IDS, CAT_COATS, DOG_COATS, isSpecies, speciesOf, coatsFor, defaultCoatIndex, SETTINGS_TEXT, settingsText, platformTokens };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else if (typeof window !== 'undefined') Object.assign(window, api, { PET_SPECIES: SPECIES });

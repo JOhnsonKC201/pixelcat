@@ -2762,12 +2762,12 @@ function renderSheet() {
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = '#1d1f26'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#cfd3db'; ctx.font = 'bold 10px "Segoe UI", sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#cfd3db'; ctx.font = 'bold 10px "Segoe UI", system-ui, sans-serif'; ctx.textAlign = 'center';
   coats.forEach((P, i) => ctx.fillText(P.name.slice(0, 13), labelW + i * cellW + cellW / 2, headH / 2));
   poses.forEach((pose, r) => {
     const cy = headH + r * cellH;
     ctx.fillStyle = (r % 2) ? '#23262f' : '#1d1f26'; ctx.fillRect(0, cy, canvas.width, cellH);
-    ctx.fillStyle = '#9aa0ad'; ctx.font = '11px "Segoe UI", sans-serif'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#9aa0ad'; ctx.font = '11px "Segoe UI", system-ui, sans-serif'; ctx.textAlign = 'left';
     ctx.fillText(pose, 8, cy + cellH / 2);
     coats.forEach((P, i) => {
       const cx = labelW + i * cellW, sp = sheetSprite(pose, i), palRGB = sheetPal(P);
