@@ -71,6 +71,26 @@ whatever you were running. Two things prevent that:
 
 `tests/ipad-terminal.test.js` drives that path against a real shell over real HTTP.
 
+## Long-running jobs
+
+The shell outlives a dropped connection by `--idle` seconds and no longer. That is the
+right behaviour for a terminal, and the wrong behaviour for a six-hour training run: put
+the iPad down, and two minutes later the reaper kills the shell and the job goes with it.
+
+So start anything long inside `tmux` (or `screen`):
+
+```
+tmux new -s train        # then run the job
+# detach with ctrl-b d, close the iPad, come back later:
+tmux attach -t train
+```
+
+A tmux session is not a child of the shell, so it survives the reaper, a Wi-Fi drop, and
+restarting this server. Verified: a bare background job is killed with its shell once the
+idle window passes; the same job inside tmux is untouched.
+
+`--idle=86400` also works and is worse - it leaves an abandoned shell alive for a day.
+
 ## The key bar
 
 The iPad soft keyboard has no Esc, no Tab, no Ctrl and no arrows, which is most of what
