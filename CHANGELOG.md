@@ -2,6 +2,38 @@
 
 Notable changes to **pixelpets**. All art and sound are original/procedural (no asset files).
 
+## [Unreleased]
+
+### Sound
+- **The pet stopped making noise nobody asked for.** A cursor merely *resting* on the sprite counted as petting on every frame: the gate rejected a fast cursor, but a stationary one has `velEMA` 0, and main only forwards the cursor when it moves, so the last resting position stood forever. A pointer parked on the pet - easy to do by accident, and where the cursor often ends up after a pounce - purred without end and trilled every 1.5 seconds indefinitely. The *pose* is deliberate and stays, because a hand resting on the pet should squint its eyes; the voice now settles after eight seconds of a still hand.
+- **The butterfly stopped keeping time.** The paw-swat lasted 600ms and re-armed 100ms later, so it threw a whoosh roughly every 350ms for the whole 22-30 second visit, and visits recur every 14-24 seconds - better than half of all idle time spent audibly batting. The paw now rests between swats, jittered so it reads as a cat losing interest rather than a metronome.
+- **Scrolling is one chirp, not one per leaf.** Leaves respawn the instant the last one leaves, so "once per leaf" still meant a chirp every 0.3-0.8 seconds down a long page.
+- **Turning Sound off turns the music off.** The Lobby Jam was reconciled on `lobbyJam.on` alone, so the one switch a user reaches for when they want quiet silenced every meow, purr and whoosh while the music played on at full level. The vinyl crackle - about 50 clicks a second of 1.4kHz-and-up noise, running under every mood - is much quieter, and picking a mood in the tray no longer force-starts playback you had deliberately left off.
+- **A floor on the voice.** `notify()`'s dedupe is per-message, so a burst of *different* messages passed straight through it and meowed once each; eight reminders catching up after a laptop wakes meant eight meows. There is now a per-source floor on the voice - every bubble still appears and every message still reaches the tray recap - and a global floor inside `audio.js`, so a stuck caller upstream cannot become a stutter.
+- **The purr fades in for real.** Its modulators were summed into the gain at full depth from sample zero, swinging the parameter as hard as the steady state did, which made the documented "fade in (no click)" a no-op and started every purr at full loudness. A restart inside the 400ms release tail also stacked a second drone on the first, which is what turned a jittering cursor into a thickening wobble.
+- **A calmer voice.** Softer onsets, lower peaks, a rounder mouth, and the two affectionate meow shapes - the short "mew" and the drawn-out "meeow" a cat actually uses on the person it lives with - weighted over the flat mid-length one, which is closer to a demand.
+
+### Focus Guard
+- **The pet works out when to leave you alone.** Work mode already existed, but it is a switch you have to remember to flip, and nobody flips a switch on the way into a meeting they are already late for. The pet now reads "busy" from a calendar event actually in progress, from quiet hours, or from work mode, and parks itself for the duration.
+- **Held back is not thrown away.** Email, reminders and agent messages wait rather than interrupt, and arrive as one line when you are free - *"While you were busy: 3 new emails and 1 reminder."* Every held message still lands in the tray recap as it arrives, so nothing is lost.
+- **Calendar nudges always come through.** Silencing the thing telling you to leave for your next meeting, during the meeting you are in, is exactly backwards.
+- **An all-day block is not a meeting.** *Vacation*, *On call* and birthdays all arrive as ordinary multi-hour VEVENTs, and treating one as "in a meeting" would have silenced the pet for a whole day - the single most likely way this feature turned into a bug report.
+- **Quiet hours**, a nightly do-not-disturb window. The bubble still shows, so a 3am reminder is waiting in the morning.
+- **The break bubble respects all of it.** It came from a raw IPC rather than `notify()`, so every gate inside `notify()` was guarding a send that never happened, and the pet meowed through quiet hours regardless.
+
+### Mail
+- **The pet says who it is from.** "You have 3 new emails" still makes you go and look, which is the interruption it was meant to save you. It now reads *"Alice: Budget review"*. The envelope fetch is wrapped separately from the count, so a server that refuses it still gets you the old count-only line rather than losing the alert.
+- **VIP senders.** Name the people who should reach you even while Focus Guard is holding everything else back. Matching is a case-insensitive substring of the From address - no pattern syntax to get wrong - so `@acme.com` covers a company and `boss@acme.com` one person.
+
+### macOS
+- **The overlay stopped strobing.** The 700ms always-on-top tick called `setVisibleOnAllWorkspaces`, which Electron documents as transforming the process type and hiding "the window and dock for a short time every time it is called" - roughly 1.4 times a second, forever. `app.dock.hide()` already makes this a UIElement app, so the transform was pure cost. The Windows re-raise trick in the same tick (toggle always-on-top off and on, then `moveTop`) also drops the window from screen-saver level to normal and back on every tick on macOS, and is now guarded to win32.
+- **The builds were not unsigned, they were broken-signed.** electron-builder renames the executable and injects `app.asar`, which invalidates the seal Electron ships, and with `CSC_IDENTITY_AUTO_DISCOVERY=false` it has no ad-hoc fallback. macOS distinguishes the two sharply: an unsigned app offers "open anyway", an invalidly-signed one says *"pixelpets is damaged and can't be opened"* with no override. The bundle is now ad-hoc signed after packing, which also gives macOS the stable signature it keys the Accessibility grant and the Keychain entry to.
+- **Cmd+C/V/X/A/Z work in Settings.** An accessory app draws no menu bar, and macOS delivers those as Edit-menu key equivalents - so they were dead on the two fields nobody can type by hand: a 16-character Gmail app-password and a long secret `.ics` URL, both masked.
+- **The Accessibility permission is picked up without a restart.** The first `uIOhook.start()` raises the prompt and then fails, because the permission does not exist yet at that moment. Starting once left typing reactions and scroll-to-climb permanently dead even after the user granted it, with the only clue a console line invisible in a packaged app.
+- **Autostart registers the right thing.** It passed `path` and `args`, which are documented win32-only; from source `process.execPath` is Electron's own binary, so macOS would have registered Electron.app and handed the user a bare Electron window at login. It now registers only a packaged bundle, and decides once rather than re-asserting over a choice made in System Settings.
+- **A menu-bar glyph that behaves like one**, plus `fullscreenable: false` so another app going fullscreen cannot hide the pet, `LSUIElement` so the Dock icon does not flash at launch, and copy that no longer tells Mac users about their taskbar.
+- **The release workflow cannot drop the mac artifacts.** Both build jobs called `action-gh-release` against the same tag in parallel; workflow-level concurrency serializes runs, not jobs. CI also boots the app on macos-latest now.
+
 ## [0.4.0] - 2026-08-25
 
 ### Scroll reaction
