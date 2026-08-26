@@ -1871,7 +1871,13 @@ function updateButterflyDesk(t, dt, step, f) {
     if (bfMode === 'in' && (Math.hypot(bfX - headX, bfY - headY) < 160 || t > bfNextDive)) bfMode = 'wander';
     if (bfMode === 'wander' && t > bfNextDive) {
       bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 3500 + Math.random() * 3500;
-      if (cursorIdle && Math.random() < 0.55 && !f.hunting && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
+      // The pounce borrows the hunt target and carries the pet across the screen, so
+      // it obeys roamOn: that switch is "the pet wanders off on its own", and
+      // launching itself at a bug is exactly that. It was ungated, so a pet set to
+      // stay put still bolted after every butterfly dive - and huntOn does not cover
+      // it, because huntOn is about the CURSOR.
+      const mayLeaveSpot = !(config && config.roamOn === false);
+      if (mayLeaveSpot && cursorIdle && Math.random() < 0.55 && !f.hunting && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
     }
     // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';

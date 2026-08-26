@@ -63,3 +63,34 @@ test('it drifts out rather than bolting, and still despawns', () => {
   assert.ok(worstSpeed <= 5.5 + 0.5,
     `leaving should not be faster than wandering (peaked at ${worstSpeed.toFixed(2)})`);
 });
+
+test('a pet set to stay put does not bolt after the butterfly', () => {
+  // The pounce borrows huntTarget and carries the pet clear across the screen. It
+  // was ungated, so "do not wander" pets still launched themselves at every dive -
+  // and huntOn does not cover it, because huntOn is about the CURSOR. Measured at
+  // ~311px of drift with roaming off before this was gated.
+  const drift = (roamOn) => {
+    const h = loadOverlay();
+    h.ipc('onConfig', { species: 'cat', soundOn: false, followCursor: true, floorLock: true,
+      butterflyOn: true, roamOn, reducedMotion: false, workMode: false });
+    h.run('startBflyVisit(1000)');
+    h.run('lastCursorMove = -99999;');            // cursor idle, so the pounce is eligible
+    const x0 = h.run('pos.x');
+    let worst = 0, sawBfly = false;
+    for (let t = 1060; t <= 12000; t += 60) {
+      h.run('bfX = 40; bfY = 200;');              // park it far off, where the stalk would fire
+      h.run(`draw(${t})`);
+      worst = Math.max(worst, Math.abs(h.run('pos.x') - x0));
+      if (h.run('bfOn')) sawBfly = true;
+    }
+    return { worst, sawBfly };
+  };
+
+  const still = drift(false);
+  assert.strictEqual(still.worst, 0, `a stay-put pet drifted ${still.worst.toFixed(1)}px chasing the butterfly`);
+  assert.ok(still.sawBfly, 'the butterfly should still visit a pet that does not roam');
+
+  // and roaming pets are unaffected: the bug is still worth chasing.
+  const roaming = drift(true);
+  assert.ok(roaming.worst > 100, `a roaming pet should still give chase (drifted ${roaming.worst.toFixed(1)}px)`);
+});
