@@ -169,4 +169,21 @@ fs.writeFileSync(path.join(outDir, 'tray.png'), encodePng(onTile(16), 16));
 fs.writeFileSync(path.join(outDir, 'tray@2x.png'), encodePng(onTile(32), 32));
 fs.writeFileSync(path.join(outDir, 'pixelcat.ico'), buildIco([32, 16].map(tileEntry)));
 
+// macOS menu-bar glyph. A template image is pure BLACK plus an alpha channel: macOS
+// reads only the alpha and paints it itself, which is what lets it invert on a dark
+// menu bar and turn white when the menu is open and highlighted. The warm tile the
+// Windows tray needs is exactly wrong here - it would sit in the menu bar as an
+// opaque sticker that never inverts - so this uses the transparent mascot instead.
+function asTemplate(size) {
+  const src = rgbaAt(size);
+  const out = new Uint8ClampedArray(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    out[i * 4] = 0; out[i * 4 + 1] = 0; out[i * 4 + 2] = 0;   // colour is ignored; alpha is the glyph
+    out[i * 4 + 3] = src[i * 4 + 3];
+  }
+  return out;
+}
+fs.writeFileSync(path.join(outDir, 'trayTemplate.png'), encodePng(asTemplate(16), 16));
+fs.writeFileSync(path.join(outDir, 'trayTemplate@2x.png'), encodePng(asTemplate(32), 32));
+
 console.log('wrote assets/{icon.png,icon.ico,icon-512.png} on tile + tray glyphs from logo.png (BMP small ICO entries)');

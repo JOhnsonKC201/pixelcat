@@ -450,17 +450,26 @@ function persistAndBroadcast(next) {
 
 // ---- tray ------------------------------------------------------------------
 function trayImage() {
-  const p = path.join(APP_DIR, 'assets', 'tray.png');
-  const img = nativeImage.createFromPath(p);
+  // macOS wants a TEMPLATE image in the menu bar: pure black plus alpha, which the
+  // system paints itself so it inverts on a dark menu bar and turns white while the
+  // menu is open. The Windows tray wants the opposite - the mascot is dark, so it
+  // rides on a warm tile to stay visible on a dark system tray. Shipping the tile to
+  // macOS puts an opaque sticker in the menu bar that never inverts.
+  const isMac = process.platform === 'darwin';
+  const p = path.join(APP_DIR, 'assets', isMac ? 'trayTemplate.png' : 'tray.png');
+  let img = nativeImage.createFromPath(p);
+  if (img.isEmpty() && isMac) img = nativeImage.createFromPath(path.join(APP_DIR, 'assets', 'tray.png'));   // fall back rather than show nothing
   if (img.isEmpty()) return nativeImage.createEmpty();
-  // The tray icon is a colored tile (not a monochrome glyph), so it is NOT a template image.
+  if (isMac) img.setTemplateImage(true);
   return img;
 }
 function createTray() {
   try {
     tray = new Tray(trayImage());
     tray.setToolTip('pixelpets');
-    tray.on('double-click', openSettings);
+    // macOS routes a left-click straight to the context menu once setContextMenu is
+    // used, so double-click never fires there. Settings is the first menu item.
+    if (process.platform !== 'darwin') tray.on('double-click', openSettings);
     rebuildTrayMenu();
   } catch (e) { console.log('[tray-error]', e.message); }
 }
