@@ -103,13 +103,17 @@ function composeSit(B) {
   }
   // tortie/calico colour patches (invisible on coats where patch == coat)
   ellipse(8, 19, 2.2, 3, 'X', ['C', 'K']); ellipse(15, 23, 2.2, 2.3, 'X', ['C', 'K']);
-  // carve sitting-leg outlines LAST so the halo draws them on ANY colour
-  for (let r = 19; r <= 28; r++) setCell(12, r, '.');                          // between the front legs
-  for (let r = 22; r <= 28; r++) { setCell(8, r, '.'); setCell(16, r, '.'); }  // each front leg vs haunch
+  // carve sitting-leg outlines LAST so the halo draws them on ANY colour.
+  // These run to row 29, the LAST row: outlineHalo() can only write into cells that
+  // exist, so anything solid on row 29 gets no outline beneath it. Stopping at 28
+  // left the bottom of both paws as one unbroken slab with no dark edge, which is
+  // where the pet meets the desktop and needs one most.
+  for (let r = 19; r <= 29; r++) setCell(12, r, '.');                          // between the front legs
+  for (let r = 22; r <= 29; r++) { setCell(8, r, '.'); setCell(16, r, '.'); }  // each front leg vs haunch
   // toe split on each planted paw -> the halo draws a dark notch, so the toes read
   // even on solid coats where the paw is the same colour as the leg (Black/Gray/Slate/Tortie)
-  setCell(10, 27, '.'); setCell(10, 28, '.');
-  setCell(14, 27, '.'); setCell(14, 28, '.');
+  setCell(10, 27, '.'); setCell(10, 28, '.'); setCell(10, 29, '.');
+  setCell(14, 27, '.'); setCell(14, 28, '.'); setCell(14, 29, '.');
 }
 
 // ---- coat patterns ----------------------------------------------------------
@@ -138,7 +142,11 @@ const PATTERNS = [
 // Body-build archetypes - different breeds get different silhouettes.
 const BUILDS = {
   standard: { earApexY: 1, earW: 2.4, earOut: 4 },
-  slender: { bodyW: 0.85, headRx: 5.7, headRy: 5.4, earApexY: -1, earW: 2.3, earOut: 4.2, eyeRx: 2.1, eyeRy: 2.0 },
+  // earApexY 0, not -1: row -1 is off the top of the 30-row grid, so slender ear
+  // tips were sliced flat AND got no halo (outlineHalo cannot write out of bounds).
+  // That hit Mackerel Tabby, Siamese, Black, Slate and Russian Blue - and Mackerel
+  // Tabby is the default coat.
+  slender: { bodyW: 0.85, headRx: 5.7, headRy: 5.4, earApexY: 0, earW: 2.3, earOut: 4.2, eyeRx: 2.1, eyeRy: 2.0 },
   stocky: { bodyW: 1.16, headRx: 6.8, headRy: 6.0, earApexY: 1.4, earW: 2.7, earOut: 3.9, cheek: 1, eyeRx: 2.0, eyeRy: 2.2 },
   fluffy: { bodyW: 1.08, headRx: 6.4, headRy: 5.9, earApexY: 0.8, earW: 2.5, earOut: 4, fluff: true, eyeRx: 2.0, eyeRy: 2.3 },
 };

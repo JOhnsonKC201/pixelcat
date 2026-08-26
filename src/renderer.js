@@ -247,6 +247,8 @@ function composeBat(B, o) {
 // same cells as the rest of the cat and inherits all of that for free.
 //   o.lift  0 = planted, 1 = held up at the muzzle
 //   o.out   0 = tucked against the chest, 1 = reaching away from the body
+const BOW = 2.6;   // cells the raised forearm bows outward at mid-limb (see composeBat)
+const TAIL_HOT = 24;   // px the hot region extends past the sprite to cover the tail
 function composePawUp(B, o) {
   B = B || {}; o = o || {};
   const lift = clamp(o.lift == null ? 1 : o.lift, 0, 1);
@@ -262,10 +264,17 @@ function composePawUp(B, o) {
   // the raised limb: shoulder stays on the chest, paw swings up and outward
   const shX = 10.4, shY = 20.4;
   const pawX = 10 - out * 4.6, pawY = 27.0 - lift * 14.6;
-  for (let i = 0; i <= 6; i++) {
-    const f = i / 6;
-    ellipse(shX + (pawX - shX) * f, shY + (pawY - shY) * f, 1.5, 1.5, 'C');
-  }
+  // The limb BOWS outward on the way up, the same trick composeBat uses. A straight
+  // shoulder-to-paw line is dead vertical at out=0 (which is what grooming asks for),
+  // running up the centre-left of the chest INSIDE the head's own column span and in
+  // the same coat role - so it merged into the chin instead of reading as a raised
+  // limb, and painted over the white bib that gives the face its contrast. Bowing it
+  // walks the forearm out past the bib and back in to the muzzle.
+  const at = (f) => ({
+    x: shX + (pawX - shX) * f - BOW * Math.sin(f * Math.PI) * lift,
+    y: shY + (pawY - shY) * f,
+  });
+  for (let i = 0; i <= 12; i++) { const p = at(i / 12); ellipse(p.x, p.y, 1.5, 1.5, 'C'); }
   ellipse(pawX, pawY, 2.0, 1.6, 'W', ['C']);
   // Near the face the underside of the paw turns toward you, so the toe beans
   // show. 'I' is the inner-ear role: already a palette-correct pink on every coat.
@@ -277,8 +286,20 @@ function composePawUp(B, o) {
   // re-carve the separations composeSit made for the leg we just moved
   for (let r = 22; r <= 28; r++) setCell(16, r, '.');            // planted right leg vs haunch
   setCell(14, 27, '.'); setCell(14, 28, '.');                    // its toe split
-  const seamR = Math.round(shY - 1);                             // shoulder seam so the limb reads as separate
-  if (lift > 0.15) for (let c = Math.round(Math.min(pawX, shX)) - 1; c <= Math.round(shX) + 1; c++) setCell(c, seamR, '.');
+  // Seam the WHOLE limb off the chest, not just one row at the shoulder. On solid
+  // coats the forearm and the chest are the same role, so a single-row seam left the
+  // limb as an indistinguishable lobe of the body; outlineHalo needs a carved gap
+  // down its full length to trace an edge the eye can follow.
+  // Skip both ends, the way composeBat does: carving right up to the shoulder and
+  // the mitt turns the seam into a row of disconnected notches instead of an edge.
+  if (lift > 0.15) {
+    for (let i = 3; i <= 10; i++) {
+      const p = at(i / 12);
+      setCell(Math.round(p.x + 1.9), Math.round(p.y), '.');
+    }
+    const seamR = Math.round(shY - 1);                           // and close it off at the shoulder
+    for (let c = Math.round(Math.min(pawX, shX)) - 1; c <= Math.round(shX) + 1; c++) setCell(c, seamR, '.');
+  }
 }
 
 // ---- species -----------------------------------------------------------------
@@ -668,8 +689,25 @@ function drawCat(g, sp, t, palRGB, o) {
     g.globalAlpha = 1;
   }
   if (eyeMode === 'happy') {
-    g.strokeStyle = rgbStr(palRGB.O); g.lineWidth = 2; g.lineCap = 'round';
-    for (const e of sp.eyes) { if (e.w <= 0) continue; g.beginPath(); g.arc(e.cx, e.cy + bob - 1, e.w * 0.5, Math.PI * 0.15, Math.PI * 0.85); g.stroke(); }
+    // A closed lid IS fur, so the 'E' cells being painted in coat colour above is
+    // correct - but that left the whole socket a bare coat-coloured ellipse with a
+    // hairline on it, and on a mid-grey coat the face simply went blank. Give the
+    // lid real weight and a lash tick at the outer corner so a closed eye still
+    // reads as an eye at 4px-per-cell.
+    g.strokeStyle = rgbStr(palRGB.O); g.lineWidth = 3; g.lineCap = 'round';
+    for (const e of sp.eyes) {
+      if (e.w <= 0) continue;
+      const cy = e.cy + bob - 1, r = e.w * 0.54;
+      g.beginPath(); g.arc(e.cx, cy, r, Math.PI * 0.12, Math.PI * 0.88); g.stroke();
+      // lash: a short tick off the outer corner, away from the muzzle
+      const dir = e.cx < sp.muzzle.x ? -1 : 1;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(e.cx + dir * r * 0.92, cy + r * 0.30);
+      g.lineTo(e.cx + dir * (r * 1.35), cy + r * 0.02);
+      g.stroke();
+      g.lineWidth = 3;
+    }
   } else if (!blinking) {
     const eLook = typing ? { x: look.x * 0.3, y: 0.85 } : look;
     for (const e of sp.eyes) {
@@ -1564,6 +1602,10 @@ function drawClimbFrame(pos, t, climbing, dir, coat, bob) {
 // wet detail at the muzzle - drawn INTO the sprite buffer, like drawYawn, so it
 // scales and leans with the cat instead of floating in screen space.
 const GROOM_CYCLE = 2400;
+// How far the washing paw reaches away from the chest. Named (and asserted in
+// tests/paw-up.test.js) because grooming is the one pose that used 0 here, and 0 is
+// exactly what put a dead-vertical forearm up the middle of the face.
+const GROOM_OUT = 0.38;
 function groomPhase(t) {
   const c = (t % GROOM_CYCLE) / GROOM_CYCLE;                        // 0..1 within one raise
   let lift = c < 0.16 ? c / 0.16 : c > 0.80 ? (1 - c) / 0.20 : 1;   // ease up, hold, ease down
@@ -2493,7 +2535,11 @@ function draw(t) {
       // which replaces four separate limbs-drawn-as-rectangles over the sprite.
       const groom = grooming ? groomPhase(t) : null;
       const pawPose = loafing ? null
-        : groom ? { lift: groom.lift, out: 0 }
+        // out, not 0: grooming was the ONLY pose asking for max lift with zero reach,
+        // which put a dead-vertical forearm up the middle of the chest and parked the
+        // mitt on the bottom of the skull. A little reach walks it off the bib and
+        // leaves the tongue somewhere to go.
+        : groom ? { lift: groom.lift, out: GROOM_OUT }
         : playing ? { lift: 0.34 + battingReach(t) * 0.5, out: 0.45 + battingReach(t) * 0.5 }
         : thinking ? { lift: 0.74 + Math.sin(t / 700) * 0.05, out: 0.06 }
         : working ? { lift: 0.52 + Math.abs(Math.sin(t / 150)) * 0.26, out: 0.16 }
@@ -2539,7 +2585,9 @@ function draw(t) {
       if (calm && !petting && !stretching && !thinking && !working && !hopActive && !paperActive && !grooming && !playing && !yawning && !blinking
           && !lookTarget && t > lookTargetUntil && hearts.length === 0 && idleSparkles.length === 0 && loafZZZ.length === 0 && musicNotes.length === 0 && !jamMotion && t >= bubbleUntil
           && (tailFlickT0 < 0 || t - tailFlickT0 > 700) && Math.abs(lean) < 0.004) wantHighFps = false;
-      sendHot(ox - 6, oy - 6, SW + 12, SH + 12, false);
+      // +TAIL_HOT on the right: drawTail sweeps well past the sprite box, so the last
+      // stretch of tail could not be hovered or petted at all.
+      sendHot(ox - 6, oy - 6, SW + 12 + TAIL_HOT, SH + 12, false);
     } else if (grabbing || FORCED_STATE === 'mochi' || ratio > 1.06) {
       drawShadow(feet.x, feet.y, 0.10);
       octx.clearRect(0, 0, oc.width, oc.height); drawCat(octx, catSprite, t, palRGB, { bob: 0, blinking, look });

@@ -44,13 +44,46 @@ test('both eye boxes still resolve with a paw held up in front of the face', () 
     h.run(`setSpecies(${JSON.stringify(sp)})`);
     const names = h.run('PATTERNS.map((p) => p.name)');
     for (let i = 0; i < names.length; i++) {
-      const eyes = h.run(`pawSpriteFor(${i}, 1, 0).eyes`);
+      const eyes = h.run(`pawSpriteFor(${i}, 1, ${h.run('GROOM_OUT')}).eyes`);
       const label = `${sp}/${names[i]}`;
       assert.strictEqual(eyes.length, 2, `${label} lost an eye box`);
       assert.ok(eyes[0].w > 0 && eyes[1].w > 0, `${label} has an empty eye box`);
       assert.ok(eyes[0].cx < eyes[1].cx, `${label} eye boxes are not left-then-right`);
     }
   }
+});
+
+// The eye-box test above passed all the way through the bug it was supposed to
+// catch. The washing paw never touches an 'E' cell, so "both eye boxes resolve"
+// stayed true while the face was unreadable: at out = 0 the forearm ran dead
+// vertical up the centre-left of the chest, INSIDE the head's own column span and
+// in the same coat role, so it merged into the chin and painted over the white bib
+// that gives the face its contrast. These assert the things that actually changed.
+test('the washing paw reaches clear of the chest instead of straight up it', () => {
+  const h = loadOverlay();
+  const out = h.run('GROOM_OUT');
+  assert.ok(out > 0.2, `grooming asked for out=${out}; 0 is what put the forearm up the middle of the face`);
+
+  const stat = (o) => h.run(`(() => {
+    const g = pawSpriteFor(0, 1, ${o}).grid;
+    let bib = 0, leftmostMitt = 99;
+    for (let r = 0; r < g.length; r++) for (let c = 0; c < g[r].length; c++) {
+      if (g[r][c] !== 'W') continue;
+      if (r >= 12 && r <= 19 && c >= 9 && c <= 15) bib++;
+      if (r >= 10 && r <= 16) leftmostMitt = Math.min(leftmostMitt, c);
+    }
+    return { bib, leftmostMitt };
+  })()`);
+
+  const tucked = stat(0);          // the old behaviour
+  const reaching = stat(out);      // what grooming asks for now
+
+  assert.ok(reaching.leftmostMitt < tucked.leftmostMitt - 1,
+    `the paw should sit further out than a tucked one (out=${out} gave col ${reaching.leftmostMitt}, tucked gave ${tucked.leftmostMitt})`);
+  assert.ok(reaching.leftmostMitt <= 7,
+    `the paw should clear the head's column span, leftmost mitt cell was ${reaching.leftmostMitt}`);
+  assert.ok(reaching.bib > tucked.bib,
+    `reaching out should spare the white bib (${reaching.bib} cells vs ${tucked.bib} tucked)`);
 });
 
 test('raising the paw actually takes it off the floor', () => {
