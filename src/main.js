@@ -5,6 +5,8 @@ const os = require('os');
 const config = require('./config');
 const datadir = require('./datadir');
 const { fillPlaceholders } = require('./template');
+const { inQuietHours } = require('./quiet-hours');
+const focus = require('./focus');
 const mail = require('./mail');
 const cal = require('./cal');
 const themes = require('./themes');
@@ -402,6 +404,7 @@ function persistAndBroadcast(next) {
   if (JSON.stringify(cfg.email) !== prevEmail) mail.sync(cfg);   // re-poll when email settings change
   if (JSON.stringify(cfg.calendar) !== prevCal) cal.sync(cfg);   // re-fetch when calendar settings change
   applyConfigToOverlay();
+  applyFocus();   // work mode / quiet hours / focus toggles all change whether we are "busy"
   if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('config', cfg);
   rebuildTrayMenu();
 }
@@ -495,8 +498,11 @@ function rebuildTrayMenu() {
       return [
         { label: 'Play music', type: 'checkbox', checked: !!lj.on, click: () => persistAndBroadcast({ ...cfg, lobbyJam: { ...lj, on: !lj.on } }) },
         { type: 'separator' },
+        // Picking a mood sets the MOOD. It used to also force on:true, so clicking
+        // the mood you already had selected - the most natural way to check which
+        // one is active - started the music you had deliberately left off.
         ...MOODS.map(([id, label]) => ({ label, type: 'radio', checked: (lj.mood || 'cozy') === id,
-          click: () => persistAndBroadcast({ ...cfg, lobbyJam: { mood: id, on: true } }) })),   // picking a mood also starts the jam
+          click: () => persistAndBroadcast({ ...cfg, lobbyJam: { ...lj, mood: id } }) })),
       ];
     })() },
     { type: 'separator' },
@@ -532,7 +538,14 @@ function snoozeLast(min) {
   setTimeout(() => notify(lr.message, { source: 'reminder', dedupeKey: 'snz:' + lr.id + ':' + min }), min * 60000);
 }
 function triggerBreak() {
-  if (win && !win.isDestroyed()) win.webContents.send('break');
+  // The bubble comes from this raw IPC, not from notify() - the notify() call below
+  // passes bubble:false and exists only for the tray recap. That meant every gate
+  // inside notify() (quiet hours, Focus Guard) was guarding a send that never
+  // happened, so the pet meowed its way through meetings and through the night with
+  // only the master Sound switch able to stop it. Decide the sound HERE instead.
+  const st = focusState();
+  const hush = st.busy || (cfg && inQuietHours(cfg.quietHours, new Date()));
+  if (win && !win.isDestroyed()) win.webContents.send('break', { sound: !hush });
   notify('Break time! Stretch with me~', { source: 'break', bubble: false, sound: false });
   breakAnchor = Date.now();
 }
@@ -579,6 +592,14 @@ function syncPomodoro() {
 // (the renderer plays the meow) plus an optional Windows toast. Every producer -
 // reminders, pomodoro, break, email, calendar, the external bridge - routes here.
 const notifyRecent = new Map();   // dedupeKey -> last fire ms (drops rapid repeats)
+// notifyRecent is per-MESSAGE, so it only ever stops the same thing repeating. A
+// burst of DIFFERENT messages - eight reminders catching up after a laptop wakes,
+// or a script appending to the bridge file in a loop - sails straight through it
+// and meows once each. This is the floor on the pet's VOICE per source: every
+// bubble still appears and every message still reaches the tray recap, but the
+// pet says something at most this often about any one topic.
+const soundRecent = new Map();    // 'snd:'+source -> last audible ms
+const SOUND_FLOOR_MS = 15000;
 
 // Rolling history of the cat's own notifications, so the user can recap what they
 // missed (tray "Recent notifications"). Persisted so it survives a restart.
@@ -647,6 +668,58 @@ function relTime(ts) {
   return Math.round(h / 24) + 'd ago';
 }
 
+// ---- Focus Guard ------------------------------------------------------------
+// Whether the human is busy, what we held back while they were, and the one-shot
+// timer that delivers the summary the moment they are free. See focus.js for the
+// policy; everything here is the plumbing around it.
+const heldBack = focus.makeQueue(50);
+let focusBusy = false;            // last broadcast state, so we only act on CHANGES
+let focusReleaseTimer = null;
+
+function focusState() {
+  return focus.busyState({ cfg, events: cal.events(), now: Date.now() });
+}
+
+// Re-evaluate whether we are busy, tell the overlay (so the pet parks itself and
+// stops chasing things), and on the busy -> free edge deliver whatever waited.
+//
+// Called from tick() (every 20s) and whenever the config changes, plus armed
+// precisely at a meeting's end so the digest lands on the hour rather than up to
+// 20 seconds late.
+function applyFocus() {
+  if (!cfg) return;
+  const st = focusState();
+  if (focusReleaseTimer) { clearTimeout(focusReleaseTimer); focusReleaseTimer = null; }
+
+  if (st.busy !== focusBusy) {
+    focusBusy = st.busy;
+    // The overlay treats this exactly like work mode - park, no butterfly, no
+    // cursor chase - without touching the user's own workMode setting, so
+    // turning it on for a meeting cannot silently rewrite their preference.
+    if (win && !win.isDestroyed()) win.webContents.send('focus', { busy: st.busy, reason: st.reason || '' });
+    if (!st.busy) deliverHeld();
+  }
+
+  // Wake up exactly when this meeting ends. Bounded so a far-future or malformed
+  // end can never schedule a timer beyond what setTimeout represents safely.
+  if (st.busy && Number.isFinite(st.until)) {
+    const ms = st.until - Date.now();
+    if (ms > 0 && ms < 6 * 3600 * 1000) focusReleaseTimer = setTimeout(applyFocus, ms + 250);
+  }
+}
+
+// Hand over what was held back, as one line. Bubble + toast, and deliberately
+// NOT recorded again: every held message already went into the history when it
+// arrived, so the tray recap has the detail and this is only the nudge to look.
+function deliverHeld() {
+  const items = heldBack.drain();
+  if (!items.length) return;
+  if (!(cfg && cfg.focus && cfg.focus.digest === false)) {
+    const line = focus.digest(items);
+    if (line) notify(line, { source: 'focus', dedupeKey: 'focus:digest', dedupeMs: 0, recap: true, title: 'While you were away' });
+  }
+}
+
 function notify(message, opts) {
   opts = opts || {};
   const msg = fillPlaceholders(message, { name: cfg && cfg.name ? cfg.name : '', count: opts.count });
@@ -657,10 +730,30 @@ function notify(message, opts) {
   notifyRecent.set(key, now);
   if (notifyRecent.size > 200) { for (const k of notifyRecent.keys()) { notifyRecent.delete(k); if (notifyRecent.size <= 100) break; } }
   if (!opts.recap) recordNotify(opts.source, msg);   // log it (but not when re-showing from the recap)
-  if (opts.bubble !== false && win && !win.isDestroyed()) {
-    win.webContents.send('notify', { message: msg, ttl: opts.ttl || 5000, level: opts.level || 'info', sound: opts.sound !== false });
+
+  // Focus Guard: while you are busy, anything that can wait DOES wait - no bubble,
+  // no sound, no toast - and is delivered as one summary the moment you are free
+  // (deliverHeld). It is already in the history above, so nothing is ever lost.
+  // opts.ignoreQuiet also means "this is urgent" and skips the hold entirely.
+  if (!opts.recap && !opts.ignoreQuiet && !opts.vip && focus.isDeferrable(opts.source) && focusState().busy) {
+    heldBack.push({ source: opts.source || '', message: msg, ts: now });
+    return;
   }
-  const wantOs = opts.os !== undefined ? opts.os : !(cfg && cfg.notifyOn === false);
+
+  // Quiet Hours silences the pet without hiding it: the bubble still appears so a
+  // reminder that lands overnight is there when you look, but the meow/purr and the
+  // OS toast are held back. opts.ignoreQuiet is the escape hatch for anything that
+  // should always break through.
+  const quiet = !opts.ignoreQuiet && cfg && inQuietHours(cfg.quietHours, new Date());
+  let sound = opts.sound !== false && !quiet;
+  const soundKey = 'snd:' + (opts.source || '');
+  if (sound && now - (soundRecent.get(soundKey) || 0) < SOUND_FLOOR_MS) sound = false;   // seen and shown, just not spoken
+  if (sound) soundRecent.set(soundKey, now);
+  if (soundRecent.size > 200) { for (const k of soundRecent.keys()) { soundRecent.delete(k); if (soundRecent.size <= 100) break; } }
+  if (opts.bubble !== false && win && !win.isDestroyed()) {
+    win.webContents.send('notify', { message: msg, ttl: opts.ttl || 5000, level: opts.level || 'info', sound });
+  }
+  const wantOs = (opts.os !== undefined ? opts.os : !(cfg && cfg.notifyOn === false)) && !quiet;
   if (wantOs) {
     try { if (Notification.isSupported()) new Notification({ title: opts.title || 'pixelpets', body: msg, silent: true }).show(); }
     catch (e) { /* toasts are best-effort */ }
@@ -680,6 +773,7 @@ function reminderDueOn(r, d) {
 let lastTickAt = 0;
 function tick() {
   if (!cfg || !win || win.isDestroyed()) return;
+  applyFocus();   // cheap, and the busy -> free edge is what releases the held queue
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0'), mm = String(now.getMinutes()).padStart(2, '0');
   const hhmm = `${hh}:${mm}`;

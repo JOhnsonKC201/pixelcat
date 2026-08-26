@@ -92,6 +92,21 @@ async function fetchIcsSafely(start) {
 }
 
 // Only run the fork protocol when launched as the forked entry point; when this file
+// How long a parsed VEVENT lasts, in ms. Used to give every emitted occurrence an
+// end time. Falls back to 30 minutes when DTEND (and any DURATION node-ical has
+// resolved into it) is missing or nonsensical, and clamps to a day so one broken
+// feed entry cannot claim to run for a decade.
+const DEFAULT_EVENT_MS = 30 * 60 * 1000;
+const MAX_EVENT_MS = 24 * 3600 * 1000;
+function durationOf(ev) {
+  const s = ev && ev.start ? new Date(ev.start).getTime() : NaN;
+  const e = ev && ev.end ? new Date(ev.end).getTime() : NaN;
+  if (!Number.isFinite(s) || !Number.isFinite(e)) return DEFAULT_EVENT_MS;
+  const d = e - s;
+  if (!Number.isFinite(d) || d <= 0) return DEFAULT_EVENT_MS;
+  return Math.min(d, MAX_EVENT_MS);
+}
+
 // is require()'d (e.g. from a unit test) just expose the pure functions below.
 if (require.main === module) {
 process.once('message', async (msg) => {
@@ -111,16 +126,21 @@ process.once('message', async (msg) => {
       if (!ev || ev.type !== 'VEVENT') continue;
       const summary = String(ev.summary || 'Event').slice(0, 80);
       const uid = String(ev.uid || k);
+      // How long the event runs, carried onto every occurrence. Focus Guard needs an
+      // END to answer "am I in a meeting right now?" - a start alone only ever says
+      // "one began at some point". A VEVENT may legitimately carry no DTEND, so fall
+      // back to the 30 minutes that is the overwhelmingly common default meeting.
+      const lenMs = durationOf(ev);
       if (ev.rrule) {
         let occ = [];
         try { occ = ev.rrule.between(new Date(floor), new Date(horizon), true) || []; } catch (e) { occ = []; }
         for (const d of occ) {
           const t = d.getTime();
-          if (t >= floor && t <= horizon) out.push({ uid: uid + ':' + t, start: t, summary });
+          if (t >= floor && t <= horizon) out.push({ uid: uid + ':' + t, start: t, end: t + lenMs, summary });
         }
       } else if (ev.start) {
         const t = new Date(ev.start).getTime();
-        if (Number.isFinite(t) && t >= floor && t <= horizon) out.push({ uid, start: t, summary });
+        if (Number.isFinite(t) && t >= floor && t <= horizon) out.push({ uid, start: t, end: t + lenMs, summary });
       }
     }
     out.sort((a, b) => a.start - b.start);
@@ -136,4 +156,4 @@ process.once('message', async (msg) => {
 setTimeout(() => process.exit(0), 30000);
 }
 
-module.exports = { isBlockedIp, assertSafeUrl, fetchIcsSafely };
+module.exports = { isBlockedIp, assertSafeUrl, fetchIcsSafely, durationOf, DEFAULT_EVENT_MS, MAX_EVENT_MS };

@@ -10,6 +10,10 @@ const fireTimers = new Map();   // event key -> pending setTimeout
 const firedKeys = new Set();    // already-nudged occurrences
 let notifyFn = null;
 let getCfg = null;
+// The most recent fetch, kept so Focus Guard can ask whether a meeting is running
+// RIGHT NOW. The nudge timers above only ever look forward; knowing you are busy
+// needs the events themselves, with their end times (see cal-worker durationOf).
+let lastEvents = [];
 
 function spawnWorker(url, timeoutMs, cb) {
   let done = false;
@@ -65,16 +69,21 @@ function poll() {
   const cfg = getCfg && getCfg();
   if (!cfg || !cfg.calendar || !cfg.calendar.on || !cfg.calendar.icsUrl) return;
   spawnWorker(cfg.calendar.icsUrl, 25000, (res) => {
-    if (res && res.ok && Array.isArray(res.events)) arm(res.events, leadOf(cfg));
+    if (res && res.ok && Array.isArray(res.events)) { lastEvents = res.events; arm(res.events, leadOf(cfg)); }
   });
 }
 
 function clearTimers() { for (const t of fireTimers.values()) clearTimeout(t); fireTimers.clear(); }
 
+// Everything the last poll returned, for Focus Guard. A copy, so a caller cannot
+// mutate the list the nudge timers are working from.
+function events() { return lastEvents.slice(); }
+
 // (Re)start or stop the poll loop when the calendar config changes.
 function sync(cfg) {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   clearTimers();
+  lastEvents = [];   // a calendar just turned off must not leave you permanently "in a meeting"
   if (cfg && cfg.calendar && cfg.calendar.on && cfg.calendar.icsUrl) {
     const everyMin = 10;   // fixed refresh cadence; per-event one-shot timers (arm) do the precise firing
     poll();
@@ -95,6 +104,6 @@ function test(cfg) {
 }
 
 function init(notify_, getCfg_) { notifyFn = notify_; getCfg = getCfg_; }
-function stop() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } clearTimers(); }
+function stop() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } clearTimers(); lastEvents = []; }
 
-module.exports = { init, sync, test, stop, eventTitle };
+module.exports = { init, sync, test, stop, eventTitle, events };

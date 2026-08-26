@@ -75,7 +75,11 @@
     const sr = ac.sampleRate, clen = sr * 2, cbuf = ac.createBuffer(1, clen, sr), cd = cbuf.getChannelData(0);
     for (let i = 0; i < clen; i++) cd[i] = chance(0.0012) ? (Math.random() * 2 - 1) * rnd(0.3, 1) : 0;
     const cs = ac.createBufferSource(); cs.buffer = cbuf; cs.loop = true;
-    const cg = ac.createGain(); cg.gain.value = 0.05;
+    // Trimmed hard. chance(0.0012) per sample is roughly 50 clicks a second of
+    // 1.4kHz-and-up noise running continuously under every mood - texture at a
+    // glance, but the exact frequency band the ear treats as "something is wrong
+    // with the speakers" when it never stops.
+    const cg = ac.createGain(); cg.gain.value = 0.018;
     const chp = ac.createBiquadFilter(); chp.type = 'highpass'; chp.frequency.value = 1400;
     cs.connect(chp).connect(cg).connect(jamBus); cs.start();
     // rain bed (only audible in the 'rain' mood): a soft gusting hiss. Always wired so

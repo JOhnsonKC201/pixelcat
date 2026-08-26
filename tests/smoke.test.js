@@ -151,7 +151,7 @@ test('reminder recurrence normalizes (back-compat + clamps)', () => {
 
 test('email config normalizes + clamps', () => {
   const { normalize } = require(path.join(ROOT, 'src', 'config.js'));
-  assert.deepStrictEqual(normalize({}).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 });
+  assert.deepStrictEqual(normalize({}).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5, vip: [] });
   const e = normalize({ email: { on: 1, host: '  imap.gmail.com ', port: 99999, user: 'a@b.com', secure: false, intervalMin: 0 } }).email;
   assert.strictEqual(e.on, true);
   assert.strictEqual(e.host, 'imap.gmail.com');
@@ -159,7 +159,12 @@ test('email config normalizes + clamps', () => {
   assert.strictEqual(e.user, 'a@b.com');
   assert.strictEqual(e.secure, true);   // non-143 ports force implicit TLS (security hardening, config.js)
   assert.strictEqual(e.intervalMin, 1);
-  assert.deepStrictEqual(normalize({ email: 'junk' }).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 });
+  assert.deepStrictEqual(normalize({ email: 'junk' }).email, { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5, vip: [] });
+  // vip senders: trimmed, lowercased, de-duped, blanks dropped, bounded
+  const vip = normalize({ email: { vip: ['  BOSS@Acme.com ', 'boss@acme.com', '', '   ', '@acme.com'] } }).email.vip;
+  assert.deepStrictEqual(vip, ['boss@acme.com', '@acme.com']);
+  assert.deepStrictEqual(normalize({ email: { vip: 'not-an-array' } }).email.vip, []);
+  assert.strictEqual(normalize({ email: { vip: Array.from({ length: 40 }, (_, i) => 'p' + i + '@x.com') } }).email.vip.length, 25);
 });
 
 test('lobbyJam config normalizes (mood enum + on flag)', () => {

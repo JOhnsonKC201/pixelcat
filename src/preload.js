@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('cat', {
   onThemes: sub('themes', (list) => list),
   onMood: sub('mood', (c) => c),
   onSetArea: sub('setarea:start'),
-  onBreak: sub('break'),
+  onBreak: sub('break', (d) => d),   // carries { sound } - a bare sub() would drop it
   onTreat: sub('treat'),
   onBall: sub('ball'),
   onPomo: sub('pomo', (d) => d),

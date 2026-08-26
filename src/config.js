@@ -48,10 +48,14 @@ const DEFAULTS = {
   pinnedNote: '',      // fixed message pinned above the cat's head ('' = off)
   notifyOn: true,      // also pop a Windows toast for reminders/messages
   tipsSeen: false,     // the one-time first-run hints have been shown (see showFirstRunTips)
+  quietHours: { on: false, start: '22:00', end: '08:00' }, // daily do-not-disturb: no sound or toast inside this window
+  // Focus Guard: hush automatically while you are actually busy, and deliver what
+  // was held back as one summary afterwards (see focus.js).
+  focus: { on: true, meetings: true, digest: true },
   pomodoro: { on: false, focusMin: 25, breakMin: 5 },  // focus/break loops + floating pixel timer
   lobbyJam: { on: false, mood: 'cozy' },  // synthesized lo-fi "study music" the cat plays (cozy/dreamy/upbeat/focus/rain)
   reminders: [],       // [{ id, hhmm: 'HH:MM', message, recur, days, lastFired }]
-  email: { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5 }, // IMAP unread alerts (app-password stored separately, encrypted)
+  email: { on: false, host: '', port: 993, user: '', secure: true, intervalMin: 5, vip: [] }, // IMAP unread alerts (app-password stored separately, encrypted); vip senders break through Focus Guard
   calendar: { on: false, icsUrl: '', leadMin: 10 }, // nudge before events from a secret .ics URL
 };
 
@@ -105,6 +109,18 @@ function normalize(cfg) {
     lowPowerOnBattery: c.lowPowerOnBattery === undefined ? true : !!c.lowPowerOnBattery,
     pinnedNote: String(c.pinnedNote == null ? '' : c.pinnedNote).trim().slice(0, 80),
     notifyOn: c.notifyOn === undefined ? true : !!c.notifyOn,
+    quietHours: (() => {
+      const q = (c.quietHours && typeof c.quietHours === 'object') ? c.quietHours : {};
+      const start = HHMM.test(String(q.start || '')) ? String(q.start) : '22:00';
+      const end = HHMM.test(String(q.end || '')) ? String(q.end) : '08:00';
+      return { on: !!q.on, start, end };
+    })(),
+    focus: (() => {
+      const f = (c.focus && typeof c.focus === 'object') ? c.focus : {};
+      // Default ON for all three: the guard is only ever *less* interrupting than
+      // the old behaviour, and an absent key (every existing install) should get it.
+      return { on: f.on === undefined ? true : !!f.on, meetings: f.meetings === undefined ? true : !!f.meetings, digest: f.digest === undefined ? true : !!f.digest };
+    })(),
     pomodoro: (() => {
       const p = (c.pomodoro && typeof c.pomodoro === 'object') ? c.pomodoro : {};
       return { on: !!p.on, focusMin: clampInt(p.focusMin, 5, 120, 25), breakMin: clampInt(p.breakMin, 1, 60, 5) };
@@ -126,6 +142,15 @@ function normalize(cfg) {
         user: String(e.user == null ? '' : e.user).trim().slice(0, 160),
         secure,
         intervalMin: clampInt(e.intervalMin, 1, 60, 5),
+        // Senders that interrupt you even while Focus Guard is holding mail back.
+        // Matched case-insensitively against the From address, as a substring, so
+        // "@acme.com" whitelists a whole company and "boss@acme.com" one person.
+        // Bounded and de-duped: this list is written by hand and read on every poll.
+        vip: Array.from(new Set(
+          (Array.isArray(e.vip) ? e.vip : [])
+            .map((v) => String(v == null ? '' : v).trim().toLowerCase().slice(0, 160))
+            .filter(Boolean),
+        )).slice(0, 25),
       };
     })(),
     calendar: (() => {

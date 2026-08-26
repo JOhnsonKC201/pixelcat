@@ -7,6 +7,25 @@
 // renderer.js to keep that file focused on drawing.
 /* exported playMeow, startPurr, stopPurr, playChirp, playMrrp, playSwipe, playPlop */
 let actx = null, master = null;
+
+// Nothing in this file used to rate-limit itself, and several callers live on
+// animation clocks - so a stuck state machine upstream became a stutter down here.
+// This is the floor on how often the pet may use its VOICE, whatever the caller
+// does. Swipe and plop are texture rather than voice and are deliberately exempt:
+// they are already tied to a physical event and are far quieter.
+let lastVoiceAt = -1e9;
+function nowMs() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
+function voiceReady(gapMs) {
+  const t = nowMs();
+  if (t - lastVoiceAt < gapMs) return false;
+  lastVoiceAt = t;
+  return true;
+}
+// Test seam. The gate is wall-clock, so a unit test that drives hundreds of calls
+// in a tight loop would otherwise exercise only the first one and quietly stop
+// covering the synth paths it exists to check.
+/* exported resetVoiceGate */
+function resetVoiceGate() { lastVoiceAt = -1e9; }
 function volNow() { return (config && typeof config.volume === 'number' ? config.volume : 100) / 100; }
 // Soft-clip (tanh) curve for the master safety stage: ~unity slope near zero (quiet
 // sounds pass untouched) and a smooth ceiling below 1.0, so NO input - however hot the
@@ -163,7 +182,9 @@ function startPant() {
   amp.gain.setTargetAtTime(0.03 * (v.gain || 1), ac.currentTime, 0.3);
   // the pant rhythm: ~2.6 breaths/sec for a small dog, slower for a big one
   const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 3.1 / v.dur;
-  const lfoGain = ac.createGain(); lfoGain.gain.value = 0.026;
+  const lfoGain = ac.createGain();          // depth ramps in with the carrier - see startPurr
+  lfoGain.gain.setValueAtTime(0.0001, ac.currentTime);
+  lfoGain.gain.setTargetAtTime(0.026, ac.currentTime, 0.3);
   lfo.connect(lfoGain); lfoGain.connect(amp.gain);
   // a soft voiced hum under the breath so it is a dog panting, not just hiss
   const hum = ac.createOscillator(); hum.type = 'triangle'; hum.frequency.value = 150 * v.pitch;
@@ -240,12 +261,16 @@ function playMeow() {
   // Each call randomly picks a short "mew", a two-syllable "meow", or a drawn-out
   // "meeow" - and detunes a hair - so repeated meows vary like a real cat.
   // Still 100% synthesized; voiceFor() keeps each breed's own pitch/length.
+  if (!voiceReady(700)) return;                  // gated before the species fork so it covers the bark too
   const ac = audio(); if (!ac) return;
   if (voiceIsDog()) { playBark(); return; }      // a dog does not meow
   const v = voiceFor();
   const t0 = ac.currentTime;
   const r = Math.random();
-  const variant = r < 0.30 ? 'mew' : r < 0.85 ? 'meow' : 'long';
+  // Weighted toward the two AFFECTIONATE shapes. The short "mew" and the drawn-out
+  // "meeow" are what a cat actually uses on the person it lives with; the flat
+  // mid-length meow is closer to a demand, so it is no longer the default.
+  const variant = r < 0.42 ? 'mew' : r < 0.80 ? 'meow' : 'long';
   const dur = (variant === 'mew' ? 0.34 : variant === 'long' ? 0.78 : 0.52) * v.dur;
   const f = (hz) => hz * v.pitch * (0.97 + Math.random() * 0.06);   // tiny per-call detune
   const trash = [];
@@ -271,7 +296,7 @@ function playMeow() {
   // ---- the "mouth": a lowpass that opens then closes + a fixed vocal formant peak ----
   const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.0; trash.push(lp);
   lp.frequency.setValueAtTime(f(700), t0);
-  lp.frequency.linearRampToValueAtTime(f(2800), t0 + dur * 0.30);
+  lp.frequency.linearRampToValueAtTime(f(2350), t0 + dur * 0.30);   // rounder, less piercing at the peak
   lp.frequency.linearRampToValueAtTime(f(900), t0 + dur);
   // Two vocal formants that GLIDE - this is what makes it read as "me-ow" rather than a
   // bleep: the mouth opens on a bright vowel (F2 high) then rounds/closes on the "ow" (F2
@@ -283,18 +308,21 @@ function playMeow() {
   fmt.frequency.linearRampToValueAtTime(f(600), t0 + dur);           // round down on "ow"
   const fmt2 = ac.createBiquadFilter(); fmt2.type = 'peaking'; fmt2.Q.value = 2.6; fmt2.gain.value = 6; trash.push(fmt2);
   fmt2.frequency.setValueAtTime(f(2450), t0);
-  fmt2.frequency.linearRampToValueAtTime(f(2650), t0 + dur * 0.28);  // bright open vowel
+  fmt2.frequency.linearRampToValueAtTime(f(2450), t0 + dur * 0.28);  // bright open vowel, softened
   fmt2.frequency.linearRampToValueAtTime(f(950), t0 + dur);          // sweep down into the closing "ow"
 
   // ---- amp envelope: quick attack, a tiny mid dip (the "me|ow" break), then release ----
   const amp = ac.createGain(); trash.push(amp);
+  // Gentler than it was: a 40ms attack at 0.22 reads as a demand, and this pet
+  // lives on someone's desktop all day. A slower onset at a lower peak is the
+  // difference between the cat asking for something and the cat saying hello.
   amp.gain.setValueAtTime(0.0001, t0);
-  amp.gain.exponentialRampToValueAtTime(0.22, t0 + 0.04);
+  amp.gain.exponentialRampToValueAtTime(0.17, t0 + 0.065);
   if (variant !== 'mew') {
-    amp.gain.linearRampToValueAtTime(0.12, t0 + dur * 0.46);            // dip between syllables
-    amp.gain.linearRampToValueAtTime(0.20, t0 + dur * 0.62);            // swell back up on the "ow"
+    amp.gain.linearRampToValueAtTime(0.10, t0 + dur * 0.46);            // dip between syllables
+    amp.gain.linearRampToValueAtTime(0.155, t0 + dur * 0.62);           // swell back up on the "ow"
   }
-  amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.07);
+  amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.10);        // longer tail: it trails off rather than stopping
 
   o.connect(fmt); subG.connect(fmt); sub.connect(subG);
   fmt.connect(fmt2); fmt2.connect(lp); lp.connect(amp); amp.connect(master);
@@ -313,13 +341,17 @@ function playMeow() {
   o.onended = () => { for (const n of trash) { try { n.disconnect(); } catch (e) { /* ignore */ } } };
 }
 let purrNodes = null;
+// stopPurr clears purrNodes at once but lets the old oscillators run out a 400ms
+// release. A restart inside that tail stacks a second drone on the first, which is
+// what turned a jittering cursor into a thickening wobble instead of one purr.
+let purrFreeAt = 0;
 // A purr = a low carrier you can actually hear on a laptop speaker, amplitude-fluttered
 // at the ~25 Hz purr rate (that flutter IS the purr, not the pitch). We layer a sawtooth
 // fundamental + a soft detuned overtone for warmth, the flutter tremolo, and a slow
 // "breathing" swell so it never sits static - then fade in/out so it doesn't click.
 function startPurr() {
   if (voiceIsDog()) { startPant(); return; }     // dogs do not purr, they pant
-  const ac = audio(); if (!ac || purrNodes) return;
+  const ac = audio(); if (!ac || purrNodes || ac.currentTime < purrFreeAt) return;   // still releasing
   const v = voiceFor();
   const purrHz = 48 * v.pitch;                                 // carrier: an audible low rumble (26 Hz was subsonic and buzzed on small speakers)
   const carrier = ac.createOscillator(); carrier.type = 'sawtooth'; carrier.frequency.value = purrHz;
@@ -329,10 +361,18 @@ function startPurr() {
   const amp = ac.createGain(); amp.gain.setValueAtTime(0.0001, ac.currentTime);
   amp.gain.setTargetAtTime(0.045, ac.currentTime, 0.35);      // fade in (no click)
   const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 25;   // the ~25 Hz purr flutter (amplitude tremolo)
-  const lfoGain = ac.createGain(); lfoGain.gain.value = 0.03;
+  // The modulators sum straight into amp.gain, so at full depth from sample zero
+  // they swing the param by as much as the steady state does - which made the
+  // "fade in (no click)" above a no-op and started every purr at full loudness.
+  // Ramp the DEPTH in alongside the carrier and the onset is genuinely soft.
+  const lfoGain = ac.createGain();
+  lfoGain.gain.setValueAtTime(0.0001, ac.currentTime);
+  lfoGain.gain.setTargetAtTime(0.03, ac.currentTime, 0.35);
   lfo.connect(lfoGain); lfoGain.connect(amp.gain);
   const breath = ac.createOscillator(); breath.type = 'sine'; breath.frequency.value = 0.5;   // slow inhale/exhale swell
-  const breathGain = ac.createGain(); breathGain.gain.value = 0.012;
+  const breathGain = ac.createGain();
+  breathGain.gain.setValueAtTime(0.0001, ac.currentTime);
+  breathGain.gain.setTargetAtTime(0.012, ac.currentTime, 0.35);
   breath.connect(breathGain); breathGain.connect(amp.gain);
   carrier.connect(lp); over.connect(overG); overG.connect(lp); lp.connect(amp); amp.connect(master);
   carrier.start(); over.start(); lfo.start(); breath.start();
@@ -348,7 +388,7 @@ function stopPurr() {
     const now = actx ? actx.currentTime : 0;
     p.amp.gain.cancelScheduledValues(now);
     p.amp.gain.setTargetAtTime(0.0001, now, 0.12);            // short release
-    const stopAt = now + 0.4;
+    const stopAt = now + 0.4; purrFreeAt = stopAt;
     p.carrier.stop(stopAt); p.over.stop(stopAt); p.lfo.stop(stopAt); p.breath.stop(stopAt);
     p.carrier.onended = () => {
       for (const n of [p.carrier, p.over, p.overG, p.lp, p.amp, p.lfo, p.lfoGain, p.breath, p.breathGain]) {
@@ -360,13 +400,16 @@ function stopPurr() {
 // A happy cat "chirrup"/trill (tap, body-pet, playful beat, agent done): a short
 // rising note with the fast rolled "r" flutter cats make - friendlier than a meow.
 function playChirp() {
+  if (!voiceReady(700)) return;
   if (voiceIsDog()) { playWhine(); return; }   // the dog equivalent: a soft asking whine
   const ac = audio(); if (!ac) return;
   const t0 = ac.currentTime, v = voiceFor();
   const g = ac.createGain(); g.connect(master);
+  // The trill is the pet being pleased to see you, so it gets the softest onset
+  // of the three and the longest tail.
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.13, t0 + 0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.30);
+  g.gain.exponentialRampToValueAtTime(0.10, t0 + 0.035);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.34);
   const o = ac.createOscillator(); o.type = 'triangle';
   o.frequency.setValueAtTime(760 * v.pitch, t0);
   o.frequency.linearRampToValueAtTime(1120 * v.pitch, t0 + 0.10);
@@ -380,12 +423,13 @@ function playChirp() {
 }
 // Startled "mrrp" - a short falling growl (sudden jolt / agent error).
 function playMrrp() {
+  if (!voiceReady(700)) return;
   if (voiceIsDog()) { playHuff(); return; }    // the dog equivalent: a chesty huff
   const ac = audio(); if (!ac) return;
   const t0 = ac.currentTime, g = ac.createGain(); g.connect(master);
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.015);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+  g.gain.exponentialRampToValueAtTime(0.115, t0 + 0.032);   // still a jolt, no longer a slap
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.20);
   const v = voiceFor();
   const o = ac.createOscillator(); o.type = 'sawtooth';
   o.frequency.setValueAtTime(520 * v.pitch, t0);

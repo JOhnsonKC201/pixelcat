@@ -20,10 +20,11 @@ function node() {
     buffer: null, loop: false, threshold: param(), ratio: param(), attack: param(), release: param(),
     connect(n) { return n || node(); }, disconnect() {}, start() {}, stop() {}, onended: null };
 }
+let oscCount = 0;   // how many oscillators the synth has built - a gated call builds none
 class MockCtx {
   constructor() { this.sampleRate = 44100; this.destination = node(); this.state = 'running'; }
   get currentTime() { return clock; }
-  createGain() { return node(); } createOscillator() { return node(); } createBiquadFilter() { return node(); }
+  createGain() { return node(); } createOscillator() { oscCount += 1; return node(); } createBiquadFilter() { return node(); }
   createStereoPanner() { return node(); } createWaveShaper() { return node(); } createDynamicsCompressor() { return node(); }
   createConvolver() { return node(); } createBufferSource() { return node(); }
   createBuffer(ch, len) { const data = new Float32Array(Math.max(1, len)); return { getChannelData: () => data, length: len }; }
@@ -51,10 +52,43 @@ test('audio.js synth path runs for every breed + meow variant', () => {
   for (let i = 0; i < 400; i++) {
     s.patternIndex = i % 4;
     s.audio();
+    // The voice gate is wall-clock and this loop runs in well under its window, so
+    // without the reset only the FIRST iteration would build anything and the rest
+    // of this test would silently cover nothing.
+    s.resetVoiceGate();
     s.playMeow(); s.playChirp(); s.playMrrp();
     s.startPurr(); s.stopPurr();
   }
   assert.ok(typeof s.playMeow === 'function');
+});
+
+test('the voice gate stops a stuck caller turning into a stutter', () => {
+  // Several callers live on animation clocks, so the floor has to hold in audio.js
+  // itself rather than being re-implemented at each call site.
+  const s = loadAudioJam();
+  s.audio();
+  s.resetVoiceGate();
+  const before = oscCount;
+  s.playMeow();
+  const afterFirst = oscCount;
+  assert.ok(afterFirst > before, 'the first meow should actually synthesize');
+  for (let i = 0; i < 50; i++) s.playMeow();
+  assert.strictEqual(oscCount, afterFirst, '50 more meows in the same instant should all be gated');
+  s.resetVoiceGate();
+  s.playMeow();
+  assert.ok(oscCount > afterFirst, 'once the gate clears, the pet speaks again');
+});
+
+test('the three voices share one floor', () => {
+  // Alternating between meow, chirp and mrrp was a way to make noise at three
+  // times the intended rate, so they deliberately share a single gate.
+  const s = loadAudioJam();
+  s.audio();
+  s.resetVoiceGate();
+  s.playMeow();
+  const after = oscCount;
+  s.playChirp(); s.playMrrp(); s.playChirp();
+  assert.strictEqual(oscCount, after, 'the other voices respect the floor the meow just set');
 });
 
 // ---- dog voices -------------------------------------------------------------

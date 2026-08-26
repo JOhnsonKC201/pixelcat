@@ -925,7 +925,7 @@ function renderRearBat(t, palRGB, blinking, o) {
   const stroke = Math.floor(swing / Math.PI);
   if (stroke !== lastSwipeStroke) {
     lastSwipeStroke = stroke;
-    if (config && config.soundOn) playSwipe(o.strength == null ? 1 : o.strength);
+    if (config && config.soundOn && t > nextSwipeSound) { nextSwipeSound = t + 900; playSwipe(o.strength == null ? 1 : o.strength); }
   }
   const sp = batSpriteFor(patternIndex, left >= right ? -1 : 1, topPh);
   drawShadow(pos.x, pos.y, 0.2, 34);
@@ -1064,7 +1064,15 @@ let climbDir = -1, climbAnim = 0;
 // the PROVEN bat rig, whose arm bows outward to stay clear of the skull.
 let swatLeaf = null;      // { x, y, spin, spinV, hit } - null when nothing is flying past
 let swatT0 = 0;           // swipe tempo anchor, reset when a new leaf enters
+// Leaves are replaced continuously while the wheel turns, so "once per leaf" still
+// meant a chirp every 0.3-0.8s down a long page. One happy noise per scroll burst.
+let swatChirpUntil = 0;
 let lastSwipeStroke = -1;   // which swipe of the bat cycle last played its whoosh
+// The stroke index is an ANIMATION quantity, so on its own it ties the sound rate
+// to a tempo constant. This is the time budget: whatever the swing clock does, the
+// paw cannot whoosh more often than this. Shared by the butterfly and the leaf,
+// which is also what stops the handoff between them firing an extra one.
+let nextSwipeSound = 0;
 // liveliness: eased gaze, idle micro-actions, animated tail + frame governor
 let smoothLook = { x: 0, y: 0 };
 let lookTarget = null, lookTargetUntil = 0;
@@ -1095,6 +1103,7 @@ let purring = false;
 // (calm/playful/zoomies) gate + scale every behavior; see bandOf()/intensity.
 let energy = 68;   // start a touch more playful
 let startleT0 = -1, startleUntil = 0, startleMode = 'creep', startleFrom = null, startleTo = null, startleCooldownUntil = -9999;
+let startleSoundUntil = -9999;   // the growl's own, much longer gap - see the startle block
 let zoomiesT0 = -1, prevBand = '', spinUntil = 0;
 
 let pos;
@@ -1209,9 +1218,13 @@ if (window.cat) {
     if (master) master.gain.value = volNow();
     // reconcile the Lobby Jam audio with the new config (covers settings, tray, auto-resume)
     const lj = (c.lobbyJam && typeof c.lobbyJam === 'object') ? c.lobbyJam : { on: false, mood: 'cozy' };
-    if (lj.on && !jamRunning) { if (window.jamStart) window.jamStart(lj.mood); jamRunning = true; jamMoodCur = lj.mood; }
-    else if (!lj.on && jamRunning) { if (window.jamStop) window.jamStop(); jamRunning = false; }
-    else if (lj.on && jamRunning && lj.mood !== jamMoodCur) { if (window.jamSetMood) window.jamSetMood(lj.mood); jamMoodCur = lj.mood; }
+    // Music is a sound. Turning Sound off silenced every meow, purr and whoosh but
+    // left the jam playing at full level, which is the loudest possible way to
+    // ignore the one switch a user reaches for when they want quiet.
+    const jamOn = !!lj.on && !!c.soundOn;
+    if (jamOn && !jamRunning) { if (window.jamStart) window.jamStart(lj.mood); jamRunning = true; jamMoodCur = lj.mood; }
+    else if (!jamOn && jamRunning) { if (window.jamStop) window.jamStop(); jamRunning = false; }
+    else if (jamOn && jamRunning && lj.mood !== jamMoodCur) { if (window.jamSetMood) window.jamSetMood(lj.mood); jamMoodCur = lj.mood; }
     playArea = c.playArea || null;
     pos.x = zoneClampX(pos.x); pos.y = floorLockOn() ? restingY() : zoneClampY(pos.y); persistPos();
     // Species first: it rewrites the coat tables, so the coat index below must be
@@ -1219,6 +1232,7 @@ if (window.cat) {
     const wantSpecies = c.species === 'dog' ? 'dog' : 'cat';
     const wantCoat = wantSpecies === 'dog' ? c.dogPattern : c.pattern;
     if (wantSpecies !== species) {
+      if (purring) { stopPurr(); purring = false; }   // the new species finds its own voice next frame
       setSpecies(wantSpecies, typeof wantCoat === 'number' ? wantCoat : null);
       if (!SHOT) { wagBoost = 1.0; stretchT0 = performance.now(); }   // the new pet says hello
     } else if (typeof wantCoat === 'number') {
@@ -1229,7 +1243,7 @@ if (window.cat) {
   });
   if (window.cat.onPower) window.cat.onPower((p) => { lowPower = !!(p && p.lowPower); resumeRaf(); });
   if (window.cat.onNotify) window.cat.onNotify((d) => triggerNotify(d));
-  if (window.cat.onBreak) window.cat.onBreak(() => triggerBreak());
+  if (window.cat.onBreak) window.cat.onBreak((d) => triggerBreak(d));
   if (window.cat.onTreat) window.cat.onTreat(() => dropTreat());
   if (window.cat.onBall) window.cat.onBall(() => throwBall());
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
@@ -1276,11 +1290,13 @@ function triggerNotify(d) {
   if (!d) return;
   queueBubble({ text: template(d.message) || 'Meow!', ttl: d.ttl || 5000, sound: d.sound !== false });
 }
-function triggerBreak() {
+function triggerBreak(d) {
   const n = catName();
   queueBubble({
     text: n ? `Break time, ${n}! Stretch with me~` : 'Break time! Stretch with me~',
-    ttl: 6000, sound: true,
+    // main decides: silent through quiet hours and while you are busy, but the
+    // bubble still shows, so a break you took anyway is not a break you missed.
+    ttl: 6000, sound: !(d && d.sound === false),
   });
 }
 // --- Fetch (dogs only): the tray throws a tennis ball. The ball arcs out under
@@ -1703,6 +1719,14 @@ const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUN
 // this you are flicking past, not petting), and how long a touch stays warm after
 // the pointer moves on, so one stroke does not read as a dozen separate taps.
 const PET_STROKE_MAX = 0.9, PET_GRACE_MS = 280;
+// A hand resting on the pet still PETS it - the eyes squint and the head leans
+// into your palm, which is deliberate and worth keeping. What it must not do is
+// go on making NOISE forever: the pointer parked on the sprite (easy to do by
+// accident, and where the cursor often ends up after a pounce) purred without end
+// and trilled every 1.5s with nobody touching the mouse. So the pose is unbounded
+// and the voice is not - if the hand has not moved in this long, the pet settles
+// and goes quiet while still enjoying the company.
+const PURR_HAND_MS = 8000;
 // butterfly play: the cat only engages the butterfly once the cursor has been still this
 // long (the cursor always wins). BF_TOP keeps the butterfly's targets off the top edge;
 // BF_EDGE is the screen-edge keep-out for the whole sprite (covers the wingspan).
@@ -1964,7 +1988,11 @@ function updateButterflyDesk(t, dt, step, f) {
   // cooling down) -> raise a front paw and swipe at it. Shares bfSwatCool with the lean + pounce
   // so the three never stack; ordered AFTER the pounce so a real pounce always wins.
   if (cursorIdle && !f.hunting && t >= huntUntil && bfMode !== 'out' && dh > 62 && dh < BF_SWAT_RANGE && t > bfSwatCool && roamUntil < t) {
-    bfSwatT0 = t; bfSwatUntil = t + BF_SWAT_MS; bfSwatCool = t + 700; tailFlickT0 = t;
+    // A 600ms swat re-arming 100ms later meant a whoosh roughly every 350ms for the
+    // whole 22-30s visit - the single loudest source of "it never stops". Rest the
+    // paw properly between swats, and jitter it so it reads as a cat losing interest
+    // rather than a machine keeping time.
+    bfSwatT0 = t; bfSwatUntil = t + BF_SWAT_MS; bfSwatCool = t + 2600 + Math.random() * 1400; tailFlickT0 = t;
   }
   if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting && t >= huntUntil) {
     if (cursorIdle && t > bfSwatCool) { bfSwatCool = t + 900; tailFlickT0 = t; leanTarget = clamp((bfX - pos.x) / 120, -0.12, 0.12); leanUntil = t + 260; }
@@ -2071,7 +2099,9 @@ function draw(t) {
     const left = pos.x < viewW / 2;
     startleTo = { x: left ? zoneClampX(60) : zoneClampX(viewW - 60), y: zoneClampY(pos.y) };
     huntUntil = 0; pouncing = false; addEnergy(35);
-    if (config && config.soundOn) playMrrp();
+    // The pose may re-fire every 1.5s while you sweep the mouse around; the GROWL
+    // should not. Flinching repeatedly is character, growling repeatedly is noise.
+    if (config && config.soundOn && t > startleSoundUntil) { startleSoundUntil = t + 6000; playMrrp(); }
   }
   // finalize a finished startle: commit position, reset springs
   if (startleT0 >= 0 && t >= startleUntil) {
@@ -2173,11 +2203,13 @@ function draw(t) {
   if (bodyPet) {
     addEnergy(0.5 * step);
     leanTarget = clamp((cursor.x - pos.x) / 70, -0.13, 0.13); leanUntil = t + 200;   // arch toward the hand
-    if (t - lastBodyTrill > 1500) { lastBodyTrill = t; tailFlickT0 = t; if (config && config.soundOn) playChirp(); }
+    // Every 1.5s was a metronome once anything held `touching` on. A trill is a
+    // reaction, not a heartbeat: it wants to feel like the pet answering a stroke.
+    if (t - lastBodyTrill > 9000 && velEMA > 0.02) { lastBodyTrill = t; tailFlickT0 = t; if (config && config.soundOn) playChirp(); }
   }
 
   // purr while petted (only when sound is on); start/stop once on the edge
-  const wantPurr = petting && !SHOT && !!(config && config.soundOn);
+  const wantPurr = petting && !SHOT && (t - lastCursorMove) < PURR_HAND_MS && !!(config && config.soundOn);
   if (wantPurr && !purring) { startPurr(); purring = true; }
   else if (!wantPurr && purring) { stopPurr(); purring = false; }
 
@@ -2495,7 +2527,7 @@ function draw(t) {
           swatLeaf.spinV = (swatLeaf.x < pos.x ? -1 : 1) * 0.34;
           addEnergy(3);
           if (!lowPower) idleSparkles.push({ x: swatLeaf.x, y: swatLeaf.y, t0: t });
-          if (config && config.soundOn) playChirp();
+          if (config && config.soundOn && t > swatChirpUntil) { swatChirpUntil = t + 4000; playChirp(); }
         }
         drawMote(swatLeaf.x, swatLeaf.y, swatLeaf.spin);
       }
