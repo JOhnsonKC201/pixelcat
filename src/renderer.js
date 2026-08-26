@@ -1015,6 +1015,7 @@ let nextBlink = 1500, blinkUntil = 0, prevT = 0, labelUntil = 0;
 let huntUntil = 0, pouncing = false, pounceT0 = 0, pounceFrom = null, pounceTarget = null;
 let windingUp = false, windupT0 = 0;   // butterfly pounce: a brief anticipation coil before the spring
 let huntTarget = null;   // hunt aims here (defaults to the cursor); the butterfly can borrow it
+let bfNudgeSince = 0;     // when the mouse first stirred during a visit (grace window)
 let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0, bfIdleNextVisit = 0;
 // paw-swat at the butterfly (a gentle reach that doesn't need a full pounce)
 let bfSwatT0 = 0, bfSwatUntil = 0, bfBatHit = 0;
@@ -1712,7 +1713,8 @@ const IDLE_BUTTERFLY_MS = 7500;
 // The butterfly is idle-only: it won't appear until the mouse has been still this long,
 // and it leaves the moment the mouse starts moving again (the cursor always wins).
 const BF_MOUSE_QUIET_MS = 6000;    // mouse must be still this long before a butterfly may spawn
-const BF_MOUSE_ACTIVE_MS = 500;    // mouse moved within this window => an on-screen butterfly leaves
+const BF_MOUSE_ACTIVE_MS = 500;    // mouse counts as 'in use' if it moved within this window
+const BF_GRACE_MS = 1100;          // ...and must STAY in use this long before the butterfly gives up
 // Come back after being away this long and the cat notices you: happy eyes, hearts, a chirp.
 const GREET_IDLE_MS = 90000;
 // "air currents & the chase" (mirrors site/cat-live.js): the butterfly glides a drifting
@@ -1847,7 +1849,15 @@ function updateButterflyDesk(t, dt, step, f) {
   // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully
   if (config && (config.reducedMotion || config.butterflyOn === false || config.workMode) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
   // idle-only: the instant the user uses the mouse again, the butterfly leaves
-  if ((t - lastCursorMove) < BF_MOUSE_ACTIVE_MS && bfMode !== 'out') bfMode = 'out';
+  // Idle-only, but with a grace window. Leaving on the FIRST cursor movement meant a
+  // single twitch, a bumped desk, or reaching for the mouse to watch the thing ended
+  // a 22-30 second visit instantly - and the next one is at least 14s away. The
+  // butterfly now only gives up once the mouse has been in CONTINUOUS use for
+  // BF_GRACE_MS; go still again before that and the visit carries on.
+  const mouseBusy = (t - lastCursorMove) < BF_MOUSE_ACTIVE_MS;
+  if (!mouseBusy) bfNudgeSince = 0;
+  else if (!bfNudgeSince) bfNudgeSince = t;
+  if (mouseBusy && t - bfNudgeSince > BF_GRACE_MS && bfMode !== 'out') bfMode = 'out';
   wantHighFps = true;
   const dtf = Math.min(dt, 50) / 16.67;
   if (t > bfNextPal) { bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000; }
@@ -1896,14 +1906,17 @@ function updateButterflyDesk(t, dt, step, f) {
     bfWpY = clamp(gy, zT, zB);
     tx = bfWpX; ty = bfWpY;
   }
-  let accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.05 : WANDER_ACCEL));
+  // 'out' used to accelerate HARDER and fly FASTER than wandering, so the butterfly
+  // vanished off the edge rather than drifting away. It now leaves slower than it
+  // wandered, which reads as departing instead of being scared off.
+  let accel = bfMode === 'dodge' ? 0.02 : (bfMode === 'dive' ? 0.045 : (bfMode === 'out' ? 0.028 : WANDER_ACCEL));
   // ease-out: ease off the throttle as it nears the target so arrivals glide, not snap
   if (bfMode !== 'dodge' && bfMode !== 'out') accel *= clamp(Math.hypot(tx - bfX, ty - bfY) / 100, 0.4, 1);
   bfVx += (tx - bfX) * accel * dtf; bfVy += (ty - bfY) * accel * dtf;
   bfVx += Math.sin(t / 130 + 1.3) * 0.5 * dtf; bfVy += Math.sin(t / 90) * 0.6 * dtf;
   { const dx = bfX - cursor.x, dy = bfY - cursor.y, d = Math.hypot(dx, dy); if (d < 90 && d > 0.1) { const ff = (90 - d) / 90 * 3.6; bfVx += dx / d * ff * dtf; bfVy += dy / d * ff * dtf; } }
   bfVx *= 0.92; bfVy *= 0.92;
-  const sp = Math.hypot(bfVx, bfVy), maxv = bfMode === 'dodge' ? 10 : (bfMode === 'out' ? 8 : 5.5);
+  const sp = Math.hypot(bfVx, bfVy), maxv = bfMode === 'dodge' ? 10 : (bfMode === 'out' ? 4.2 : 5.5);
   if (sp > maxv) { bfVx *= maxv / sp; bfVy *= maxv / sp; }
   bfX += bfVx * dtf; bfY += bfVy * dtf;
   bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
