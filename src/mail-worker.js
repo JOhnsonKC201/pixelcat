@@ -40,7 +40,34 @@ process.once('message', async (creds) => {
     });
     await client.connect();
     const status = await client.status('INBOX', { unseen: true });
-    send({ ok: true, unread: (status && status.unseen) | 0 });
+    const unread = (status && status.unseen) | 0;
+    // Who it is from and what it is about. A bare count ("3 new emails") still
+    // makes you go and look, which is the interruption it was meant to save you;
+    // a sender and a subject let you decide from the bubble whether to care - and
+    // it is what the VIP list upstream matches against. Best-effort on purpose:
+    // any failure here must still report the count rather than the whole poll.
+    let latest = null;
+    if (unread > 0) {
+      try {
+        const lock = await client.getMailboxLock('INBOX');
+        try {
+          const uids = await client.search({ seen: false }, { uid: true });
+          if (uids && uids.length) {
+            const msg = await client.fetchOne(String(uids[uids.length - 1]), { envelope: true }, { uid: true });
+            const env = msg && msg.envelope;
+            const from = env && Array.isArray(env.from) ? env.from[0] : null;
+            if (env) {
+              latest = {
+                address: String((from && from.address) || '').slice(0, 160),
+                name: String((from && from.name) || '').slice(0, 80),
+                subject: String(env.subject || '').replace(/\s+/g, ' ').trim().slice(0, 120),
+              };
+            }
+          }
+        } finally { lock.release(); }
+      } catch (e) { latest = null; }   // the count is the contract; the detail is a bonus
+    }
+    send({ ok: true, unread, latest });
   } catch (e) {
     send({ ok: false, error: classify(e) });
   } finally {

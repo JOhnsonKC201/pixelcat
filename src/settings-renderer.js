@@ -145,6 +145,7 @@ function render() {
   if (document.activeElement !== $('emailHost')) $('emailHost').value = em.host || 'imap.gmail.com';
   if (document.activeElement !== $('emailPort')) $('emailPort').value = String(em.port || 993);
   if (document.activeElement !== $('emailInterval')) $('emailInterval').value = String(em.intervalMin || 5);
+  if (document.activeElement !== $('emailVip')) $('emailVip').value = (em.vip || []).join(', ');
   refreshEmailPassState();
   const lj = cfg.lobbyJam || { on: false, mood: 'cozy' };
   $('lobbyJamOn').checked = !!lj.on;
@@ -267,9 +268,12 @@ $('newMsg').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addRe
 
 function emailSave() {
   const port = Number($('emailPort').value) || 993;
-  save({ email: { on: $('emailOn').checked, user: $('emailUser').value.trim(), host: $('emailHost').value.trim(), port, secure: port !== 143, intervalMin: Number($('emailInterval').value) || 5 } });   // port 143 => STARTTLS (secure:false); config guards the downgrade
+  // Split on commas AND whitespace: people paste address lists in both shapes, and
+  // config.js does the trimming, lowercasing, de-duping and bounding from here.
+  const vip = $('emailVip').value.split(/[,\s]+/).map((v) => v.trim()).filter(Boolean);
+  save({ email: { on: $('emailOn').checked, user: $('emailUser').value.trim(), host: $('emailHost').value.trim(), port, secure: port !== 143, intervalMin: Number($('emailInterval').value) || 5, vip } });   // port 143 => STARTTLS (secure:false); config guards the downgrade
 }
-['emailOn', 'emailUser', 'emailHost', 'emailPort', 'emailInterval'].forEach((id) => $(id).addEventListener('change', emailSave));
+['emailOn', 'emailUser', 'emailHost', 'emailPort', 'emailInterval', 'emailVip'].forEach((id) => $(id).addEventListener('change', emailSave));
 // Switching alerts on with half the details filled in used to do nothing at all -
 // the poller stays deliberately quiet until it is fully configured - so say what is
 // still missing rather than leaving the user watching a cat that never speaks.

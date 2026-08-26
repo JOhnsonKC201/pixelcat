@@ -85,6 +85,27 @@ function imapHostFor(email, host) {
   return h;                                                  // custom/unknown host: leave as-is
 }
 
+// Does this sender break through Focus Guard? Matched as a case-insensitive
+// SUBSTRING of the From address, which is what makes "@acme.com" whitelist a whole
+// company and "boss@acme.com" one person, with no pattern syntax to get wrong.
+// An empty list never matches, so the feature costs nothing until it is used.
+function isVip(address, vip) {
+  const a = String(address == null ? '' : address).trim().toLowerCase();
+  if (!a || !Array.isArray(vip)) return false;
+  return vip.some((v) => { const n = String(v || '').trim().toLowerCase(); return n && a.includes(n); });
+}
+
+// What the pet actually says about new mail. A count on its own still makes you go
+// and look; a name and a subject let you decide from the bubble. Falls back to the
+// old count-only line whenever the server did not give us an envelope.
+function describe(delta, latest) {
+  const who = latest ? (latest.name || latest.address || '') : '';
+  const subject = latest ? latest.subject : '';
+  if (delta === 1 && who) return subject ? `${who}: ${subject}` : `New mail from ${who}`;
+  if (delta > 1 && who) return `{count} new emails, latest from ${who}`;
+  return delta === 1 ? 'You have {count} new email.' : 'You have {count} new emails.';
+}
+
 function credsFromCfg(cfg, plainOverride) {
   const e = (cfg && cfg.email) || {};
   return {
@@ -127,8 +148,12 @@ function poll() {
     if (lastUnread == null) { lastUnread = count; return; }   // first poll = baseline only
     if (count > lastUnread && notifyFn) {
       const delta = count - lastUnread;
-      notifyFn(delta === 1 ? 'You have {count} new email.' : 'You have {count} new emails.',
-        { source: 'email', dedupeKey: 'mail', count: delta, title: 'New mail' });
+      const latest = res.latest || null;
+      const vip = !!(latest && isVip(latest.address, cfg.email.vip));
+      notifyFn(describe(delta, latest),
+        // vip rides past the Focus Guard hold in main.js: the whole point of naming
+        // someone is that you want to hear from them even mid-meeting.
+        { source: 'email', dedupeKey: 'mail', count: delta, title: 'New mail', vip });
     }
     lastUnread = count;
   });
@@ -159,4 +184,4 @@ function test(cfg, plainOverride) {
 function init(notify_, getCfg_) { notifyFn = notify_; getCfg = getCfg_; }
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-module.exports = { init, sync, test, setPassword, hasPassword, passwordInfo, stop, imapHostFor, normalizePassword };
+module.exports = { init, sync, test, setPassword, hasPassword, passwordInfo, stop, imapHostFor, normalizePassword, isVip, describe };

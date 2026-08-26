@@ -32,3 +32,55 @@ test('empty-ish input normalizes to the empty string that clears the credential'
   assert.strictEqual(mail.normalizePassword(null), '');
   assert.strictEqual(mail.normalizePassword(undefined), '');
 });
+
+// ---- VIP senders and what the pet actually says ------------------------------
+// Focus Guard holds mail back while you are busy, so the VIP list is the escape
+// hatch: the people you want to hear from mid-meeting. Substring matching is the
+// whole design - no pattern syntax to get wrong - so the edges worth pinning are
+// the ones where a naive `includes` would say yes when it should not.
+
+test('a VIP entry matches a whole company or one person', () => {
+  assert.strictEqual(mail.isVip('bob@acme.com', ['@acme.com']), true);
+  assert.strictEqual(mail.isVip('boss@acme.com', ['boss@acme.com']), true);
+  assert.strictEqual(mail.isVip('bob@other.com', ['@acme.com']), false);
+});
+
+test('VIP matching ignores case and surrounding space', () => {
+  assert.strictEqual(mail.isVip('  BOSS@Acme.COM ', ['boss@acme.com']), true);
+  assert.strictEqual(mail.isVip('boss@acme.com', ['  BOSS@ACME.COM  ']), true);
+});
+
+test('an empty or junk VIP list never matches', () => {
+  // Costs nothing until it is used, and a blank entry must not whitelist everyone.
+  assert.strictEqual(mail.isVip('anyone@anywhere.com', []), false);
+  assert.strictEqual(mail.isVip('anyone@anywhere.com', ['', '   ']), false);
+  assert.strictEqual(mail.isVip('anyone@anywhere.com', null), false);
+  assert.strictEqual(mail.isVip('', ['@acme.com']), false);
+  assert.strictEqual(mail.isVip(null, ['@acme.com']), false);
+});
+
+test('one new mail names the sender and the subject', () => {
+  assert.strictEqual(
+    mail.describe(1, { name: 'Alice', address: 'alice@x.com', subject: 'Budget review' }),
+    'Alice: Budget review',
+  );
+  // No subject to show: still say who it is from rather than falling back to a count.
+  assert.strictEqual(mail.describe(1, { name: 'Alice', address: 'alice@x.com', subject: '' }), 'New mail from Alice');
+  // No display name: the address is the next best thing.
+  assert.strictEqual(mail.describe(1, { name: '', address: 'alice@x.com', subject: '' }), 'New mail from alice@x.com');
+});
+
+test('several new mails name the most recent sender', () => {
+  assert.strictEqual(
+    mail.describe(3, { name: 'Alice', address: 'alice@x.com', subject: 'anything' }),
+    '{count} new emails, latest from Alice',
+  );
+});
+
+test('no envelope falls back to the plain count', () => {
+  // The server may refuse the fetch, or the mailbox may not give us one. The count
+  // is the contract; the detail is a bonus, and losing it must not lose the alert.
+  assert.strictEqual(mail.describe(1, null), 'You have {count} new email.');
+  assert.strictEqual(mail.describe(2, null), 'You have {count} new emails.');
+  assert.strictEqual(mail.describe(2, { name: '', address: '', subject: '' }), 'You have {count} new emails.');
+});
