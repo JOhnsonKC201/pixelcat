@@ -28,3 +28,6 @@ CODEPATH Proj/
 # OS
 .DS_Store
 Thumbs.db
+
+# Personal launch copy, not part of the project
+linkedin-post.md

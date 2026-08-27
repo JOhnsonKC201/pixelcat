@@ -71,6 +71,7 @@ const speciesArg = (process.argv.find((a) => a.startsWith('--species=')) || '').
 const noteArg = (process.argv.find((a) => a.startsWith('--note=')) || '').split('=').slice(1).join('=') || '';
 const SHOT = process.argv.includes('--shot');
 const SHEET = process.argv.includes('--sheet');   // contact-sheet QA capture
+const REEL = process.argv.includes('--reel');     // marketing reel: a run of frames of one forced pose
 // The preview canvas renderer.js sizes itself to in SHOT mode. Kept here so the
 // preview WINDOW can be built to cover it; the two must not drift (see createWindow).
 const SHOT_CANVAS = { w: 260, h: 320 };
@@ -78,14 +79,48 @@ const SHOT_CANVAS = { w: 260, h: 320 };
 // animated poses (typing kneads, paper batting) can be QA'd at any phase.
 const shotAtMs = Math.max(0, Number((process.argv.find((a) => a.startsWith('--at=')) || '').split('=')[1]) || 700);
 
+// `--reel` records a run of frames of ONE forced pose straight to PNGs, so
+// scripts/make-reel.js can string the poses together into a demo video. Every knob
+// is a flag because framing (how big the pet is, where it sits on the wallpaper) is
+// judged by eye against a real backdrop, not derived.
+const reelNum = (name, dflt) => {
+  const v = Number((process.argv.find((a) => a.startsWith(`--${name}=`)) || '').split('=')[1]);
+  return Number.isFinite(v) ? v : dflt;
+};
+const reelStr = (name) => (process.argv.find((a) => a.startsWith(`--${name}=`)) || '').split('=').slice(1).join('=') || '';
+const reel = {
+  out: reelStr('out'),                  // directory the PNG frames land in
+  bg: reelStr('bg'),                    // desktop backdrop jpeg, already sized to w x h
+  w: reelNum('w', 1920), h: reelNum('h', 1080),
+  scale: reelNum('scale', 3),           // CSS upscale of the 260x320 pet canvas
+  left: reelNum('left', 1150), top: reelNum('top', 120),
+  frames: reelNum('frames', 48), fps: reelNum('fps', 20),
+  warmup: reelNum('warmup', 8),         // paints to discard while the pose settles
+  timeout: reelNum('timeout', 60000),
+  drag: process.argv.includes('--drag'),
+  // Render at `every` x fps and keep one paint in `every`. This is not smoothing:
+  // renderer.js integrates its springs with `step = min(2.5, dt / 16)`, so at 20 fps
+  // step pins to 2.5 and the head/feet spring gain goes above 1. The sim DIVERGES -
+  // the drag stretch runs away until the cat is a one-pixel vertical line somewhere
+  // off frame. Driving the page at 60 fps puts step back near 1 and the same drag is
+  // stable, so any spring-driven move films at `--every=3`.
+  every: Math.max(1, reelNum('every', 1)),
+};
+// A reel run must not touch the pet the user is actually running. The overlay
+// persists `pos` to localStorage (persistPos, renderer.js), localStorage lives in
+// userData, and a capture forces the pet to the preview position - so filming with
+// the default userData quietly moves the real pet to the corner of the preview
+// canvas. Give the capture its own throwaway profile. Must happen before ready.
+if (REEL) { try { app.setPath('userData', path.join(os.tmpdir(), 'pixelpets-reel')); } catch (e) { /* fall through to default */ } }
+
 // Single-instance: the pet is a singleton (login-launch + a manual start would
 // otherwise spawn two overlays, two keyboard hooks, two cursor loops). Preview
 // (--shot) runs are allowed to coexist with a running pet.
-const isSecondary = !SHOT && !SHEET && !app.requestSingleInstanceLock();
+const isSecondary = !SHOT && !SHEET && !REEL && !app.requestSingleInstanceLock();
 if (isSecondary) app.quit();
 
 // macOS: a desktop pet belongs in the menu bar, not the Dock or the app switcher.
-if (process.platform === 'darwin' && app.dock && !SHOT && !SHEET) app.dock.hide();
+if (process.platform === 'darwin' && app.dock && !SHOT && !SHEET && !REEL) app.dock.hide();
 
 // Launch-at-login (unpackaged): run `electron.exe <appDir>` on login.
 const APP_DIR = path.resolve(__dirname, '..');
@@ -145,6 +180,137 @@ function startCursorTimer(tick) {
 function hardenNav(w) {
   w.webContents.on('will-navigate', (e) => e.preventDefault());
   w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+}
+
+// `--drag`: play a real drag on a loop, instead of forcing a pose.
+//
+// `--state=mochi` looks like the right way to film the stretch, and it is not.
+// That branch PINS head and feet to fixed offsets with zero velocity on every
+// frame, so it is a held pose for eyeballing proportions in a still. Filmed, it is
+// a frozen cat sitting in the middle of nine animated clips, which reads as a bug
+// rather than as a pose. The stretch is a spring simulation, and it only runs when
+// the cat is genuinely being dragged.
+//
+// So: no forced state, and drive the two variables a real drag drives. Both are
+// top-level `let`s in renderer.js, which classic scripts put in the global lexical
+// environment, so later global code reaches them by name. tests/overlay-vm-backed
+// tests already lean on this, and tests/reel-spec.test.js pins the names.
+// Timings are deliberate. While `grabbing`, the feet spring chases the head slowly
+// (FK 0.07) AND takes gravity every frame, so the head-to-feet distance grows for
+// as long as you hold on. A long hold stretches the body past the point where the
+// middle band has any width left and the cat renders as a black hairline. The
+// app's own held pose puts the head at 1.7 x SH above the feet, so that is the
+// shape to aim at: lift fast, waggle briefly, let go, and spend most of the loop
+// on the bounce back, which is the good part anyway.
+// LEAD phase-locks the loop to the capture. The driver starts when the page
+// finishes loading, the recorder starts after `--warmup` paints, and if those two
+// clocks are not lined up the clip opens somewhere random in the cycle - which in
+// practice meant a full second of a cat just sitting under a label that promises a
+// stretch. Hold still for LEAD ms, set `--warmup` to the same span, and frame 0 is
+// the moment the hand comes down.
+const DRAG_DRIVER = `(() => {
+  const T = 2400, LEAD = 1000, t0 = performance.now();
+  setInterval(() => {
+    const since = performance.now() - t0 - LEAD;
+    if (since < 0) { grabbing = false; cursor.x = 24; cursor.y = 300; return; }
+    const u = (since % T) / T;
+    // Park the pointer well clear of the pet whenever it is not being held. Left
+    // resting on the head, a released pointer is indistinguishable from a pat: the
+    // cat purrs, hearts come up, and petBurstUntil LATCHES that for a while, so the
+    // clip labelled "drag it" fills up with hearts instead of a stretch.
+    if (u >= 0.55) {
+      grabbing = false;
+      cursor.x = 24; cursor.y = 300;
+      petBurstUntil = 0; petTouchUntil = 0;
+      return;
+    }
+    // Snap the lift, do not ease it. The head spring is fast (HK 0.45) and the feet
+    // spring is slow (FK 0.07), so it is the SPEED of the lift that opens the gap
+    // between them, and that gap IS the stretch. Lift gently and the whole cat just
+    // travels upward in one piece, which is a different and much duller gag.
+    if (u < 0.08) {
+      grabbing = true;
+      cursor.x = 130;
+      cursor.y = 250 - (u / 0.08) * 145;
+      return;
+    }
+    grabbing = true;                                                  // dangled and waggled
+    cursor.x = 130 + Math.sin((u - 0.08) * 150) * 12;
+    cursor.y = 105;
+  }, 16);
+})();`;
+
+// `--reel`: record a run of frames of ONE forced pose, for the demo video.
+//
+// Three deliberate choices, each of which took a failure to arrive at:
+//   - OFFSCREEN rather than a visible window. The frames have to be 1920x1080 and a
+//     real window cannot exceed the physical display, so a visible window silently
+//     caps the capture at whatever the monitor is.
+//   - The backdrop is injected with insertCSS and captured WITH the pet, instead of
+//     compositing a transparent capture afterwards. capturePage() on a transparent
+//     window is unreliable about the alpha channel on Windows, and a lost alpha
+//     looks like a black box behind the cat rather than an error.
+//   - The wallpaper goes in as a data: URI. index.html's CSP is
+//     `img-src 'self' data:`, so a file:// url is blocked outright.
+// It keeps `shot=1`: that is what pins the canvas at a fixed 260x320 regardless of
+// window size (renderer.js sizes it there and skips the resize listener), fixes the
+// pet's position, and gates every prop flag including --bfly.
+function createReelWindow() {
+  if (!reel.out || !reel.bg) { console.error('[reel] --out=<dir> and --bg=<jpeg> are both required'); return app.quit(); }
+  const win = new BrowserWindow({
+    show: false, frame: false, useContentSize: true, width: reel.w, height: reel.h,
+    webPreferences: {
+      offscreen: true, preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true, nodeIntegration: false, sandbox: true,
+    },
+  });
+  hardenNav(win);
+  fs.mkdirSync(reel.out, { recursive: true });
+
+  let saved = 0, seen = 0, done = false;
+  const finish = (why) => {
+    if (done) return;
+    done = true;
+    console.log(`[reel] ${saved}/${reel.frames} frames -> ${reel.out}${why ? ' (' + why + ')' : ''}`);
+    app.quit();
+  };
+
+  win.webContents.on('paint', (_e, _dirty, image) => {
+    if (done) return;
+    seen += 1;
+    if (seen <= reel.warmup) return;   // discard the first paints: the pose is still settling
+    if ((seen - reel.warmup - 1) % reel.every !== 0) return;   // keep 1 paint in `every`
+    fs.writeFileSync(path.join(reel.out, `f${String(saved).padStart(5, '0')}.png`), image.toPNG());
+    saved += 1;
+    if (saved >= reel.frames) finish();
+  });
+  win.webContents.on('console-message', (_e, _l, message) => console.log('[r]', message));
+
+  win.webContents.once('did-finish-load', async () => {
+    const bg = fs.readFileSync(reel.bg).toString('base64');
+    await win.webContents.insertCSS(`
+      html, body { background: #0b0d12 url("data:image/jpeg;base64,${bg}") center/cover no-repeat !important; }
+      #cat { position: fixed !important; left: ${reel.left}px !important; top: ${reel.top}px !important;
+             transform: scale(${reel.scale}) !important; transform-origin: top left !important; }
+    `);
+    if (reel.drag) await win.webContents.executeJavaScript(DRAG_DRIVER);
+    win.webContents.setFrameRate(Math.min(60, reel.fps * reel.every));
+    win.webContents.invalidate();
+  });
+
+  const params = ['shot=1'];
+  if (stateArg) params.push(`state=${stateArg}`);
+  if (patternArg) params.push(`pattern=${patternArg}`);
+  if (dirArg) params.push(`dir=${dirArg}`);
+  if (speciesArg) params.push(`species=${speciesArg}`);
+  if (process.argv.some((a) => a === '--bfly' || a.startsWith('--bfly='))) params.push('bfly=1');
+  if (process.argv.some((a) => a === '--treat' || a.startsWith('--treat='))) params.push('treat=1');
+  if (noteArg) params.push(`note=${encodeURIComponent(noteArg)}`);
+  win.loadFile(path.join(__dirname, 'index.html'), { search: params.join('&') });
+
+  // Hard stop. A pose that stops producing paints (or a backdrop that fails to
+  // decode) must not hang the batch that is looping over every move.
+  setTimeout(() => finish('timed out'), reel.timeout);
 }
 
 function createWindow() {
@@ -1053,6 +1219,7 @@ app.whenReady().then(() => {
   // rename moved userData, so on an upgrade the files are still under the old name.
   datadir.migrateFromLegacy(app);
   themesCache = themes.load();
+  if (REEL) return createReelWindow();   // capture-only: no tray, no hooks, no scheduler
   if (!SHOT && !SHEET) {
     // Don't fight the user. macOS lists login items in System Settings > General,
     // so a user who turns pixelpets off there has made an explicit choice; asserting
