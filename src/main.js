@@ -1161,6 +1161,17 @@ onSecure('settings:close', () => { if (settingsWin && !settingsWin.isDestroyed()
 onSecure('settings:testSound', () => {
   notify('Hi {name}!', { source: 'test', dedupeMs: 0, os: false });   // a sound test shouldn't also pop a desktop toast
 });
+// "Make it do something": the settings window asks for a behaviour by name and the
+// overlay decides what that means for the species it is currently wearing. Main is
+// a relay and deliberately does not map ids to poses - the renderer is the only
+// place that knows a dog's version of "go chase something" is its ball rather than
+// a butterfly. Allow-listed rather than forwarded blind, so the channel cannot
+// become a way to poke arbitrary renderer state.
+const PET_ACTIONS = new Set(['companion', 'give', 'play', 'stretch', 'groom', 'loaf']);
+onSecure('settings:action', (_e, id) => {
+  if (!PET_ACTIONS.has(id)) return;
+  if (win && !win.isDestroyed()) win.webContents.send('action', id);
+});
 handleSecure('email:passwordInfo', () => mail.passwordInfo());
 handleSecure('email:setPassword', (_e, pw) => mail.setPassword(pw));
 handleSecure('email:test', (_e, pw) => mail.test(cfg, pw && String(pw).length ? String(pw) : null));

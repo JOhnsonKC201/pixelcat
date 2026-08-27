@@ -19,5 +19,6 @@ contextBridge.exposeInMainWorld('settings', {
   emailSetPassword: (pw) => ipcRenderer.invoke('email:setPassword', pw),
   emailTest: (pw) => ipcRenderer.invoke('email:test', pw),
   calendarTest: () => ipcRenderer.invoke('calendar:test'),
+  action: (id) => ipcRenderer.send('settings:action', id),
   close: () => ipcRenderer.send('settings:close'),
 });

@@ -41,6 +41,11 @@ const SPECIES = {
     voiceLine: 'meow & purr',
     chase: 'pounces',
     playArrival: 'drops by',
+    // The 'make it do something' buttons. A dog's version of 'go chase something'
+    // is the ball it already fetches, not a butterfly, so the LABEL and the
+    // behaviour are chosen together here rather than in two files.
+    actCompanion: 'Send a butterfly 🦋',
+    actPlay: 'Bat a leaf 🍃',
     customCoatNote: 'Design your own and pick it from Coat above.',
   },
   dog: {
@@ -59,6 +64,8 @@ const SPECIES = {
     voiceLine: 'bark & pant',
     chase: 'chases',
     playArrival: 'rolls in',
+    actCompanion: 'Toss the ball 🎾',
+    actPlay: 'Have a play ✨',
     // Custom coats are built from the cat's geometry (see populateCoats), so a dog
     // owner needs to be told that rather than left staring at a list that never grows.
     customCoatNote: 'Custom coats are cat-only for now. Switch to Cat to use one.',
@@ -90,6 +97,10 @@ const SETTINGS_TEXT = {
   pinnedNoteLabel: "Pinned note - stays above the %noun%'s head (leave empty to hide)",
   coatsHint: '%customCoatNote%',
   testSound: '🔊 Test %voice%',
+  actCompanion: '%actCompanion%',
+  actGive: '%giveLabel%',
+  actPlay: '%actPlay%',
+  actionsHint: 'Nudge your %noun%. It goes back to its own routine afterwards.',
 };
 
 // Tokens that are not about the species. %bar% is the strip the pet rests on, and

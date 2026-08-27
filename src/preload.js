@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('cat', {
   onBreak: sub('break', (d) => d),   // carries { sound } - a bare sub() would drop it
   onTreat: sub('treat'),
   onBall: sub('ball'),
+  onAction: sub('action', (id) => id),
   onPomo: sub('pomo', (d) => d),
   onGeom: sub('geom', (g) => g),
   onNotify: sub('notify', (d) => d),

@@ -156,6 +156,10 @@
       background: linear-gradient(90deg, transparent, var(--line) 22%, var(--line) 78%, transparent); }
 
     .hint { color: var(--faint); font-size: 11px; }
+    /* Two columns so a long label like "Send a butterfly" never wraps mid-phrase. */
+    .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .acts .act { width: 100%; text-align: left; font-size: 12px; padding: 9px 11px; }
+    .acts .act:disabled { opacity: .55; cursor: default; transform: none; }
 
     /* lists (reminders / themes) */
     ul#reminders, #themes { list-style: none; margin: 10px 0 0; padding: 0; }
@@ -287,6 +291,19 @@
         </div>
         <label class="check" style="margin-top:7px;"><input type="checkbox" id="workMode" /><span class="t">Work mode<span class="sub" id="workModeSub">parks the pet in its rest corner while you work</span></span></label>
         <label class="check"><input type="checkbox" id="reducedMotion" /><span class="t">Reduced motion<span class="sub">calmer: no wandering or bouncing</span></span></label>
+      </section>
+
+      <section class="card">
+        <div class="card-h">make it do something</div>
+        <div class="acts">
+          <button class="ghost act" data-act="companion" id="actCompanion">Send a butterfly 🦋</button>
+          <button class="ghost act" data-act="give" id="actGive">Give a treat 🐟</button>
+          <button class="ghost act" data-act="play" id="actPlay">Bat a leaf 🍃</button>
+          <button class="ghost act" data-act="stretch">Stretch 🙆</button>
+          <button class="ghost act" data-act="groom">Wash up 🧼</button>
+          <button class="ghost act" data-act="loaf">Settle down 😴</button>
+        </div>
+        <div class="hint" id="actionsHint" style="margin-top:9px;">Nudge your pet. It goes back to its own routine afterwards.</div>
       </section>
 
       <section class="card">
