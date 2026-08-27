@@ -34,6 +34,7 @@
     "demo:gallery": "node scripts/make-demo-gif.js gallery",
     "demo:carousel": "node scripts/make-demo-gif.js carousel",
     "demo:all": "node scripts/make-demo-gif.js all mp4",
+    "reel": "node scripts/make-reel.js",
     "frames:import": "node scripts/import-frames.js"
   },
   "devDependencies": {

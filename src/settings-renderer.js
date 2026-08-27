@@ -43,6 +43,11 @@ function applySpeciesText() {
   const isMac = !!(window.settings && window.settings.platform === 'darwin');
   const text = settingsText(curSpecies(), { bar: isMac ? 'Dock' : 'taskbar' });
   for (const [id, s] of Object.entries(text)) { const el = $(id); if (el) el.textContent = s; }
+  // A dog's "go chase something" and its "give" are the same ball, so showing both
+  // would put two buttons that do the identical thing side by side. Cats get the
+  // treat as a separate act; dogs do not.
+  const give = $('actGive');
+  if (give) give.hidden = curSpecies() === 'dog';
 }
 
 // Populate the coat dropdown from the built-in names plus any custom coats.
@@ -352,6 +357,20 @@ $('calTest').addEventListener('click', async () => {
 // "Test meow" plays the cat's REAL voice in the overlay (one meow, no desktop toast) rather
 // than a second, cruder local synth. The overlay autoplays without a gesture, so it just works.
 $('testSound').addEventListener('click', () => window.settings.testSound());
+
+// One-shot behaviour buttons. They flash rather than going silent: a wash or a
+// settle is subtle enough on a pet sitting in the corner of a big screen that
+// without feedback you cannot tell a working button from a broken one.
+document.querySelectorAll('.act').forEach((b) => {
+  b.addEventListener('click', () => {
+    if (b.disabled) return;
+    window.settings.action(b.dataset.act);
+    const label = b.textContent;
+    b.disabled = true;
+    b.textContent = '✓ ' + label;
+    setTimeout(() => { b.disabled = false; b.textContent = label; }, 850);
+  });
+});
 
 // Esc closes the settings window.
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.settings.close(); });

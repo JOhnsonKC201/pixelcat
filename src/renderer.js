@@ -1172,6 +1172,33 @@ function repinFloor() {
 window.addEventListener('resize', repinFloor);
 requestAnimationFrame(repinFloor);   // self-correct once the first frame's geometry is known
 
+// One-shot actions the settings window can ask for ("make it do something").
+//
+// Each one nudges the SAME state the pet reaches on its own, rather than forcing a
+// pose. Forcing would have been less code and wrong twice over: FORCED_STATE is a
+// load-time preview switch that cannot be set on a running pet, and a pinned pose
+// never ends, so the pet would freeze in it instead of playing the behaviour out
+// and going back to its own routine.
+//
+// The clears matter as much as the sets. Grooming, loafing and playing are all
+// gated on the pet being calm and not already busy, so asking for a wash while it
+// is mid-wander does nothing at all - a button that silently no-ops. Standing the
+// other timers down first makes the request land every time.
+function runAction(id) {
+  const t = performance.now();
+  const clearBusy = () => { roamUntil = 0; huntUntil = 0; playUntil = 0; loafUntil = 0; groomUntil = 0; yawnUntil = 0; };
+  switch (id) {
+    case 'companion': clearBusy(); if (isDog()) throwBall(); else startBflyVisit(t); break;
+    case 'give': if (isDog()) throwBall(); else dropTreat(); break;
+    case 'play': clearBusy(); startPlay(t); break;
+    case 'stretch': clearBusy(); stretchT0 = t; nextStretch = t + STRETCH_INTERVAL; break;
+    case 'groom': clearBusy(); groomUntil = t + 2600 + Math.random() * 1400; break;
+    case 'loaf': clearBusy(); loafUntil = t + 4000 + Math.random() * 4000; break;
+    default: return;   // unknown id: do nothing rather than guess
+  }
+  resumeRaf();
+}
+
 if (window.cat) {
   window.cat.onCursor((d) => { cursor.x = d.x; cursor.y = d.y; resumeRaf(); });
   if (window.cat.onKey) window.cat.onKey(() => { keyPulse = true; resumeRaf(); });
@@ -1252,6 +1279,7 @@ if (window.cat) {
   if (window.cat.onBreak) window.cat.onBreak((d) => triggerBreak(d));
   if (window.cat.onTreat) window.cat.onTreat(() => dropTreat());
   if (window.cat.onBall) window.cat.onBall(() => throwBall());
+  if (window.cat.onAction) window.cat.onAction((id) => runAction(id));
   if (window.cat.onPomo) window.cat.onPomo((d) => { pomo = d || null; resumeRaf(); });
   if (window.cat.onFocus) window.cat.onFocus((d) => { focusBusy = !!(d && d.busy); resumeRaf(); });
   if (window.cat.onGeom) window.cat.onGeom((g) => {
