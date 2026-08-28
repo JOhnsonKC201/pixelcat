@@ -29,6 +29,7 @@
     "ipad": "node tools/ipad-terminal/server.js",
     "ipad:lan": "node tools/ipad-terminal/server.js --lan",
     "test:boot": "node scripts/bootcheck.js",
+    "check:hook": "electron scripts/hook-check.js",
     "demo": "node scripts/make-demo-gif.js mp4",
     "demo:hero": "node scripts/make-demo-gif.js hero mp4",
     "demo:gallery": "node scripts/make-demo-gif.js gallery",
@@ -40,7 +41,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "electron": "^33.0.0",
+    "electron": "^44.0.0",
     "electron-builder": "^26.15.3",
     "eslint": "^10.9.1",
     "gifenc": "^1.0.3",
