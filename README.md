@@ -513,13 +513,13 @@ bar), the tray menu works in the menu bar, and login launch works.
 npm run ipad:lan
 ```
 
-That prints a URL. Open it in Safari on the iPad and you have a real terminal — `vim`,
-`top`, tab completion, colours — on **this** machine. Share → Add to Home Screen gives
+That prints a URL. Open it in Safari on the iPad and you have a real terminal - `vim`,
+`top`, tab completion, colours - on **this** machine. Share → Add to Home Screen gives
 it an icon and a full-screen window.
 
 The honest limitation first, because it is the reason the tool works this way: nothing
 running on an iPad can control other iPad apps. iPadOS sandboxes every app, Apple
-exposes no API for cross-app control, and no terminal on the App Store gets around it —
+exposes no API for cross-app control, and no terminal on the App Store gets around it -
 Shortcuts is the only sanctioned path, and only for apps that publish App Intents. So
 this puts the shell on the computer, where a shell is worth having, and lets the iPad be
 the screen and the keyboard.
@@ -529,7 +529,7 @@ keyboard lacks, and because Safari suspends a backgrounded tab, the shell outliv
 connection and replays exactly the output you missed when you come back.
 
 It is a shell running as you, over plain HTTP. Fine on your own Wi-Fi, not fine anywhere
-else — see [`tools/ipad-terminal/`](tools/ipad-terminal/) for the full notes.
+else - see [`tools/ipad-terminal/`](tools/ipad-terminal/) for the full notes.
 
 ## How it works
 

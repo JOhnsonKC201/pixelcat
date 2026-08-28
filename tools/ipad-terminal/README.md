@@ -17,7 +17,7 @@ shaped the way it is.
 
 **Nothing running on an iPad can control other iPad apps.** iPadOS sandboxes every app:
 it cannot read another app's data, send it input, or drive its UI. Apple exposes no API
-for it, and no terminal — this one or any on the App Store — can get around that. The
+for it, and no terminal - this one or any on the App Store - can get around that. The
 only sanctioned cross-app automation on an iPad is the **Shortcuts** app, and it only
 reaches apps that publish App Intents.
 
@@ -28,7 +28,7 @@ is worth having, and lets the iPad be the screen and the keyboard.
 
 | | |
 |---|---|
-| `npm run ipad` | loopback only — this machine, for a smoke test |
+| `npm run ipad` | loopback only - this machine, for a smoke test |
 | `npm run ipad:lan` | bound to `0.0.0.0`, so the iPad can reach it over your Wi-Fi |
 
 Options: `--port=N` (default 7681), `--token=STR`, `--shell=PATH`, `--idle=SECONDS`,
@@ -37,7 +37,7 @@ Options: `--port=N` (default 7681), `--token=STR`, `--shell=PATH`, `--idle=SECON
 A fresh random token is generated each run and baked into the printed URL. The page
 strips it out of the address bar as soon as it loads, so it is not sitting in a
 screenshot or a synced tab, and hands the tab a `SameSite=Strict` cookie for its own
-stylesheet and script — the API itself never accepts that cookie.
+stylesheet and script - the API itself never accepts that cookie.
 
 On the iPad, **Share → Add to Home Screen** gives it an icon and a full-screen window
 with no Safari chrome.
@@ -46,17 +46,17 @@ with no Safari chrome.
 
 Run `npm install` in this directory to get the good one.
 
-**Full tty** (with `node-pty` installed) — a real pty. `vim`, `top`, tab completion,
+**Full tty** (with `node-pty` installed) - a real pty. `vim`, `top`, tab completion,
 job control, Ctrl-C, colours, the works. The terminal's size is pushed to the shell, so
 `tput cols` is honest.
 
-**Line mode** (nothing installed) — the shell is spawned over pipes, so there is no tty.
+**Line mode** (nothing installed) - the shell is spawned over pipes, so there is no tty.
 The browser does the line editing and ships whole lines. Commands run and output comes
 back; interactive full-screen programs do not work. This exists so the tool starts with
 plain `node` on a fresh clone.
 
 `npm install` here also vendors xterm.js locally. Without it the page pulls xterm from
-jsdelivr with a pinned integrity hash — fine on a normal network, but install it if you
+jsdelivr with a pinned integrity hash - fine on a normal network, but install it if you
 want the thing to work with no internet at all.
 
 ## Surviving an iPad
@@ -106,7 +106,7 @@ This is a shell running as you. Take it as seriously as that sounds.
 - The `Host` header is checked, so a hostname that resolves to this box cannot be used
   to probe the port.
 - `--lan` is the only thing that opens it to the network, and it is never the default.
-- It is plain HTTP. That is fine on your own Wi-Fi and **not** fine anywhere else — to
+- It is plain HTTP. That is fine on your own Wi-Fi and **not** fine anywhere else - to
   reach it from outside, put it behind a tunnel that terminates TLS (Tailscale,
   Cloudflare Tunnel, `ssh -L`) rather than forwarding a port on your router.
 - Stop it with Ctrl-C when you are done. It is not a service; do not leave it running.
