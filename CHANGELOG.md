@@ -20,6 +20,7 @@ Notable changes to **pixelpets**. All art and sound are original/procedural (no 
 - **An all-day block is not a meeting.** *Vacation*, *On call* and birthdays all arrive as ordinary multi-hour VEVENTs, and treating one as "in a meeting" would have silenced the pet for a whole day - the single most likely way this feature turned into a bug report.
 - **Quiet hours**, a nightly do-not-disturb window. The bubble still shows, so a 3am reminder is waiting in the morning.
 - **The break bubble respects all of it.** It came from a raw IPC rather than `notify()`, so every gate inside `notify()` was guarding a send that never happened, and the pet meowed through quiet hours regardless.
+- **A treat handed over during a meeting gets eaten.** Parking the pet in its corner aims the same walk the trip to the fish uses, one step earlier in the frame, so it re-claimed that walk the moment the trip expired: the cat set off, was marched home just short of its food, set off again, and paced between corner and fish for as long as the treat existed - which is forever, since only eating clears it. Work mode is there to stop the pet wandering off on its own, not to veto something you clicked.
 
 ### Mail
 - **The pet says who it is from.** "You have 3 new emails" still makes you go and look, which is the interruption it was meant to save you. It now reads *"Alice: Budget review"*. The envelope fetch is wrapped separately from the count, so a server that refuses it still gets you the old count-only line rather than losing the alert.
