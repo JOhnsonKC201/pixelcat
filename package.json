@@ -42,9 +42,9 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
-    "eslint": "^10.4.1",
+    "eslint": "^10.9.1",
     "gifenc": "^1.0.3",
-    "globals": "^17.6.0"
+    "globals": "^17.11.0"
   },
   "dependencies": {
     "imapflow": "^1.4.0",
