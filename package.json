@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "imapflow": "^1.4.0",
-    "node-ical": "^0.26.1",
+    "node-ical": "^0.27.1",
     "uiohook-napi": "^1.5.5"
   },
   "build": {
