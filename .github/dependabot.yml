@@ -1,0 +1,38 @@
+# Keeps the two things in this repo that rot silently up to date.
+#
+# The workflows pin every action to a full commit SHA, which is the right call for
+# supply-chain safety and the reason they cannot drift on their own: a pinned SHA
+# never picks up a fix. Dependabot rewrites the SHA and the `# v6.0.2` comment
+# together, so the pin stays exact and stays current.
+#
+# Updates are grouped so a quiet week is one PR to review rather than nine. Majors
+# are deliberately left out of the groups: electron and electron-builder majors
+# change packaging and window behaviour, which is a read-the-changelog job, not a
+# rubber stamp.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      production-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci
