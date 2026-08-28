@@ -673,9 +673,9 @@ Electron · HTML canvas · Web Audio · [`uiohook-napi`](https://github.com/Snos
 Bug reports, ideas, and PRs are all welcome. Start with the
 [contributing guide](CONTRIBUTING.md); the [security policy](SECURITY.md)
 covers reporting a vulnerability privately. If you own a Mac, running the
-[beta checklist](#build-a-standalone-app) and reporting back on
-[the mac testers issue](https://github.com/JOhnsonKC201/pixelpets/issues/20) is
-the single most useful contribution right now. Custom coats and desk setups
+[beta checklist](#build-a-standalone-app) and opening an issue with whatever you
+see is the single most useful contribution right now: the port is code-complete
+and the builds are ad-hoc signed, but nobody has run one on real Apple hardware. Custom coats and desk setups
 belong in [Discussions](https://github.com/JOhnsonKC201/pixelpets/discussions),
 and release history lives in the [changelog](CHANGELOG.md).
 
