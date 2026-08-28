@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover so the key bar can sit in the home-indicator inset rather than
+     above it; no user scaling because pinch-zoom on a terminal only ever loses your place. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="pixelpets">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>pixelpets terminal</title>
+<style>
+  :root {
+    --bg: #14161c; --chrome: #1c1f28; --line: #2b2f3b;
+    --ink: #d7dbe6; --dim: #7c869c; --accent: #ffb454; --bad: #ff6b6b; --ok: #7ee787;
+    --key: #262b36; --keydown: #3a4150;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
+    font: 13px/1.4 ui-sans-serif, -apple-system, system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%; overscroll-behavior: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+
+  header {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    padding: max(6px, env(safe-area-inset-top)) 12px 6px;
+    background: var(--chrome); border-bottom: 1px solid var(--line);
+  }
+  #title { font-weight: 600; letter-spacing: .02em; }
+  #title span { color: var(--dim); font-weight: 400; }
+  #status { margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--dim); }
+  #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  #dot.live { background: var(--ok); }
+  #dot.lost { background: var(--bad); }
+  header button {
+    font: inherit; color: var(--ink); background: var(--key); border: 1px solid var(--line);
+    border-radius: 6px; padding: 3px 9px; min-width: 30px;
+  }
+
+  #term { flex: 1; min-height: 0; padding: 4px 2px 0 6px; }
+  .xterm .xterm-viewport { overscroll-behavior: contain; }
+
+  /* The soft keyboard has no Esc, no Tab, no Ctrl and no arrows, which is most of
+     what a shell is driven with. This row puts them back within thumb reach. */
+  #keys {
+    flex: none; display: flex; gap: 5px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--chrome); border-top: 1px solid var(--line);
+    overflow-x: auto; scrollbar-width: none;
+  }
+  #keys::-webkit-scrollbar { display: none; }
+  #keys button {
+    flex: none; min-width: 42px; height: 36px; padding: 0 10px;
+    font: 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--ink); background: var(--key); border: 1px solid var(--line);
+    border-radius: 7px; touch-action: manipulation;
+  }
+  #keys button:active { background: var(--keydown); }
+  #keys button.armed { background: var(--accent); border-color: var(--accent); color: #14161c; }
+
+  #splash {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px; background: var(--bg); text-align: center; padding: 24px;
+  }
+  #splash.gone { display: none; }
+  #splash p { color: var(--dim); max-width: 34ch; margin: 0; }
+  #splash button {
+    font: inherit; color: #14161c; background: var(--accent); border: 0;
+    border-radius: 8px; padding: 10px 18px; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div id="title">pixelpets <span id="where"></span></div>
+    <div id="status"><span id="dot"></span><span id="state">starting</span></div>
+    <button id="smaller" aria-label="smaller text">A-</button>
+    <button id="bigger" aria-label="bigger text">A+</button>
+  </header>
+  <div id="term"></div>
+  <div id="keys"></div>
+</div>
+<div id="splash"><p id="splash-msg">loading terminal…</p><button id="splash-go" hidden>retry</button></div>
+
+<script>
+// Filled in by the server: "local" once you have run `npm install` beside the tool,
+// "cdn" on a fresh checkout so the first run needs nothing installed.
+const VENDOR_MODE = '__VENDOR__';
+const CDN = 'https://cdn.jsdelivr.net/npm/';
+const ASSETS = {
+  css: { local: '/vendor/xterm.css', cdn: CDN + '@xterm/xterm@5.5.0/css/xterm.css',
+    sri: 'sha384-8Xk9wy/gzEDUKrXtrmCFa2bBuK3BpjpDuL/p0SeKQX19Khl/M+lHOgD/CyYf7efP' },
+  core: { local: '/vendor/xterm.js', cdn: CDN + '@xterm/xterm@5.5.0/lib/xterm.js',
+    sri: 'sha384-M169f14mRZOXm3hD/v2Ti0ThIT/RnAQagXA9nlE15yHAtrW19gdePJh/HaTzUOe/' },
+  fit: { local: '/vendor/addon-fit.js', cdn: CDN + '@xterm/addon-fit@0.10.0/lib/addon-fit.js',
+    sri: 'sha384-iF+jqbuti4XlB64clWgFWYEscb+UnSRv3VgVikGYZu+otNFnSHr7y7NcKfBnGizn' },
+};
+
+// The token arrives in the URL because that is the only thing you can reasonably type
+// (or scan) on a tablet. Keep it in memory and strip it from the address bar, so it is
+// not sitting in a screenshot, a shared tab, or Safari's history sync.
+const TOKEN = new URLSearchParams(location.search).get('t') || '';
+history.replaceState(null, '', location.pathname);
+
+const $ = (id) => document.getElementById(id);
+const splash = $('splash'), splashMsg = $('splash-msg'), splashGo = $('splash-go');
+
+function fail(msg, retry) {
+  splash.classList.remove('gone');
+  splashMsg.textContent = msg;
+  splashGo.hidden = !retry;
+  splashGo.onclick = retry || null;
+}
+
+function loadAsset(kind, key) {
+  return new Promise((resolve, reject) => {
+    const a = ASSETS[key];
+    const local = VENDOR_MODE === 'local';
+    const el = document.createElement(kind === 'css' ? 'link' : 'script');
+    if (kind === 'css') { el.rel = 'stylesheet'; el.href = local ? a.local : a.cdn; }
+    else { el.src = local ? a.local : a.cdn; }
+    if (!local) { el.integrity = a.sri; el.crossOrigin = 'anonymous'; }
+    el.onload = resolve;
+    el.onerror = () => reject(new Error(key));
+    document.head.appendChild(el);
+  });
+}
+
+async function boot() {
+  if (!TOKEN) return fail('No token in the URL. Re-open the exact link the server printed.');
+  try {
+    await loadAsset('css', 'css');
+    await loadAsset('js', 'core');
+    await loadAsset('js', 'fit');
+  } catch {
+    return fail(VENDOR_MODE === 'local'
+      ? 'Could not load the terminal files from this machine.'
+      : 'Could not reach the CDN for xterm.js. Run `npm install` in tools/ipad-terminal on the computer and reload - then it is served locally and needs no internet.',
+      () => location.reload());
+  }
+  start();
+}
+
+function start() {
+  const term = new Terminal({
+    cursorBlink: true,
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    fontSize: Number(localStorage.getItem('pp.fontSize')) || 14,
+    scrollback: 5000,
+    macOptionIsMeta: true,
+    theme: {
+      background: '#14161c', foreground: '#d7dbe6', cursor: '#ffb454',
+      selectionBackground: '#3a4150', black: '#14161c', brightBlack: '#7c869c',
+    },
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open($('term'));
+
+  const state = { id: null, mode: 'pty', rendered: 0, abort: null, backoff: 500, closed: false };
+  const enc = new TextEncoder();
+
+  const setState = (text, cls) => { $('state').textContent = text; $('dot').className = cls || ''; };
+
+  const api = (path, init) => fetch(path, {
+    ...init,
+    headers: { 'x-term-token': TOKEN, ...(init && init.headers) },
+  });
+
+  // ---- sizing. The soft keyboard does not resize the window on iPadOS, it just
+  // covers it, so trust visualViewport for the real usable height instead.
+  function relayout() {
+    const vv = window.visualViewport;
+    if (vv) $('app').style.height = vv.height + 'px';
+    try { fit.fit(); } catch { /* not measurable yet */ }
+    if (state.id && state.mode === 'pty') {
+      api(`/api/resize?id=${state.id}&cols=${term.cols}&rows=${term.rows}`, { method: 'POST' }).catch(() => {});
+    }
+  }
+  const relayoutSoon = () => setTimeout(relayout, 60);
+  window.addEventListener('resize', relayoutSoon);
+  window.addEventListener('orientationchange', relayoutSoon);
+  if (window.visualViewport) {
+    visualViewport.addEventListener('resize', relayoutSoon);
+    visualViewport.addEventListener('scroll', relayoutSoon);
+  }
+
+  // Same pointerdown trick as the key bar: a plain click would move focus to the
+  // button, and on iPadOS losing terminal focus drops the soft keyboard entirely.
+  for (const [id, step] of [['bigger', 1], ['smaller', -1]]) {
+    $(id).addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      setFont(term.options.fontSize + step);
+      term.focus();
+    });
+  }
+  function setFont(n) {
+    const size = Math.max(9, Math.min(24, n));
+    term.options.fontSize = size;
+    localStorage.setItem('pp.fontSize', String(size));
+    relayout();
+  }
+
+  // ---- upstream. One POST per keystroke would be a round trip per character; a
+  // 12ms coalescing window turns a burst of typing (or a paste) into a single write
+  // without being long enough to feel like lag.
+  let pending = [];
+  let flushTimer = null;
+  function send(data) {
+    pending.push(typeof data === 'string' ? enc.encode(data) : data);
+    if (flushTimer) return;
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      const parts = pending; pending = [];
+      let size = 0;
+      for (const p of parts) size += p.length;
+      const body = new Uint8Array(size);
+      let at = 0;
+      for (const p of parts) { body.set(p, at); at += p.length; }
+      api(`/api/input?id=${state.id}`, {
+        method: 'POST', body, headers: { 'content-type': 'application/octet-stream' },
+      }).catch(() => {});
+    }, 12);
+  }
+
+  // ---- line mode. Without node-pty there is no tty, so nothing echoes what you type
+  // and nothing handles backspace. The browser plays terminal instead: edit here, ship
+  // whole lines to the shell.
+  const line = { buf: '', prompt: '\x1b[38;5;215m$\x1b[0m ' };
+  function lineKey(data) {
+    for (const ch of data) {
+      if (ch === '\r' || ch === '\n') {
+        term.write('\r\n');
+        send(line.buf + '\n');
+        line.buf = '';
+      } else if (ch === '\x7f' || ch === '\b') {
+        if (line.buf) { line.buf = line.buf.slice(0, -1); term.write('\b \b'); }
+      } else if (ch === '\x03') {
+        term.write('^C\r\n');
+        line.buf = '';
+        api(`/api/signal?id=${state.id}`, { method: 'POST' }).catch(() => {});
+        term.write(line.prompt);
+      } else if (ch >= ' ') {
+        line.buf += ch;
+        term.write(ch);
+      }
+    }
+  }
+
+  // ---- sticky Ctrl for the key bar: arm it, then the next letter from the soft
+  // keyboard becomes a control code, the way a real Ctrl chord would.
+  let ctrlArmed = null;
+  term.onData((data) => {
+    if (ctrlArmed) {
+      const btn = ctrlArmed; ctrlArmed = null; btn.classList.remove('armed');
+      if (data.length === 1) {
+        const c = data.toUpperCase().charCodeAt(0);
+        if (c >= 64 && c < 128) data = String.fromCharCode(c & 31);
+      }
+    }
+    if (state.mode === 'line') lineKey(data); else send(data);
+  });
+  term.onBinary((data) => send(Uint8Array.from(data, (c) => c.charCodeAt(0) & 255)));
+
+  const KEYS = [
+    ['esc', '\x1b'], ['tab', '\t'], ['ctrl', 'CTRL'],
+    ['↑', '\x1b[A'], ['↓', '\x1b[B'], ['←', '\x1b[D'], ['→', '\x1b[C'],
+    ['^C', '\x03'], ['^D', '\x04'], ['^Z', '\x1a'], ['^L', '\x0c'],
+    ['|', '|'], ['~', '~'], ['/', '/'], ['-', '-'], ['`', '`'], ['$', '$'],
+  ];
+  for (const [label, code] of KEYS) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.type = 'button';
+    // pointerdown, not click: it fires before focus moves, so the soft keyboard
+    // never dismisses itself when you reach for Esc mid-command.
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (code === 'CTRL') {
+        if (ctrlArmed === b) { ctrlArmed = null; b.classList.remove('armed'); }
+        else { if (ctrlArmed) ctrlArmed.classList.remove('armed'); ctrlArmed = b; b.classList.add('armed'); }
+        return;
+      }
+      if (state.mode === 'line') lineKey(code); else send(code);
+      term.focus();
+    });
+    $('keys').appendChild(b);
+  }
+
+  // ---- downstream. fetch + a manual SSE parse rather than EventSource, because
+  // EventSource hides the status code (so a reaped session is indistinguishable from
+  // a flaky Wi-Fi drop) and would replay from a stale offset on its own reconnects.
+  function handleFrame(frame) {
+    let event = 'message', data = '';
+    for (const raw of frame.split('\n')) {
+      if (raw.startsWith(':')) continue;
+      if (raw.startsWith('event:')) event = raw.slice(6).trim();
+      else if (raw.startsWith('data:')) data += raw.slice(5).trim();
+    }
+    if (event === 'out') {
+      const bin = atob(data);
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      state.rendered += bytes.length;
+      term.write(bytes);
+    } else if (event === 'hello') {
+      const info = JSON.parse(data);
+      state.mode = info.mode;
+      state.backoff = 500;
+      setState(info.mode === 'pty' ? 'connected' : 'line mode', 'live');
+      splash.classList.add('gone');
+      relayout();
+      term.focus();
+    } else if (event === 'exit') {
+      const { code } = JSON.parse(data);
+      state.closed = true;
+      setState('shell exited', 'lost');
+      term.write(`\r\n\x1b[38;5;215m[shell exited (${code})]\x1b[0m\r\n`);
+      offerRestart();
+    }
+  }
+
+  async function stream() {
+    state.abort = new AbortController();
+    let res;
+    try {
+      res = await api(`/api/stream?id=${state.id}&from=${state.rendered}`, { signal: state.abort.signal });
+    } catch {
+      return retry();
+    }
+    if (res.status === 404) { state.id = null; return newSession(); }
+    if (!res.ok) return fail(`server said ${res.status}. The token may have changed - re-open the printed link.`, () => location.reload());
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let cut;
+        while ((cut = buf.indexOf('\n\n')) !== -1) {
+          handleFrame(buf.slice(0, cut));
+          buf = buf.slice(cut + 2);
+        }
+      }
+    } catch { /* dropped mid-stream */ }
+    retry();
+  }
+
+  function retry() {
+    if (state.closed) return;
+    setState('reconnecting', 'lost');
+    // Capped exponential backoff: a Wi-Fi handoff recovers on the first try, a
+    // laptop that went to sleep should not get hammered until it wakes.
+    const wait = state.backoff;
+    state.backoff = Math.min(state.backoff * 2, 8000);
+    setTimeout(stream, wait);
+  }
+
+  function offerRestart() {
+    fail('The shell exited.', async () => { state.closed = false; state.rendered = 0; term.reset(); await newSession(); });
+  }
+
+  async function newSession() {
+    setState('starting', '');
+    let info;
+    try {
+      const res = await api('/api/session', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ cols: term.cols, rows: term.rows }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      info = await res.json();
+    } catch (e) {
+      return fail(`Could not start a shell (${e.message}). Is the server still running?`, () => newSession());
+    }
+    state.id = info.id;
+    state.mode = info.mode;
+    state.rendered = 0;
+    state.closed = false;
+    $('where').textContent = info.host || '';
+    if (info.mode === 'line') term.write(`\x1b[38;5;215mline mode\x1b[0m - no tty, so no vim/top and no tab completion.\r\ninstall node-pty next to the tool for the real thing.\r\n\r\n${line.prompt}`);
+    stream();
+  }
+
+  // iPadOS freezes a backgrounded tab's fetch; coming back needs a nudge rather
+  // than a wait for the dead socket to time out on its own.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || state.closed || !state.id) return;
+    state.backoff = 500;
+    if (state.abort) state.abort.abort();
+    relayoutSoon();
+  });
+
+  relayout();
+  newSession();
+}
+
+boot();
+</script>
+</body>
+</html>
