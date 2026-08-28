@@ -1442,7 +1442,13 @@ function drawBall(t) {
 //     noms it (look down, hearts, a happy chirp, an energy bump). Uses the roam
 //     machinery to walk, re-aiming each time the walk expires until it arrives.
 const TREAT_STANDOFF = 26;   // how far beside the treat the cat stands to eat
+const TREAT_REACH = 10;      // close enough to the standoff point to start eating
 function treatApproachX() { return zoneClampX(treat.x - Math.sign(treat.x - pos.x || 1) * TREAT_STANDOFF); }
+
+// True while the pet is on an errand the user actually asked for (tray/settings
+// "give"): walking to a fish, or chasing a ball it has not brought back yet.
+// Aimers that would otherwise steer the pet somewhere else check this first.
+function giveTrekOn() { return !!treat || !!(ball && !ball.delivered); }
 function dropTreat() {
   if (SHOT || typeof pos === 'undefined' || !pos) return;
   const side = pos.x < viewW / 2 ? 1 : -1;                    // drop toward the roomier side
@@ -1461,17 +1467,25 @@ function updateTreat(t, f) {
   if (treat.phase === 'nom') { if (t > treat.nomUntil) { addEnergy(12); treat = null; } return; }
   const approach = treatApproachX();
   const dist = Math.abs(pos.x - approach);
-  if (roamUntil <= t) {
-    if (dist > 10) {                                          // still walking -> (re)aim at the treat
-      roamFrom = { x: pos.x, y: pos.y };
-      roamTo = { x: approach, y: floorLockOn() ? restingY() : pos.y };
-      roamDur = clamp(dist * 3, 400, 1800); roamUntil = t + roamDur; nextRoam = t + 20000;
-    } else {                                                  // arrived -> nom it
-      treat.phase = 'nom'; treat.nomUntil = t + 1100;
-      lookTarget = { x: treat.x, y: treat.y }; lookTargetUntil = t + 1100;
-      popLove(t, pos.x, (pos.y - SH) - 4, 1.6, 12);
-      if (config && config.soundOn) playChirp();
-    }
+  // Arrival is checked BEFORE the roam gate, the way the dog's fetch checks
+  // FETCH_GRAB. The walk lands the cat exactly on its approach point, but the roam
+  // that carried it there has expired by the time it gets there, so any other aimer
+  // running earlier in the frame could grab the roam slot first and walk the cat off
+  // a fish it was standing on top of, and this function would never get to notice it
+  // had arrived. Dropping the in-flight roam on the way into the meal is the other
+  // half of that: nothing gets to drag the cat away mid-nom.
+  if (dist <= TREAT_REACH) {                                  // arrived -> nom it
+    treat.phase = 'nom'; treat.nomUntil = t + 1100;
+    roamUntil = 0;
+    lookTarget = { x: treat.x, y: treat.y }; lookTargetUntil = t + 1100;
+    popLove(t, pos.x, (pos.y - SH) - 4, 1.6, 12);
+    if (config && config.soundOn) playChirp();
+    return;
+  }
+  if (roamUntil <= t) {                                       // still walking -> (re)aim at the treat
+    roamFrom = { x: pos.x, y: pos.y };
+    roamTo = { x: approach, y: floorLockOn() ? restingY() : pos.y };
+    roamDur = clamp(dist * 3, 400, 1800); roamUntil = t + roamDur; nextRoam = t + 20000;
   }
 }
 function drawTreat() {
@@ -2421,7 +2435,14 @@ function draw(t) {
     if (workModeOn()) {
       // Work mode: hold in the rest corner on the taskbar; walk back if nudged away.
       // Reuses the eased roam interpolation below by aiming a short roam at the corner.
-      const parkIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && agentState === 'idle';
+      // giveTrekOn(): a treat or a ball the user handed the pet outranks the park.
+      // This aimer and the give errand write the same roam slot, and this one runs
+      // first every frame, so it used to re-claim the slot the moment the walk to the
+      // fish expired: the cat set off, got marched back to its corner just short of
+      // eating, set off again, and paced between corner and fish for as long as the
+      // treat existed (which is forever, since only eating clears it). Work mode is
+      // there to stop the pet wandering off on its own, not to veto what you clicked.
+      const parkIdle = !grabbing && !hunting && !startleActive && !typing && !petting && !bodyPet && !FORCED_STATE && agentState === 'idle' && !giveTrekOn();
       if (parkIdle && roamUntil < t) {
         const tx = homeX(), ty = restingY();
         if (Math.hypot(tx - pos.x, ty - pos.y) > 2) { roamFrom = { x: pos.x, y: pos.y }; roamTo = { x: tx, y: ty }; roamDur = 900; roamUntil = t + roamDur; }
