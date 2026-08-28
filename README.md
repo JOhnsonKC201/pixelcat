@@ -617,6 +617,7 @@ npm test                  # 200+ tests: config and data migration, poses, intera
                           #  audio, focus and quiet hours, mail and calendar, site drift
 npm run lint              # eslint over src, tests, scripts and site (what CI runs)
 npm run test:boot         # launch the real app and assert it renders a frame
+npm run check:hook        # does the global input hook load on this Electron?
 npm run poses:cat         # previews/cat-poses.png (every activity x every coat)
 npm run poses:dog         # the same for the Black Lab
 npm run frames:import -- <dir>   # import painted PNGs as baked poses
