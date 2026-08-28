@@ -409,7 +409,8 @@ ignored (no backlog replay), and calling it while the pet is closed is harmless.
 | **Tray icon** | Settings, Start break now, coat picker, play area, sound and hunt and mood toggles, Quit |
 
 Settings persist to `settings.json` in your per-user app-data folder
-(`%APPDATA%/pixelcat/` on Windows). Timers and reminders only fire while
+(`%APPDATA%/pixelpets/` on Windows, `~/Library/Application Support/pixelpets/` on
+macOS). An install that predates the rename is migrated across on first launch. Timers and reminders only fire while
 pixelpets is running, and reminder times use your local clock.
 
 ## AI agent reactions
@@ -464,7 +465,7 @@ outline). Your coat shows up in the Coat dropdown and the tray menu next to the
 cats only; the Pet tab says so when a dog is selected.
 
 Custom coats live in `themes.json` in your app-data folder
-(`%APPDATA%/pixelcat/themes.json`) and can be hand-edited too:
+(`%APPDATA%/pixelpets/themes.json`) and can be hand-edited too:
 
 ```json
 { "themes": [
@@ -538,19 +539,38 @@ bar), the tray menu works in the menu bar, and login launch works.
 ```
 pixelpets/
   src/
-    main.js                # overlay window, global hooks, tray + menu, settings,
-                           #  break/reminder scheduler, config IPC
-    config.js              # settings.json load/save/normalize (per-user app data)
-    patterns.js            # shared coat-name list (renderer + main + settings UI)
+    main.js                # overlay window, global input hooks, tray + menu,
+                           #  scheduler (breaks, reminders, Pomodoro), config IPC
     renderer.js            # the pet: sprites, palettes, physics, reactions, sound
+    preload.js             # safe IPC bridge for the overlay
+    cat-sprite.js          # the role-coded cat, mirrored to site/ for the browser demo
+    dog-sprite.js          # the Black Lab, and the poses composed from it
+    pets.js                # per-species registry: menu labels, IPC channels, copy
+    patterns.js            # shared coat list, recolored at draw time
+    art-frames.js          # baked hand-painted poses that win over the composer
+    climb-frames.js        # the yarn-rope climb, per coat
+    audio.js               # synthesized voice: meow, purr, bark, pant, chirp
+    jam.js                 # the live lo-fi jam, generated bar by bar
+    effects.js / bubble.js # hearts and leaves, and the speech bubble
+    focus.js               # when to leave you alone: meetings, work mode, quiet hours
+    quiet-hours.js         # the nightly do-not-disturb window
     mail.js / mail-worker.js   # IMAP unread-mail checks (isolated worker)
     cal.js  / cal-worker.js    # .ics calendar feed (isolated worker)
+    config.js              # settings.json load/save/normalize (per-user app data)
+    datadir.js             # one-time rescue of that folder after the rename
     themes.js              # custom-coat load/validate
+    template.js            # message placeholders: {name}, {time}, {date}, {count}
+    index.html             # the overlay page
     settings*.{html,js}    # settings window + its IPC bridge
-    preload.js             # safe IPC bridge for the overlay
-  scripts/                 # icon + demo/GIF generators, notify.js, install-hook.js
+  tests/                   # node:test suites, no Electron and no GPU required
+  scripts/                 # the vm harness, icon and demo generators, notify.js,
+                           #  install-hook.js, the boot check
   integrations/            # ready-made agent hook configs (5 agents)
   assets/                  # generated icons, showcase, hero + gallery clips
+  site/                    # the browser demo deployed to Vercel
+  docs/                    # frame-pack guide, and the early coat studies
+  extras/                  # the standalone Lobby Jam page
+  .github/                 # CI and release workflows, issue and PR templates
 ```
 
 ## Privacy
@@ -568,7 +588,10 @@ isolated worker processes. Your IMAP app password is stored encrypted at rest
 
 ```powershell
 npm start                 # run the app
-npm test                  # 142 tests: config, poses, petting, audio, art frames, site drift
+npm test                  # 200+ tests: config and data migration, poses, interactions,
+                          #  audio, focus and quiet hours, mail and calendar, site drift
+npm run lint              # eslint over src, tests, scripts and site (what CI runs)
+npm run test:boot         # launch the real app and assert it renders a frame
 npm run poses:cat         # previews/cat-poses.png (every activity x every coat)
 npm run poses:dog         # the same for the Black Lab
 npm run frames:import -- <dir>   # import painted PNGs as baked poses
@@ -576,6 +599,9 @@ npm run demo:all          # regenerate the README media (hero, gallery, carousel
 npm run hook -- cursor    # print a path-filled agent hook config
 npm run icon              # regenerate the tray + app-tile icons
 ```
+
+CI runs `npm run lint`, `npm test`, and the boot check on Windows and macOS for
+every push and pull request.
 
 **Painting a pose by hand.** Every pose is composed in code, which is why one
 `sit` covers 15 coats and a new coat costs nine hex values instead of an art pass.
