@@ -1,8 +1,9 @@
 # Frame pack: painting poses by hand
 
 Every pose the pet holds is composed in code from grid primitives, which is why one
-`sit` covers 28 coats and why a new coat costs nine hex values instead of an art
-pass. The trade is that improving how the pet *looks* means editing geometry.
+`sit` covers 15 coats across two species, and why a new coat costs nine hex
+values instead of an art pass. The trade is that improving how the pet *looks*
+means editing geometry.
 
 This is the escape hatch. Paint a pose, import it, and it wins over the composer
 for exactly the coats you name. Everything else keeps composing, so a pack of one
