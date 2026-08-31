@@ -1,10 +1,11 @@
-// Generates assets/pixelcat-demo.gif - a short looping clip that shows what the
-// desktop pet DOES: it sits and follows your cursor, naps when idle, taps its
-// paws when you type, pounces to hunt, and purrs when you pet it. Pure JS, no
-// browser / no native deps: the sprite geometry comes from src/cat-sprite.js
-// (single source of truth) plus the pose composers copied from renderer.js, all
-// rasterised by hand into RGBA frames and encoded with gifenc.
-//   Run:  node scripts/make-demo-gif.js
+// Renders the README media - short looping clips that show what the desktop pet
+// DOES: it sits and follows your cursor, naps when idle, taps its paws when you
+// type, pounces to hunt, and purrs when you pet it. Pure JS, no browser / no
+// native deps: the sprite geometry comes from src/cat-sprite.js (single source of
+// truth) plus the pose composers copied from renderer.js, all rasterised by hand
+// into RGBA frames and encoded with gifenc.
+//   Run:  node scripts/make-demo-gif.js [demo|hero|gallery|carousel|all] [mp4]
+//         npm run demo:all   # the three the README embeds
 const fs = require('fs');
 const path = require('path');
 const { GIFEncoder, quantize, applyPalette } = require('gifenc');
@@ -652,7 +653,8 @@ function maybeDump(frames, tag) {
 // ---- recipes ----------------------------------------------------------------
 function setCanvas(w, h, px, baseY) { W = w; H = h; PX = px; BASE_Y = baseY; }
 
-// the original 5-scene desktop demo (480x340) -> assets/pixelcat-demo.{gif,mp4}
+// the original 5-scene desktop demo (480x340) -> assets/pixelpets-demo.{gif,mp4}.
+// Not README media (the hero, gallery and carousel below are), so `all` leaves it out.
 function recipeDemo(wantMp4) {
   setCanvas(480, 340, 6, 250); SP = buildPoses(0); PAL = paletteFor(S.PATTERNS[0]);
   const frames = [];
@@ -662,8 +664,8 @@ function recipeDemo(wantMp4) {
   sceneHunt(frames, { caption: 'POUNCES TO HUNT' });
   scenePet(frames, { caption: 'PURRS WHEN YOU PET IT' });
   maybeDump(frames, 'demo');
-  encodeGif(frames, A('pixelcat-demo.gif'));
-  if (wantMp4) encodeMp4(frames, A('pixelcat-demo.mp4'));
+  encodeGif(frames, A('pixelpets-demo.gif'));
+  if (wantMp4) encodeMp4(frames, A('pixelpets-demo.mp4'));
 }
 
 // wide cinematic banner (960x360) -> assets/hero-banner.{gif,mp4}
@@ -730,7 +732,7 @@ const RECIPES = {
   hero: () => recipeHero(wantMp4),
   gallery: () => recipeGallery(wantMp4),
   carousel: () => recipeCarousel(),
-  all: () => { recipeDemo(wantMp4); recipeHero(wantMp4); recipeGallery(wantMp4); recipeCarousel(); },
+  all: () => { recipeHero(wantMp4); recipeGallery(wantMp4); recipeCarousel(); },
 };
 if (!RECIPES[recipe]) { console.error(`unknown recipe: ${recipe} (expected demo|hero|gallery|carousel|all)`); process.exit(1); }
 RECIPES[recipe]();

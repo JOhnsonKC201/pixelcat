@@ -3,7 +3,7 @@
 // by the overlay (index.html) and the settings window (settings.html) - its
 // top-level const/function declarations live in the shared global lexical scope,
 // so renderer.js / cat-preview.js use them as bare identifiers - and required as a
-// CommonJS module by scripts/make-app-icon.js (Node). Pose-specific composers
+// CommonJS module by scripts/pet-sheet.js (Node). Pose-specific composers
 // (hunt/type/sleep) and the animated drawCat stay in renderer.js.
 const CELL = 4;   // px per sprite cell - sets the cat's overall size (was 5; 4 ≈ 20% smaller)
 
@@ -163,7 +163,7 @@ function shadeStr(rgb, f) { const c = (v) => Math.max(0, Math.min(255, Math.roun
 const HALO = '#fbfdff';
 const BODY = new Set(['C', 'K', 'W', 'X', 'I']);
 
-// CommonJS export (Node, for scripts/make-app-icon.js). In a browser classic
+// CommonJS export (Node, for scripts/pet-sheet.js). In a browser classic
 // script `module` is undefined, so this is skipped and the declarations above
 // remain available in the shared global scope.
 if (typeof module !== 'undefined' && module.exports) {

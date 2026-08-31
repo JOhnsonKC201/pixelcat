@@ -163,11 +163,10 @@ fs.writeFileSync(path.join(outDir, 'icon-512.png'), encodePng(onTile(512), 512))
 // Transparent 512 mascot mark for the README hero (no tile).
 fs.writeFileSync(path.join(outDir, 'logo-mark.png'), encodePng(rgbaAt(512), 512));
 
-// Tray glyph (16 + retina 32) and the legacy tray .ico - on the same warm tile as the app
-// icon so the dark mascot is clearly visible on a dark system tray.
+// Tray glyph (16 + retina 32) - on the same warm tile as the app icon so the dark
+// mascot is clearly visible on a dark system tray.
 fs.writeFileSync(path.join(outDir, 'tray.png'), encodePng(onTile(16), 16));
 fs.writeFileSync(path.join(outDir, 'tray@2x.png'), encodePng(onTile(32), 32));
-fs.writeFileSync(path.join(outDir, 'pixelcat.ico'), buildIco([32, 16].map(tileEntry)));
 
 // macOS menu-bar glyph. A template image is pure BLACK plus an alpha channel: macOS
 // reads only the alpha and paints it itself, which is what lets it invert on a dark
