@@ -64,11 +64,23 @@ test('the Windows app identity stays frozen too', () => {
     'the installer appId must match the app user model id, or NSIS installs alongside the old copy');
 });
 
-test('the README documents the same bridge paths the code uses', () => {
-  // The README is how anyone sets these hooks up, so a stale path there sends people
-  // to a file nothing reads.
-  const readme = src('README.md');
+test('the docs quote the same bridge paths the code uses', () => {
+  // The docs are how anyone sets these hooks up, so a stale path there sends people
+  // to a file nothing reads. Which page carries which path may move as the docs are
+  // reorganised; what must not happen is a path going undocumented, or documented
+  // wrong, so this asserts over the whole user-facing set rather than one file.
+  const PAGES = ['README.md', 'docs/features.md', 'integrations/README.md'];
+  const docs = PAGES.map((p) => [p, src(p)]);
   for (const name of [constTmpName('src/main.js', 'AGENT_FILE'), constTmpName('src/main.js', 'NOTIFY_FILE')]) {
-    assert.ok(readme.includes(name), `README.md should document the bridge path ${name}`);
+    assert.ok(docs.some(([, text]) => text.includes(name)),
+      `the bridge path ${name} is documented nowhere in ${PAGES.join(', ')}`);
+  }
+  // A page that names the wrong file is worse than one that stays quiet.
+  const STALE = /%TEMP%\/([\w.-]+\.(?:state|jsonl))/g;
+  const live = [constTmpName('src/main.js', 'AGENT_FILE'), constTmpName('src/main.js', 'NOTIFY_FILE')];
+  for (const [page, text] of docs) {
+    for (const m of text.matchAll(STALE)) {
+      assert.ok(live.includes(m[1]), `${page} documents ${m[1]}, which nothing reads`);
+    }
   }
 });
