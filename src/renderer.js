@@ -633,6 +633,14 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 // Excitement bleeds off after a fetch/greeting rather than snapping back, so the
 // tail eases down instead of cutting from a whip to a sway in one frame.
 function decayWag(dt) { if (wagBoost > 0) wagBoost = Math.max(0, wagBoost - dt * 0.00035); }
+// The victory bounce after a butterfly catch: two quick hops, the second smaller,
+// "yes!" rather than the done-hop's single arc. Amplitude is fixed when the window
+// opens because the mood scalar it comes from is local to draw().
+function bfJoyHop(t) {
+  if (bfJoyT0 < 0 || t >= bfJoyUntil) return 0;
+  const je = clamp((t - bfJoyT0) / BF_JOY_MS, 0, 1);
+  return Math.abs(Math.sin(je * Math.PI * 2)) * bfJoyAmp * (1 - je * 0.5);
+}
 const HOT_BODY = '#d9534f', HOT_OUTLINE = '#7a1f1a';
 
 // ---- draw the cat body into context g (local origin 0,0) -------------------
@@ -1025,6 +1033,9 @@ let bfNudgeSince = 0;     // when the mouse first stirred during a visit (grace 
 let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0, bfIdleNextVisit = 0;
 // paw-swat at the butterfly (a gentle reach that doesn't need a full pounce)
 let bfSwatT0 = 0, bfSwatUntil = 0, bfBatHit = 0;
+// the catch is a beat, not a frame: a short victory window the idle branch turns into
+// a double bounce with happy eyes and a blush. Render-only: none of this moves pos.
+let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0;
 // a short fading sparkle trail behind the butterfly
 let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
@@ -1048,6 +1059,18 @@ function popLove(t, x, y, base, spreadX) {
       ph: Math.random() * Math.PI * 2,                       // wobble phase offset
       life: 950 + Math.random() * 500,                       // lifetime (ms)
     });
+  }
+}
+// A fan of pink sparkles for the catch: the glyph popLove rolls 18% of the time,
+// pushed into hearts[] so the existing loop draws and expires them. The spread is
+// derived, not rolled: no Math.random() here, so the seeded PRNG stream that the
+// self-play parity test reads is left exactly as it was.
+function popSparks(t, x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const a = (i + 0.5) / n * Math.PI;                       // fan across the top half
+    hearts.push({ x: x + Math.cos(a) * 12, y: y - Math.sin(a) * 4, t0: t, kind: 'spark',
+      s: 0.8 + (i % 3) * 0.25, vy: 22 + (i % 2) * 12, wobA: 2 + (i % 3), wobF: 5 + (i % 2) * 2,
+      ph: i * 1.3 + (t % 7), life: 900 + (i % 3) * 180 });
   }
 }
 let idleSparkles = [], nextIdleSparkle = 0;
@@ -1120,6 +1143,7 @@ else if (!pos || typeof pos.x !== 'number') pos = { x: homeX(), y: viewH - 80 };
 // Kept below the chain above on purpose: slipping a statement between that `if` and
 // its `else if` silently re-parents the position fallback onto this condition.
 if (SHOT && qp.get('note')) { bubbleText = qp.get('note'); bubbleUntil = Infinity; }                 // preview render: npx electron . --shot --note="..."
+if (SHOT && qp.get('joy') === '1') { bfJoyT0 = 0; bfJoyUntil = Infinity; bfJoyAmp = 14; }         // preview render: npx electron . --shot --joy --at=350
 pos.x = zoneClampX(pos.x); pos.y = zoneClampY(pos.y);
 // Start each launch resting on the taskbar line (keep the remembered X, snap Y to
 // the baseline) so the cat always begins the day on the same line, never mid-screen.
@@ -1803,6 +1827,7 @@ const BF_ZONE_X = 150, BF_ZONE_TOP = 130, BF_ZONE_BOT = 40;
 const BF_LISSA_AX = 70, BF_LISSA_AY = 44;
 // Gentle paw-swat at a butterfly that's near the head but just out of full-pounce range.
 const BF_SWAT_RANGE = 150, BF_SWAT_MS = 600;
+const BF_JOY_MS = 1400;   // the victory beat after a catch
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
@@ -2357,15 +2382,30 @@ function draw(t) {
       pos.x = pounceFrom.x + (tgt.x - pounceFrom.x) * ease;
       pos.y = pounceFrom.y + (tgt.y - pounceFrom.y) * ease;
       leap = Math.sin(e * Math.PI) * 32; stretchY = 1 + Math.sin(e * Math.PI) * 0.26;   // a big, paws-up leap
-      // the catch: if the leap reaches a real butterfly, the cat bats it between its paws -> a happy
-      // burst of stars + a heart, and the bug flutters up and away (escapes the paws).
+      // the catch: if the leap reaches a real butterfly, the cat bats it between its paws.
+      // A fan of pink sparkles and a heart at the paws, one pleased trill, and a victory
+      // window the idle branch turns into a double bounce with happy eyes; the bug
+      // flutters up and away (escapes the paws).
       if (bfOn && huntTarget && bfMode !== 'out' && e > 0.4 && Math.hypot(bfX - pos.x, bfY - (pos.y - leap - HH * 0.55)) < 44) {
         const cx = pos.x, cy = pos.y - leap - HH * 0.6;
-        for (let i = 0; i < 6; i++) idleSparkles.push({ x: cx + (Math.random() - 0.5) * 24, y: cy + (Math.random() - 0.5) * 16, t0: t });
+        // runAction('companion') skips the low-power gate, so a low-power visit is reachable
+        // from the settings button: calm the beat down here rather than assume it cannot happen.
+        const motionOK = !((config && config.reducedMotion) || lowPower);
+        popSparks(t, cx, cy - 4, motionOK ? Math.round(3 + 2 * intensity) : 1);   // 4 / 5 / 6 by mood band; 1 when calm
         popLove(t, cx, cy - 6, 1.4, 10);
-        bfMode = 'out'; bfVy = -11; bfVx = (bfX < cx ? -1 : 1) * 4; bfFlap += 3; addEnergy(22); tailFlickT0 = t;
+        bfMode = 'out'; bfVy = -11; bfVx = (bfX < cx ? -1 : 1) * 4; bfFlap += 3;
+        bfJoyT0 = t; bfJoyUntil = t + BF_JOY_MS; bfJoyAmp = motionOK ? 14 * intensity : 0;
+        addEnergy(22); tailFlickT0 = t;
+        if (config && config.soundOn) playChirp();   // "gotcha": once per catch, and the catch ends the visit, so it cannot repeat
       }
-      if (e >= 1) { pouncing = false; huntUntil = 0; huntTarget = null; persistPos(); tailFlickT0 = t; idleSparkles.push({ x: pos.x, y: pos.y - HH * 0.7, t0: t }); }   // "got it!" beat
+      if (e >= 1) {
+        // Landing. A cursor pounce and a real catch get the "got it!" sparkle; a whiff at
+        // the butterfly gets none, and the cat watches it get away instead.
+        const bfPounce = bfOn && !!huntTarget, caught = t < bfJoyUntil;
+        pouncing = false; huntUntil = 0; huntTarget = null; persistPos(); tailFlickT0 = t;
+        if (!bfPounce || caught) idleSparkles.push({ x: pos.x, y: pos.y - HH * 0.7, t0: t });
+        else { lookTarget = { x: clamp((bfX - pos.x) / 200, -1, 1), y: -0.8 }; lookTargetUntil = t + 400; leanTarget = clamp((bfX - pos.x) / 200, -0.08, 0.08); leanUntil = t + 400; }
+      }
     } else if (windingUp) {
       // anticipation: hold position, crouch + butt-wiggle to telegraph the pounce ("it's about to do it")
       const wu = clamp((t - windupT0) / POUNCE_WINDUP_MS, 0, 1);
@@ -2557,6 +2597,11 @@ function draw(t) {
     let hop = 0, hopActive = false;
     if (FORCED_STATE === 'done') { hop = Math.sin(((t % DONE_MS) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
     else if (doneHopT0 >= 0 && t - doneHopT0 < DONE_MS) { hop = Math.sin(((t - doneHopT0) / DONE_MS) * Math.PI) * 22 * intensity; hopActive = true; }
+    // the victory beat after a butterfly catch rides the same hop: hopActive buys the
+    // happy eyes, the idle exclusions and the branch below, and the offset stays
+    // render-only, so a stay-put pet stays exactly put
+    const joyOn = bfJoyT0 >= 0 && t < bfJoyUntil && !grabbing;
+    if (joyOn && !hopActive) { hop = bfJoyHop(t); hopActive = true; }
 
     // The painted scene is a whole picture (cat + rope + ball) and replaces the
     // sprite rather than drawing over it, so it gets its own branch. Computed here
@@ -2655,7 +2700,7 @@ function draw(t) {
         : working ? { lift: 0.52 + Math.abs(Math.sin(t / 150)) * 0.26, out: 0.16 }
         : null;
       const bodySprite = (pawPose ? pawSpriteFor(patternIndex, pawPose.lift, pawPose.out) : (loafing ? loafSprite : catSprite));
-      drawCat(octx, bodySprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet, dilate: stareDilate, panting: isDog() && t < pantUntil && !loafing });
+      drawCat(octx, bodySprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet || joyOn, dilate: stareDilate, panting: isDog() && t < pantUntil && !loafing });
       if (groom) drawLick(octx, bodySprite, bob, groom);   // tongue rides the sprite buffer, so it scales with the cat
       if (yawning || stretching) {   // open mouth + tongue, drawn into the sprite buffer so it scales/leans with the cat (cats yawn as they stretch)
         const sprog = FORCED_STATE === 'stretch' ? (t % STRETCH_MS) / STRETCH_MS : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
@@ -2683,7 +2728,7 @@ function draw(t) {
       // status bubble is drawn here.
       if (thinking) drawThinkBubble(pos.x + SW * 0.32, oy + 4, t);
       else if (working) drawWorkBubble(pos.x + SW * 0.32, oy + 2, t);
-      if (hopActive) drawDoneSpark(pos.x, oy - 4, t);
+      if (hopActive && !joyOn) drawDoneSpark(pos.x, oy - 4, t);
       if (playing && !paperActive) renderPlay(palRGB, oy, t, step);                       // bat the drifting leaf with a paw
       else if (mote && t > playUntil) mote = null;                                        // play over -> drop the leaf
       if (t < labelUntil) {

@@ -369,6 +369,7 @@ function createWindow() {
   if (hasFlag('bfly')) params.push('bfly=1');    // force the butterfly visitor (QA shots)
   if (hasFlag('treat')) params.push('treat=1');  // force a dropped treat (QA shots)
   if (hasFlag('ball')) params.push('ball=1');    // force a resting fetch ball (QA shots, dogs)
+  if (hasFlag('joy')) params.push('joy=1');      // force the victory beat after a butterfly catch (QA shots)
   if (noteArg) params.push(`note=${encodeURIComponent(noteArg)}`);   // force a speech bubble (QA shots)
   if (SHOT) params.push('shot=1');
   if (SHEET) params.push('sheet=1');
