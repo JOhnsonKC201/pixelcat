@@ -160,6 +160,65 @@ test('a pet set to stay put does not move a pixel through a catch, the hold and 
   assert.ok(released > CATCH + HELD_MS && released <= CATCH + HELD_MS + STEP, `released at ${released}ms, expected the first frame after ${CATCH + HELD_MS}ms`);
   assert.ok(farthest < 3, `the held bug wandered ${farthest.toFixed(1)}px from the paws`);
   assert.strictEqual(worst, 0, `the catch moved a stay-put pet ${worst.toFixed(2)}px`);
+  // The bounce is a render offset, never a position: it must be there (else the beat
+  // is a face and nothing more) and it must have gone by the end of the window.
+  const joyT0 = h.run('bfJoyT0');
+  assert.ok(h.run(`bfJoyHop(${joyT0 + 350})`) > 8, 'the first bounce should lift the sprite');
+  assert.ok(h.run(`bfJoyHop(${joyT0 + 1050})`) > 4, 'the second, smaller bounce should still lift it');
+  assert.strictEqual(h.run(`bfJoyHop(${joyT0 + 1400})`), 0, 'the bounce should be over when the window closes');
+});
+
+// "oh! a butterfly": the moment the bug is first spotted (bfMode in -> wander) the cat
+// gets a small perk and a "!" over the head for half a second, then nothing. It opens
+// on the first frame of a visit, before a --shot's capture timer even starts, so a
+// test is the only place it can be checked.
+test('spotting the butterfly draws a "!" for half a second and then stops', () => {
+  const h = playing();
+  h.run('var __sparks = []; drawDoneSpark = function (x, y, t) { __sparks.push(t); };');
+  let spotted = -1;
+  for (let t = 1000 + STEP; t <= 6000; t += STEP) {
+    step(h, t);
+    if (spotted < 0 && h.run('bfMode') !== 'in') spotted = t;
+  }
+  assert.ok(spotted > 0, 'the butterfly never came close enough to be spotted');
+  assert.strictEqual(h.run('bfNoticeT0'), spotted, 'the notice should open on the frame the bug is spotted');
+  const sparks = h.run('__sparks');
+  const during = sparks.filter((t) => t >= spotted && t < spotted + 500);
+  const after = sparks.filter((t) => t >= spotted + 600 && t < spotted + 3000);
+  assert.ok(during.length >= 6, `the "!" should show on every frame of the half second (${during.length} frames)`);
+  assert.strictEqual(after.length, 0, `the "!" stayed up ${after.length} frames past its window`);
+  assert.strictEqual(sparks.filter((t) => t < spotted).length, 0, 'a "!" showed before the bug was spotted');
+});
+
+// The cat's tail now takes an excitement argument (wagBoost plus a butterfly in
+// play), mirroring the mood argument the dog's tail already had. The dog path must
+// not change, and a cat's wagBoost must decay the way a dog's does instead of being
+// zeroed every frame, which is what kept the cat locked out before.
+test('the cat tail takes an excitement arg in 0..1 and the dog tail is untouched', () => {
+  const dog = loadOverlay();
+  dog.run('setSpecies("dog")');
+  dog.ipc('onConfig', { species: 'dog', soundOn: false, butterflyOn: false, followCursor: true, floorLock: true, moodOn: false });
+  dog.run('var __dog = [], __cat = 0; var __dt = drawDogTail; drawDogTail = function () { __dog.push(arguments.length); return __dt.apply(null, arguments); }; drawTail = function () { __cat++; };');
+  for (let t = STEP; t <= 3000; t += STEP) step(dog, t);   // past the hello-stretch, which hides the tail
+  assert.strictEqual(dog.run('__cat'), 0, 'a dog drew a cat tail');
+  assert.ok(dog.run('__dog.length') > 0, 'the dog never drew its tail');
+  assert.ok(dog.run('__dog').every((n) => n === 7), 'drawDogTail is being called with a different arity');
+
+  const cat = loadOverlay();
+  cat.ipc('onConfig', { species: 'cat', soundOn: false, butterflyOn: false, followCursor: true, floorLock: true, moodOn: false });
+  cat.run('var __ex = []; var __rt = drawTail; drawTail = function () { __ex.push([arguments.length, arguments[6]]); return __rt.apply(null, arguments); };');
+  for (let t = STEP; t <= 3000; t += STEP) step(cat, t);
+  const ex = cat.run('__ex');
+  assert.ok(ex.length > 0, 'the cat never drew its tail');
+  assert.ok(ex.every((e) => e[0] === 7 && typeof e[1] === 'number' && e[1] >= 0 && e[1] <= 1),
+    `a tail call broke the contract (7 args, excitement 0..1): ${JSON.stringify(ex.find((e) => !(e[0] === 7 && e[1] >= 0 && e[1] <= 1)))}`);
+  assert.ok(ex.every((e) => e[1] === 0), 'a cat with nothing to be excited about should have a resting tail');
+  cat.run('wagBoost = 1');
+  step(cat, 3060); step(cat, 3120);
+  const wb = cat.run('wagBoost');
+  assert.ok(wb > 0 && wb < 1, `a cat's wagBoost should decay like a dog's, not be zeroed or held (${wb})`);
+  const last = cat.run('__ex[__ex.length - 1]');
+  assert.ok(last[1] > 0.9, `the tail should read the boost (excitement ${last[1]})`);
 });
 
 test('a Focus Guard busy signal sends a flying butterfly home', () => {
