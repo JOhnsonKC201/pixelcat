@@ -98,7 +98,7 @@ test('a catch: pink sparks at the paws, happy eyes on the bounce, and exactly on
     watchEyes(h);
     armPounce(h, ARM, 0, -60);
     let sparks = -1;
-    for (let t = ARM; t <= 3600; t += STEP) {
+    for (let t = ARM; t <= 4000; t += STEP) {
       step(h, t);
       if (t === CATCH + STEP) sparks = h.run("hearts.filter((x) => x.kind === 'spark').length");
     }
@@ -106,8 +106,8 @@ test('a catch: pink sparks at the paws, happy eyes on the bounce, and exactly on
     assert.strictEqual(h.run('__chirps'), soundOn ? 1 : 0, `${tag}: expected ${soundOn ? 'one trill' : 'silence'} for one catch`);
     assert.ok(sparks >= 4, `${tag}: only ${sparks} pink sparks a frame after the catch`);
     const eyes = h.run('__eyes');
-    const bouncing = eyes.filter((e) => e[0] > LAND && e[0] < CATCH + 1400).map((e) => e[1]);
-    assert.ok(bouncing.includes('happy'), `${tag}: the eyes never squeezed shut on the victory bounce`);
+    const after = eyes.filter((e) => e[0] > LAND).map((e) => e[1]);
+    assert.ok(after.includes('happy'), `${tag}: the eyes never squeezed shut on the victory bounce`);
     assert.strictEqual(eyes[eyes.length - 1][1], 'open', `${tag}: the happy eyes stuck after the beat was over`);
   }
 });
@@ -126,19 +126,40 @@ test('a whiff gets no sparkle, no trill and no bounce; the cat just watches it g
   assert.ok(h.run('pouncing') === false && h.run('huntUntil') === 0, 'the pounce should be over');
 });
 
-test('a pet set to stay put does not move a pixel through a catch and the bounce after it', () => {
+// The hold: the bug sits in the paws for BF_HELD_MS after the catch, then slips out
+// and climbs away, and only then does the victory window open. While it is held,
+// nothing else may react to it: it is 50px under the head, inside both the dodge
+// radius and the swat's reach, and either firing would snatch it out of the paws.
+const HELD_MS = 550;
+
+test('a pet set to stay put does not move a pixel through a catch, the hold and the bounce after it', () => {
   const h = playing({ roamOn: false });
   armPounce(h, ARM, 0, -60);
   for (let t = ARM; t <= LAND; t += STEP) step(h, t);
-  assert.ok(h.run('bfJoyT0') >= 0, 'the leap should have connected');
+  assert.strictEqual(h.run('bfMode'), 'held', 'the leap should have connected and the bug should be in the paws');
   const x0 = h.run('pos.x'), y0 = h.run('pos.y');
-  let worst = 0;
-  for (let t = LAND + STEP; t <= 3700; t += STEP) {
+  const swat0 = h.run('bfSwatUntil'), dodge0 = h.run('bfDodgeUntil');
+  let worst = 0, released = -1, farthest = 0;
+  for (let t = LAND + STEP; t <= 4000; t += STEP) {
     step(h, t);
     worst = Math.max(worst, Math.abs(h.run('pos.x') - x0), Math.abs(h.run('pos.y') - y0));
     assert.strictEqual(h.run('roamUntil'), 0, `a wander was armed at ${t}ms`);
+    const mode = h.run('bfMode');
+    if (mode === 'held') {
+      assert.ok(t <= CATCH + HELD_MS, `still held at ${t}ms, ${t - CATCH}ms after the catch`);
+      farthest = Math.max(farthest, Math.abs(h.run('bfX') - x0));
+      assert.strictEqual(h.run('bfSwatUntil'), swat0, `a swat was armed at the bug in its own paws (${t}ms)`);
+      assert.strictEqual(h.run('bfDodgeUntil'), dodge0, `the held bug was kicked into a dodge (${t}ms)`);
+    } else if (released < 0) {
+      released = t;
+      assert.strictEqual(mode, 'out', `the bug left the paws into '${mode}', not 'out'`);
+      assert.ok(h.run('bfVy') < 0, 'the release should climb, not drop');
+      assert.ok(h.run('bfJoyT0') >= 0, 'the victory window should open as the bug gets away');
+    }
   }
-  assert.strictEqual(worst, 0, `the victory beat moved a stay-put pet ${worst.toFixed(2)}px`);
+  assert.ok(released > CATCH + HELD_MS && released <= CATCH + HELD_MS + STEP, `released at ${released}ms, expected the first frame after ${CATCH + HELD_MS}ms`);
+  assert.ok(farthest < 3, `the held bug wandered ${farthest.toFixed(1)}px from the paws`);
+  assert.strictEqual(worst, 0, `the catch moved a stay-put pet ${worst.toFixed(2)}px`);
 });
 
 test('a Focus Guard busy signal sends a flying butterfly home', () => {
