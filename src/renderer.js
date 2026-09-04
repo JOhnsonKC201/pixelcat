@@ -1919,8 +1919,11 @@ function updateButterflyDesk(t, dt, step, f) {
     else if (allow && f.calm && mouseQuiet && (t > bfNextVisit || idleWants)) startBflyVisit(t);
     if (!bfOn) return;
   }
-  // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully
-  if (config && (config.reducedMotion || config.butterflyOn === false || config.workMode) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
+  // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully.
+  // workModeOn(), not config.workMode: `allow` above already uses it, so a Focus Guard
+  // busy signal blocked NEW visits but left a butterfly that was already here flying
+  // through the meeting.
+  if (config && (config.reducedMotion || config.butterflyOn === false || workModeOn()) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
   // idle-only: the instant the user uses the mouse again, the butterfly leaves
   // Idle-only, but with a grace window. Leaving on the FIRST cursor movement meant a
   // single twitch, a bumped desk, or reaching for the mouse to watch the thing ended
