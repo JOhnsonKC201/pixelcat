@@ -1051,6 +1051,11 @@ let bfSwatT0 = 0, bfSwatUntil = 0, bfBatHit = 0;
 // branch turns into a double bounce with happy eyes and a blush. Render-only: none
 // of this moves pos.
 let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0, bfHeldUntil = 0, bfNoticeT0 = -1;
+// Set by the "Send a butterfly" button. Work mode and a Focus Guard busy signal stop
+// the pet wandering off and stop UNSOLICITED visits; they do not veto what you clicked,
+// the same rule the treat and the ball already follow (see giveTrekOn). Cleared when
+// the visit ends, so the next autonomous one is gated normally again.
+let bfSummoned = false;
 // a short fading sparkle trail behind the butterfly
 let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
@@ -1227,7 +1232,7 @@ function runAction(id) {
   const t = performance.now();
   const clearBusy = () => { roamUntil = 0; huntUntil = 0; playUntil = 0; loafUntil = 0; groomUntil = 0; yawnUntil = 0; };
   switch (id) {
-    case 'companion': clearBusy(); if (isDog()) throwBall(); else startBflyVisit(t); break;
+    case 'companion': clearBusy(); if (isDog()) throwBall(); else { bfSummoned = true; startBflyVisit(t); } break;
     case 'give': if (isDog()) throwBall(); else dropTreat(); break;
     case 'play': clearBusy(); startPlay(t); break;
     case 'stretch': clearBusy(); stretchT0 = t; nextStretch = t + STRETCH_INTERVAL; break;
@@ -1962,8 +1967,9 @@ function updateButterflyDesk(t, dt, step, f) {
   // honor reduced-motion if it gets toggled on mid-visit: let the butterfly leave gracefully.
   // workModeOn(), not config.workMode: `allow` above already uses it, so a Focus Guard
   // busy signal blocked NEW visits but left a butterfly that was already here flying
-  // through the meeting.
-  if (config && (config.reducedMotion || config.butterflyOn === false || workModeOn()) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
+  // through the meeting. A visit you asked for with the button is exempt from that
+  // one: work mode used to send it straight home, which made the button a dead click.
+  if (config && (config.reducedMotion || config.butterflyOn === false || (workModeOn() && !bfSummoned)) && bfMode !== 'out') bfMode = 'out';   // toggled off mid-visit -> leave gracefully
   // idle-only: the instant the user uses the mouse again, the butterfly leaves
   // Idle-only, but with a grace window. Leaving on the FIRST cursor movement meant a
   // single twitch, a bumped desk, or reaching for the mouse to watch the thing ended
@@ -2050,7 +2056,7 @@ function updateButterflyDesk(t, dt, step, f) {
   bfFlap += (bfMode === 'held' ? 0.05 : 0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
   // despawn once it has flown off-screen - or, as a failsafe, if it has been leaving too long
   // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
-  if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; bfIdleNextVisit = t + 14000 + Math.random() * 10000; return; }
+  if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; bfSummoned = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; bfIdleNextVisit = t + 14000 + Math.random() * 10000; return; }
   // keep the sprite on-screen - but NOT while leaving, or the clamp pins it at the edge and it
   // can never reach the off-screen despawn threshold above (it would flutter there forever).
   if (bfMode !== 'out') {

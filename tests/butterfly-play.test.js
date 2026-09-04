@@ -221,6 +221,33 @@ test('the cat tail takes an excitement arg in 0..1 and the dog tail is untouched
   assert.ok(last[1] > 0.9, `the tail should read the boost (excitement ${last[1]})`);
 });
 
+// Work mode and Focus Guard stop UNSOLICITED visits and stop the pet wandering off;
+// they do not veto what you clicked, the rule the treat and the ball already follow.
+// Before this, "Send a butterfly" in work mode summoned a bug that left on the very
+// next frame: a dead click, and exactly what a user sees when the mode is on.
+test('"Send a butterfly" in work mode gets a visit that stays; an unsolicited one still leaves', () => {
+  const h = loadOverlay();
+  h.ipc('onConfig', { species: 'cat', soundOn: false, butterflyOn: true, followCursor: true, floorLock: true, roamOn: true, moodOn: false, workMode: true });
+  h.run('lastCursorMove = -99999');
+  h.run('draw(1000)');
+  h.ipc('onAction', 'companion');
+  assert.ok(h.run('bfOn'), 'the button should still summon a butterfly in work mode');
+  for (let t = 1000 + STEP; t <= 6000; t += STEP) {
+    step(h, t);
+    assert.ok(h.run('bfOn'), `the summoned butterfly despawned at ${t}ms`);
+    assert.notStrictEqual(h.run('bfMode'), 'out', `work mode sent the butterfly you asked for home at ${t}ms`);
+  }
+  // Force the visit over and let it despawn, then an unsolicited visit must still be
+  // evicted: the exemption is per visit, not a switch left on.
+  h.run('bfUntil = 0');
+  let t = 6000;
+  while (h.run('bfOn') && t < 20000) { t += STEP; step(h, t); }
+  assert.strictEqual(h.run('bfOn'), false, 'the summoned visit never ended');
+  h.run(`startBflyVisit(${t})`);
+  step(h, t + STEP);
+  assert.strictEqual(h.run('bfMode'), 'out', 'an unsolicited visit in work mode should still be sent home');
+});
+
 test('a Focus Guard busy signal sends a flying butterfly home', () => {
   const h = playing();
   step(h, 1000 + STEP);
