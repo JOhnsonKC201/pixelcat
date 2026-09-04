@@ -72,6 +72,75 @@ test('the quiet constants are still spelled the way the fix left them', () => {
   assert.match(RENDERER, /const stroke = Math\.floor\(swing \/ Math\.PI\);/, 'the one-whoosh-per-stroke clock changed');
 });
 
+// Force the wind-up the way the dive path does, aimed IN PLACE so the leap goes
+// straight up and lands where it started, with the bug parked at (bugDx, bugDy)
+// from the feet. At (0, -60) it sits inside the catch radius for every frame past
+// e = 0.4; at (120, -60) the leap can never reach it.
+function armPounce(h, t, bugDx, bugDy) {
+  h.run(`bfMode = 'dive'; bfX = pos.x + ${bugDx}; bfY = pos.y + ${bugDy};
+    huntUntil = ${t} + 1400; huntTarget = { x: pos.x, y: pos.y }; windingUp = true; windupT0 = ${t}; pounceFrom = { x: pos.x, y: pos.y };`);
+}
+// With armPounce(h, 1060, ...): the coil runs 1060..1300, the leap starts at 1360,
+// the catch test first passes at 1540 (e = 0.6) and the cat lands at 1660.
+const ARM = 1060, CATCH = 1540, LAND = 1660;
+
+// Record every eyeMode drawCat is asked for, the way tests/petting.test.js does.
+const watchEyes = (h) => h.run(`
+  var __eyes = [];
+  var __realDrawCat = drawCat;
+  drawCat = function (g, sp, t, pal, o) { __eyes.push([t, o && o.eyeMode]); return __realDrawCat(g, sp, t, pal, o); };
+`);
+
+test('a catch: pink sparks at the paws, happy eyes on the bounce, and exactly one trill', () => {
+  for (const soundOn of [true, false]) {
+    const h = playing({ soundOn });
+    h.run('var __chirps = 0; playChirp = function () { __chirps++; };');
+    watchEyes(h);
+    armPounce(h, ARM, 0, -60);
+    let sparks = -1;
+    for (let t = ARM; t <= 3600; t += STEP) {
+      step(h, t);
+      if (t === CATCH + STEP) sparks = h.run("hearts.filter((x) => x.kind === 'spark').length");
+    }
+    const tag = soundOn ? 'sound on' : 'sound off';
+    assert.strictEqual(h.run('__chirps'), soundOn ? 1 : 0, `${tag}: expected ${soundOn ? 'one trill' : 'silence'} for one catch`);
+    assert.ok(sparks >= 4, `${tag}: only ${sparks} pink sparks a frame after the catch`);
+    const eyes = h.run('__eyes');
+    const bouncing = eyes.filter((e) => e[0] > LAND && e[0] < CATCH + 1400).map((e) => e[1]);
+    assert.ok(bouncing.includes('happy'), `${tag}: the eyes never squeezed shut on the victory bounce`);
+    assert.strictEqual(eyes[eyes.length - 1][1], 'open', `${tag}: the happy eyes stuck after the beat was over`);
+  }
+});
+
+test('a whiff gets no sparkle, no trill and no bounce; the cat just watches it go', () => {
+  const h = playing({ soundOn: true });
+  h.run('var __chirps = 0; playChirp = function () { __chirps++; };');
+  armPounce(h, ARM, 120, -60);
+  for (let t = ARM; t <= LAND; t += STEP) step(h, t);
+  assert.strictEqual(h.run('__chirps'), 0, 'a miss trilled');
+  assert.strictEqual(h.run('hearts.length'), 0, 'a miss threw sparks or a heart');
+  assert.strictEqual(h.run('idleSparkles.length'), 0, 'a miss still got the "got it!" sparkle');
+  assert.ok(h.run('bfJoyT0') < 0, 'a miss opened the victory window');
+  assert.strictEqual(h.run('lookTargetUntil'), LAND + 400, 'the cat should look after the bug it missed');
+  assert.ok(h.run('lookTarget.y') < 0, 'the look after a miss should be UP, where the bug is');
+  assert.ok(h.run('pouncing') === false && h.run('huntUntil') === 0, 'the pounce should be over');
+});
+
+test('a pet set to stay put does not move a pixel through a catch and the bounce after it', () => {
+  const h = playing({ roamOn: false });
+  armPounce(h, ARM, 0, -60);
+  for (let t = ARM; t <= LAND; t += STEP) step(h, t);
+  assert.ok(h.run('bfJoyT0') >= 0, 'the leap should have connected');
+  const x0 = h.run('pos.x'), y0 = h.run('pos.y');
+  let worst = 0;
+  for (let t = LAND + STEP; t <= 3700; t += STEP) {
+    step(h, t);
+    worst = Math.max(worst, Math.abs(h.run('pos.x') - x0), Math.abs(h.run('pos.y') - y0));
+    assert.strictEqual(h.run('roamUntil'), 0, `a wander was armed at ${t}ms`);
+  }
+  assert.strictEqual(worst, 0, `the victory beat moved a stay-put pet ${worst.toFixed(2)}px`);
+});
+
 test('a Focus Guard busy signal sends a flying butterfly home', () => {
   const h = playing();
   step(h, 1000 + STEP);

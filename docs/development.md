@@ -97,7 +97,7 @@ same sprites.
 Single poses preview via:
 
 ```powershell
-npx electron . --shot --state=<sit|typing|hunt|loaf|groom|paper|overheat|pet|startle|work> --pattern=<coat>
+npx electron . --shot --state=<sit|typing|hunt|loaf|groom|paper|overheat|pet|startle|work|rearup> --pattern=<coat>
 ```
 
 Add `--at=<ms>` to capture an animated pose at a chosen phase (a typing key-press,
@@ -105,6 +105,13 @@ say): `npx electron . --shot --state=typing --at=760`. Add `--note="<text>"` to
 pin a speech bubble open in the capture, which is how bubble wrapping and
 screen-edge clamping get checked against a real font rather than only in unit
 tests: `npx electron . --shot --note="a long reminder that has to wrap"`.
+
+The butterfly has two flags of its own. `--bfly` forces a visit from the first
+frame, so `npx electron . --shot --bfly --state=rearup --at=1021` frames the
+rear-up swat with the bug in shot. The catch itself cannot happen in a shot (both
+pounce triggers stand down under `--shot`), so `--joy` pins the victory beat that
+follows one: `npx electron . --shot --joy --at=350` is the first bounce, `--at=1050`
+the smaller second one, and anything past `--at=1400` is the face alone.
 
 ## Painting a pose by hand
 
