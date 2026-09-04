@@ -72,14 +72,15 @@ test('the quiet constants are still spelled the way the fix left them', () => {
   assert.match(RENDERER, /const stroke = Math\.floor\(swing \/ Math\.PI\);/, 'the one-whoosh-per-stroke clock changed');
 });
 
-// Force the wind-up the way the dive path does, aimed IN PLACE so the leap goes
-// straight up and lands where it started, with the bug parked at (bugDx, bugDy)
-// from the feet. At (0, -60) it sits inside the catch radius for every frame past
-// e = 0.4; at (120, -60) the leap can never reach it.
+// Force the wind-up the way the dive path does: the bug parked at (bugDx, bugDy)
+// from the feet and the hunt aimed at it, exactly as the trigger does. The leap
+// aims the FEET one paw-reach under the bug, so a bug straight overhead at
+// -POUNCE_REACH gives a leap that goes straight up and lands where it started.
 function armPounce(h, t, bugDx, bugDy) {
   h.run(`bfMode = 'dive'; bfX = pos.x + ${bugDx}; bfY = pos.y + ${bugDy};
-    huntUntil = ${t} + 1400; huntTarget = { x: pos.x, y: pos.y }; windingUp = true; windupT0 = ${t}; pounceFrom = { x: pos.x, y: pos.y };`);
+    huntUntil = ${t} + 1400; huntTarget = { x: bfX, y: bfY }; windingUp = true; windupT0 = ${t}; pounceFrom = { x: pos.x, y: pos.y };`);
 }
+const REACH = (h) => h.run('POUNCE_REACH');
 // With armPounce(h, 1060, ...): the coil runs 1060..1300, the leap starts at 1360,
 // the catch test first passes at 1540 (e = 0.6) and the cat lands at 1660.
 const ARM = 1060, CATCH = 1540, LAND = 1660;
@@ -96,7 +97,7 @@ test('a catch: pink sparks at the paws, happy eyes on the bounce, and exactly on
     const h = playing({ soundOn });
     h.run('var __chirps = 0; playChirp = function () { __chirps++; };');
     watchEyes(h);
-    armPounce(h, ARM, 0, -60);
+    armPounce(h, ARM, 0, -REACH(h));
     let sparks = -1;
     for (let t = ARM; t <= 4000; t += STEP) {
       step(h, t);
@@ -112,11 +113,14 @@ test('a catch: pink sparks at the paws, happy eyes on the bounce, and exactly on
   }
 });
 
-test('a whiff gets no sparkle, no trill and no bounce; the cat just watches it go', () => {
+test('a whiff (the bug jinks as the cat coils) gets no sparkle, no trill and no bounce; the cat watches it go', () => {
   const h = playing({ soundOn: true });
   h.run('var __chirps = 0; playChirp = function () { __chirps++; };');
-  armPounce(h, ARM, 120, -60);
-  for (let t = ARM; t <= LAND; t += STEP) step(h, t);
+  armPounce(h, ARM, 0, -REACH(h));
+  for (let t = ARM; t <= LAND; t += STEP) {
+    if (t === ARM + STEP * 2) h.run('bfX = pos.x + 90');   // the jink, applied by hand: the aim is already committed
+    step(h, t);
+  }
   assert.strictEqual(h.run('__chirps'), 0, 'a miss trilled');
   assert.strictEqual(h.run('hearts.length'), 0, 'a miss threw sparks or a heart');
   assert.strictEqual(h.run('idleSparkles.length'), 0, 'a miss still got the "got it!" sparkle');
@@ -134,7 +138,7 @@ const HELD_MS = 550;
 
 test('a pet set to stay put does not move a pixel through a catch, the hold and the bounce after it', () => {
   const h = playing({ roamOn: false });
-  armPounce(h, ARM, 0, -60);
+  armPounce(h, ARM, 0, -REACH(h));
   for (let t = ARM; t <= LAND; t += STEP) step(h, t);
   assert.strictEqual(h.run('bfMode'), 'held', 'the leap should have connected and the bug should be in the paws');
   const x0 = h.run('pos.x'), y0 = h.run('pos.y');
@@ -246,6 +250,34 @@ test('"Send a butterfly" in work mode gets a visit that stays; an unsolicited on
   h.run(`startBflyVisit(${t})`);
   step(h, t + STEP);
   assert.strictEqual(h.run('bfMode'), 'out', 'an unsolicited visit in work mode should still be sent home');
+});
+
+// The aim fix makes a leap at a frozen bug connect every time, which would end a visit at
+// the first pounce a couple of seconds in. Across seeds, with the opening embargo and the
+// jink in place: most visits still end in a catch, some pounces still whiff, and no pounce
+// happens before the embargo is up. (Before the aim fix: 0 catches in 316 pounces.)
+test('most visits end in a catch, some pounces still whiff, none in the opening seconds', () => {
+  let visits = 0, caught = 0, pounces = 0, whiffs = 0, earliest = Infinity, embargo = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const h = loadOverlay({ seed: 0x9e3779b9 + seed * 7919 });
+    h.ipc('onConfig', { species: 'cat', soundOn: false, butterflyOn: true, followCursor: true, floorLock: true, roamOn: true, moodOn: false });
+    h.run('startBflyVisit(1000); lastCursorMove = -99999;');
+    embargo = h.run('BF_POUNCE_AFTER_MS');
+    visits++;
+    let wasP = false, got = false;
+    for (let t = 1000 + STEP; t <= 45000 && h.run('bfOn'); t += STEP) {
+      step(h, t);
+      const p = h.run('pouncing');
+      if (p && !wasP) { pounces++; earliest = Math.min(earliest, t - 1000); }
+      if (!p && wasP) { if (h.run("bfMode === 'held'")) got = true; else whiffs++; }
+      wasP = p;
+    }
+    if (got) caught++;
+  }
+  assert.ok(pounces >= visits, pounces + ' pounces in ' + visits + ' visits: the cat has stopped trying');
+  assert.ok(caught / visits >= 0.6, 'only ' + caught + ' of ' + visits + ' visits ended in a catch');
+  assert.ok(whiffs >= 1, 'every single pounce connected: the jink is gone and it is no longer a game');
+  assert.ok(earliest >= embargo, 'a pounce ' + earliest + 'ms into a visit, before the ' + embargo + 'ms of watching and swatting');
 });
 
 test('a Focus Guard busy signal sends a flying butterfly home', () => {

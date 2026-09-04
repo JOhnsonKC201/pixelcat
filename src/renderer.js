@@ -1050,7 +1050,7 @@ let bfSwatT0 = 0, bfSwatUntil = 0, bfBatHit = 0;
 // (bfMode 'held'), then slips out, and a short victory window opens that the idle
 // branch turns into a double bounce with happy eyes and a blush. Render-only: none
 // of this moves pos.
-let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0, bfHeldUntil = 0, bfNoticeT0 = -1;
+let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0, bfHeldUntil = 0, bfNoticeT0 = -1, bfVisitT0 = 0;
 // Set by the "Send a butterfly" button. Work mode and a Focus Guard busy signal stop
 // the pet wandering off and stop UNSOLICITED visits; they do not veto what you clicked,
 // the same rule the treat and the ball already follow (see giveTrekOn). Cleared when
@@ -1808,6 +1808,14 @@ function renderPlay(palRGB, oy, t, step) {
 
 // hunt/pet tuning
 const HUNT_TRIGGER = 0.4, HUNT_SPEED = 6, STANDOFF = 28, POUNCE_RANGE = 46, POUNCE_MS = 300, POUNCE_WINDUP_MS = 300;
+// The catch happens at the paws, POUNCE_REACH above the feet at the apex of the leap.
+const POUNCE_LEAP = 32, POUNCE_REACH = HH * 0.55 + POUNCE_LEAP;
+// The bug is frozen for the whole hunt (the flight integrator is paused while hunting), so a
+// correctly aimed leap always connects and a visit would end at the first pounce, a couple
+// of seconds after arrival. Two things keep it a game: no pounce in the first
+// BF_POUNCE_AFTER_MS of a visit (the notice, the stalk and a swat or two come first), and a
+// BF_JINK_P chance the bug flits aside as the cat coils, so the cat, committed, whiffs.
+const BF_JINK_P = 0.3, BF_POUNCE_AFTER_MS = 7000;
 // Patting: how fast the hand may move and still count as a stroke (px/ms - above
 // this you are flicking past, not petting), and how long a touch stays warm after
 // the pointer moves on, so one stroke does not read as a dozen separate taps.
@@ -1909,7 +1917,7 @@ function drawButterfly(g, bx, by, sc, st, flap, t, rot) {
 }
 function startBflyVisit(t) {
   if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) pos = { x: viewW / 2, y: viewH - 80 };
-  bfOn = true; bfMode = 'in'; bfUntil = t + 22000 + Math.random() * 8000;
+  bfOn = true; bfMode = 'in'; bfUntil = t + 22000 + Math.random() * 8000; bfVisitT0 = t;
   bfPal = (bfPal + 1) % BFLY_STYLES.length; bfNextPal = t + 8000 + Math.random() * 4000;
   // enter from whichever side has more room (toward screen interior) so it never spawns
   // pinned into a corner.
@@ -2003,7 +2011,7 @@ function updateButterflyDesk(t, dt, step, f) {
       // stay put still bolted after every butterfly dive - and huntOn does not cover
       // it, because huntOn is about the CURSOR.
       const mayLeaveSpot = !(config && config.roamOn === false);
-      if (mayLeaveSpot && cursorIdle && Math.random() < 0.55 && !f.hunting && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
+      if (mayLeaveSpot && cursorIdle && Math.random() < 0.55 && t - bfVisitT0 > BF_POUNCE_AFTER_MS && !f.hunting && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
     }
     // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
@@ -2085,7 +2093,7 @@ function updateButterflyDesk(t, dt, step, f) {
   }
   const dh = Math.hypot(bfX - headX, bfY - headY);
   // the chase pays off: once the cat has crept within range of a calmly wandering bug, pounce at it
-  if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && !f.hunting && t >= huntUntil && t > bfSwatCool && !SHOT) {
+  if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && t - bfVisitT0 > BF_POUNCE_AFTER_MS && !f.hunting && t >= huntUntil && t > bfSwatCool && !SHOT) {
     huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; bfSwatCool = t + 900;
   }
   // gentle paw-swat: the bug is near the head but just out of pounce range (or the pounce is
@@ -2401,7 +2409,11 @@ function draw(t) {
     sendHot(pos.x - SW / 2 - 6, oy - 6, SW + 12, SH + 12, false);
   } else if (hunting) {
     // ---- MOUSE HUNT: stalk toward the cursor, then pounce -------------------
-    const _raw = huntTarget || cursor; const _ht = { x: zoneClampX(_raw.x), y: zoneClampY(_raw.y) }; const dx = _ht.x - pos.x, dy = _ht.y - pos.y, d = Math.hypot(dx, dy) || 1;   // aim ONLY inside the play area, so a pounce (incl. chasing a butterfly) never leaps to screen center
+    // A butterfly hunt targets the BUG, but the catch happens at the paws, POUNCE_REACH above
+    // the feet at the apex of the leap: aim the feet that far under it, or the cat flies
+    // through the bug feet-first and the paws close on air (0 catches in 316 measured
+    // pounces before this). The cursor hunt keeps aiming at the cursor itself.
+    const _raw = huntTarget ? { x: huntTarget.x, y: huntTarget.y + POUNCE_REACH } : cursor; const _ht = { x: zoneClampX(_raw.x), y: zoneClampY(_raw.y) }; const dx = _ht.x - pos.x, dy = _ht.y - pos.y, d = Math.hypot(dx, dy) || 1;   // aim ONLY inside the play area, so a pounce (incl. chasing a butterfly) never leaps to screen center
     let leap = 0, stretchY = 1, coil = 0, wiggle = 0;
     // the wind-up coil completes -> spring into the pounce
     if (windingUp && t - windupT0 >= POUNCE_WINDUP_MS) { windingUp = false; pouncing = true; pounceT0 = t; pounceTarget = { x: _ht.x, y: _ht.y }; }
@@ -2411,7 +2423,7 @@ function draw(t) {
       const tgt = pounceTarget || cursor;
       pos.x = pounceFrom.x + (tgt.x - pounceFrom.x) * ease;
       pos.y = pounceFrom.y + (tgt.y - pounceFrom.y) * ease;
-      leap = Math.sin(e * Math.PI) * 32; stretchY = 1 + Math.sin(e * Math.PI) * 0.26;   // a big, paws-up leap
+      leap = Math.sin(e * Math.PI) * POUNCE_LEAP; stretchY = 1 + Math.sin(e * Math.PI) * 0.26;   // a big, paws-up leap
       // the catch: if the leap reaches a real butterfly, the cat bats it between its paws.
       // A fan of pink sparkles and a heart at the paws and one pleased trill; the bug is
       // held there for a moment ('held' in updateButterflyDesk), then slips out and climbs
@@ -2446,7 +2458,12 @@ function draw(t) {
       wiggle = Math.sin(t / 55) * 2.4 * coil;  // side-to-side butt-wiggle (render-only offset)
     } else if (FORCED_STATE !== 'hunt' && d < POUNCE_RANGE) {
       // the butterfly pounce telegraphs with a wind-up coil first; the cursor hunt stays snappy
-      if (bfOn && huntTarget) { windingUp = true; windupT0 = t; pounceFrom = { x: pos.x, y: pos.y }; wagBoost = Math.max(wagBoost, 0.4); }
+      if (bfOn && huntTarget) {
+        windingUp = true; windupT0 = t; pounceFrom = { x: pos.x, y: pos.y }; wagBoost = Math.max(wagBoost, 0.4);
+        // the jink: the bug flits aside while the cat is coiling. huntTarget is deliberately
+        // NOT re-aimed, so the leap goes where the bug was and the cat watches it get away.
+        if (Math.random() < BF_JINK_P) { const s = bfX < pos.x ? -1 : 1; bfX = clamp(bfX + s * 64, BF_EDGE, viewW - BF_EDGE); bfY = Math.max(BF_TOP, bfY - 26); }
+      }
       else { pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: _ht.x, y: _ht.y }; }   // leap toward the zone-clamped target (stays in the play area)
     } else if (FORCED_STATE !== 'hunt') {
       const mv = Math.min(Math.max(0, d - STANDOFF), HUNT_SPEED * step);
