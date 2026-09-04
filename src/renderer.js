@@ -1813,9 +1813,17 @@ const POUNCE_LEAP = 32, POUNCE_REACH = HH * 0.55 + POUNCE_LEAP;
 // The bug is frozen for the whole hunt (the flight integrator is paused while hunting), so a
 // correctly aimed leap always connects and a visit would end at the first pounce, a couple
 // of seconds after arrival. Two things keep it a game: no pounce in the first
-// BF_POUNCE_AFTER_MS of a visit (the notice, the stalk and a swat or two come first), and a
+// BF_POUNCE_AFTER_MS of a visit (the notice, the stalk and a first swat come first), and a
 // BF_JINK_P chance the bug flits aside as the cat coils, so the cat, committed, whiffs.
-const BF_JINK_P = 0.3, BF_POUNCE_AFTER_MS = 7000;
+const BF_JINK_P = 0.3, BF_POUNCE_AFTER_MS = 4000;
+// The hunt target is clamped to the play area (a pounce must never leave it), but the bug
+// flies on screen-margin clamps of its own, so it can hover past an edge the cat may not
+// cross. A leap at it goes straight up under nothing: a miss with no story. This says
+// whether the clamped target still puts the paws within the catch radius of the bug.
+function bugPounceable() {
+  const ty = bfY + POUNCE_REACH;
+  return Math.abs(zoneClampX(bfX) - bfX) <= 24 && Math.abs(zoneClampY(ty) - ty) <= 44;
+}
 // Patting: how fast the hand may move and still count as a stroke (px/ms - above
 // this you are flicking past, not petting), and how long a touch stays warm after
 // the pointer moves on, so one stroke does not read as a dozen separate taps.
@@ -2011,7 +2019,7 @@ function updateButterflyDesk(t, dt, step, f) {
       // stay put still bolted after every butterfly dive - and huntOn does not cover
       // it, because huntOn is about the CURSOR.
       const mayLeaveSpot = !(config && config.roamOn === false);
-      if (mayLeaveSpot && cursorIdle && Math.random() < 0.55 && t - bfVisitT0 > BF_POUNCE_AFTER_MS && !f.hunting && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
+      if (mayLeaveSpot && cursorIdle && Math.random() < 0.55 && t - bfVisitT0 > BF_POUNCE_AFTER_MS && bugPounceable() && !f.hunting && !SHOT) { huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; }
     }
     // hold the dive while a hunt is in progress so the bug stays reachable for the pounce
     if (bfMode === 'dive' && t > bfDiveUntil && t >= huntUntil) bfMode = 'wander';
@@ -2027,7 +2035,11 @@ function updateButterflyDesk(t, dt, step, f) {
     // climb within the band (mirrors site/cat-live.js's figure-eight, just penned in).
     bfPhase += DRIFT_PHASE_RATE * dtf;
     const ax = BF_LISSA_AX, ay = BF_LISSA_AY;
-    const zL = Math.max(BF_EDGE, headX - BF_ZONE_X), zR = Math.min(viewW - BF_EDGE, headX + BF_ZONE_X);
+    // ...and inside the reach of a cat that may not leave its play area: a bug hovering just
+    // past that edge could only ever be swatted at (see bugPounceable), never caught. A cat
+    // resting in a corner would otherwise spend half of every visit watching one it cannot have.
+    const reachL = zoneClampX(0) - 20, reachR = zoneClampX(viewW) + 20;
+    const zL = Math.max(BF_EDGE, headX - BF_ZONE_X, reachL), zR = Math.min(viewW - BF_EDGE, headX + BF_ZONE_X, reachR);
     const zT = Math.max(BF_TOP, headY - BF_ZONE_TOP), zB = Math.min(viewH - BF_EDGE, headY + BF_ZONE_BOT);
     if (t > bfNextDrift) {
       // pick the figure-eight CENTER inside the zone, inset by the swing so the whole
@@ -2093,7 +2105,7 @@ function updateButterflyDesk(t, dt, step, f) {
   }
   const dh = Math.hypot(bfX - headX, bfY - headY);
   // the chase pays off: once the cat has crept within range of a calmly wandering bug, pounce at it
-  if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && t - bfVisitT0 > BF_POUNCE_AFTER_MS && !f.hunting && t >= huntUntil && t > bfSwatCool && !SHOT) {
+  if (cursorIdle && bfMode === 'wander' && dh < BUG_POUNCE_TRIGGER && t - bfVisitT0 > BF_POUNCE_AFTER_MS && bugPounceable() && !f.hunting && t >= huntUntil && t > bfSwatCool && !SHOT) {
     huntUntil = t + 1400; huntTarget = { x: bfX, y: bfY }; bfSwatCool = t + 900;
   }
   // gentle paw-swat: the bug is near the head but just out of pounce range (or the pounce is
