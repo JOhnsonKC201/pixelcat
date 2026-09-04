@@ -4,6 +4,15 @@ Notable changes to **pixelpets**. All art and sound are original/procedural (no 
 
 ## [Unreleased]
 
+### Butterfly
+- **The catch is a catch now.** A leap that reached the butterfly threw six white pixels and a heart, made no sound, changed nothing on the face, and the cat snapped straight back to idle; a leap that missed looked exactly the same. Now the bug is held: pinned between the reaching paws for the rest of the leap, then cupped in front of the chest for half a second with its wings barely moving while the cat peers down at it, wide-eyed and blushing. Then it slips out and climbs away and the cat does a quick double bounce after it with happy eyes, a fan of pink sparkles and one pleased trill (Sound on only). A whiff gets none of that: the cat lands and looks up after the bug instead.
+- **The catch really ends the visit.** The dodge reflex had no notion of a bug that was leaving, so the one climbing away after a catch passed under the head and was startled straight back into play. The visit ends when it says it does.
+- **The swat has a body.** The cat rises on its haunches with the reaching paw and the whoosh scales with mood. The cadence from the sound fix below is untouched (one whoosh per swat, swats 2.6 to 4 seconds apart), and a test now pins both numbers, which nothing did before.
+- **The tail joins in.** It sways quicker and wider while a butterfly is in play and for a few seconds after a catch, the way the dog's already did. The resting wag is unchanged.
+- **It notices.** A small perk and a "!" over the head when the bug is first spotted.
+- **A meeting sends it home.** Focus Guard blocked new visits but left a butterfly that was already flying; the same signal now sends it off mid-visit, the way work mode does.
+- QA: `--bfly` forces a visit into a `--shot`, `--joy` pins the victory beat (the catch itself cannot happen in a shot), and `--state=rearup` is documented.
+
 ### iPad terminal
 - **A terminal on the iPad, pointed at the machine that has one.** `npm run ipad:lan` prints a URL; Safari on the tablet opens a real shell - `vim`, `top`, tab completion, colours - on this computer. The thing it deliberately does *not* do is control other iPad apps: iPadOS sandboxes every app and exposes no API for it, so a tool that promised that would be lying. Shortcuts is the only sanctioned cross-app path on a tablet, and only for apps publishing App Intents.
 - **Switching apps no longer kills your build.** Safari suspends a backgrounded tab, so the naive version of this loses the shell the moment you check a message. The shell now outlives its connection, and the client counts the bytes it has rendered so a reconnect asks for exactly the gap - output made while you were away is replayed, output you already read is not repeated.

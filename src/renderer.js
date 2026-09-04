@@ -638,7 +638,12 @@ function decayWag(dt) { if (wagBoost > 0) wagBoost = Math.max(0, wagBoost - dt *
 // opens because the mood scalar it comes from is local to draw().
 function bfJoyHop(t) {
   if (bfJoyT0 < 0 || t >= bfJoyUntil) return 0;
-  const je = clamp((t - bfJoyT0) / BF_JOY_MS, 0, 1);
+  // Only the --joy preview flag leaves the window open forever; loop the bounce for
+  // it (1.4s on, 0.6s still) the way --state=done loops its hop, because a shot's
+  // --at counts from page load while this clock started earlier, so no single
+  // --at lands on a known phase of a one-shot beat.
+  const je = bfJoyUntil === Infinity ? (t % (BF_JOY_MS + 600)) / BF_JOY_MS : clamp((t - bfJoyT0) / BF_JOY_MS, 0, 1);
+  if (je >= 1) return 0;
   return Math.abs(Math.sin(je * Math.PI * 2)) * bfJoyAmp * (1 - je * 0.5);
 }
 const HOT_BODY = '#d9534f', HOT_OUTLINE = '#7a1f1a';
@@ -942,18 +947,21 @@ function renderRearBat(t, palRGB, blinking, o) {
     if (config && config.soundOn && t > nextSwipeSound) { nextSwipeSound = t + 900; playSwipe(o.strength == null ? 1 : o.strength); }
   }
   const sp = batSpriteFor(patternIndex, left >= right ? -1 : 1, topPh);
+  // The body rises on its haunches with the reaching paw. Render-only: pos, the
+  // near-miss test below and the hot region all stay where they were.
+  const lift = o.lift ? Math.round(topPh * o.lift) : 0;
   drawShadow(pos.x, pos.y, 0.2, 34);
   octx.clearRect(0, 0, oc.width, oc.height);
   drawCat(octx, sp, t, palRGB, { bob: 0, blinking, look: { x: clamp((tgtX - pos.x) / 160, -1, 1),
     y: aimed ? clamp((o.tgtY - (pos.y - SH)) / 110, -1, 1) : -0.75 } });   // eyes follow the target (the bug tips them up)
   ctx.save();
-  ctx.translate(pos.x, pos.y);
+  ctx.translate(pos.x, pos.y - lift);
   ctx.rotate(clamp((tgtX - pos.x) / 520, -0.08, 0.08));         // lean toward the bug
   ctx.drawImage(oc, 0, 0, SW, BAT_H, -SW / 2, -BAT_H, SW, BAT_H);
   ctx.restore();
   // near-miss: when a paw strikes up near the bug it startles and darts off (hit-cooldown)
   if (!aimed && hasBug && topPh > 0.7 && Math.hypot(bfX - pos.x, bfY - (oy - 2)) < 50 && t > bfBatHit && bfMode !== 'dodge' && bfMode !== 'held') {
-    bfBatHit = t + 220; bfMode = 'dodge'; bfDodgeUntil = t + 360;
+    bfBatHit = t + 220; bfMode = 'dodge'; bfDodgeUntil = t + 360; wagBoost = Math.max(wagBoost, 0.5);
     const aw = Math.atan2(bfY - pos.y, bfX - pos.x) + (Math.random() - 0.5); bfVx = Math.cos(aw) * 9; bfVy = Math.sin(aw) * 9;
     if (!lowPower) idleSparkles.push({ x: bfX, y: bfY, t0: t });
   }
@@ -963,14 +971,19 @@ function renderRearBat(t, palRGB, blinking, o) {
 // right, then the last segments curl gently up. Tapers from a thick base to a
 // pale rounded tip; flicks on idle actions and wags faster while petted.
 // Drawn behind the body so its root tucks under.
-function drawTail(footX, footY, t, pal, flickT0, petting) {
+function drawTail(footX, footY, t, pal, flickT0, petting, excite) {
   const baseX = footX + SW * 0.20, baseY = footY - SH * 0.22, segLen = SH * 0.052;
   // Rest pose per segment (rad): dive down behind the haunch, level out along
   // the ground, then curl the tip up. (+y is down on canvas.)
   const REST = [1.30, 1.10, 0.85, 0.55, 0.28, 0.08, -0.05, -0.45, -0.85, -1.20];
   let flick = 0;
   if (flickT0 >= 0 && t - flickT0 < 650) { const e = (t - flickT0) / 650; flick = Math.sin(e * Math.PI * 3) * (1 - e) * 0.45; }
-  const wag = Math.sin(t / 540) * ((config && config.reducedMotion) ? 0.07 : 0.12) + (petting ? Math.sin(t / 120) * 0.08 : 0);   // gentler resting sway in Calm mode
+  // Excitement (0..1: wagBoost, plus a butterfly in play) is an ADDED quicker sway, the
+  // way the petting term is, never a change to the base rate: sin(t / rate) with a rate
+  // that decays frame by frame jumps phase at large t and reads as a twitch.
+  const calm = !!(config && config.reducedMotion);   // gentler resting sway in Calm mode, and no excitement on top
+  const ex = calm ? 0 : clamp(excite || 0, 0, 1);
+  const wag = Math.sin(t / 540) * (calm ? 0.07 : 0.12 + ex * 0.06) + (petting ? Math.sin(t / 120) * 0.08 : 0) + ex * Math.sin(t / 170) * 0.10;
   const pts = [[baseX, baseY]];
   let x = baseX, y = baseY, dev = 0;
   for (let i = 0; i < REST.length; i++) {
@@ -1037,7 +1050,7 @@ let bfSwatT0 = 0, bfSwatUntil = 0, bfBatHit = 0;
 // (bfMode 'held'), then slips out, and a short victory window opens that the idle
 // branch turns into a double bounce with happy eyes and a blush. Render-only: none
 // of this moves pos.
-let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0, bfHeldUntil = 0;
+let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0, bfHeldUntil = 0, bfNoticeT0 = -1;
 // a short fading sparkle trail behind the butterfly
 let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
@@ -1829,7 +1842,7 @@ const BF_ZONE_X = 150, BF_ZONE_TOP = 130, BF_ZONE_BOT = 40;
 const BF_LISSA_AX = 70, BF_LISSA_AY = 44;
 // Gentle paw-swat at a butterfly that's near the head but just out of full-pounce range.
 const BF_SWAT_RANGE = 150, BF_SWAT_MS = 600;
-const BF_JOY_MS = 1400, BF_HELD_MS = 550;   // the victory beat after a catch, and how long the bug is held first
+const BF_JOY_MS = 1400, BF_HELD_MS = 550, BF_NOTICE_MS = 500;   // the victory beat after a catch, how long the bug is held first, the "oh!" when it arrives
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
@@ -1851,7 +1864,7 @@ function addEnergy(n) { energy = clamp(energy + n, 0, 100); }
 // A dog that has just been sprinting pants. Tied to the zoomies band so it shows
 // up exactly when the sprite is already visibly worked up.
 function updateDogVitals(t, dt) {
-  if (!isDog()) { wagBoost = 0; pantUntil = 0; return; }
+  if (!isDog()) { pantUntil = 0; decayWag(dt); return; }   // a cat's wagBoost decays like a dog's now: the cat tail reads it
   decayWag(dt);
   if (energy > PLAYFUL_MAX && t > pantUntil) pantUntil = t + 3000;
 }
@@ -1975,7 +1988,7 @@ function updateButterflyDesk(t, dt, step, f) {
     bfJoyT0 = t; bfJoyUntil = t + BF_JOY_MS;
   }
   if (bfMode !== 'out') {
-    if (bfMode === 'in' && (Math.hypot(bfX - headX, bfY - headY) < 160 || t > bfNextDive)) bfMode = 'wander';
+    if (bfMode === 'in' && (Math.hypot(bfX - headX, bfY - headY) < 160 || t > bfNextDive)) { bfMode = 'wander'; bfNoticeT0 = t; }   // spotted it
     if (bfMode === 'wander' && t > bfNextDive) {
       bfMode = 'dive'; bfDiveUntil = t + 1800; bfNextDive = t + 3500 + Math.random() * 3500;
       // The pounce borrows the hunt target and carries the pet across the screen, so
@@ -2407,7 +2420,7 @@ function draw(t) {
         popLove(t, cx, cy - 6, 1.4, 10);
         bfMode = 'held'; bfHeldUntil = t + BF_HELD_MS; bfJoyAmp = motionOK ? 14 * intensity : 0;
         bfVx = 0; bfVy = 0; bfX = cx; bfY = cy + 6;
-        addEnergy(22); tailFlickT0 = t;
+        addEnergy(22); tailFlickT0 = t; wagBoost = 1;
         if (config && config.soundOn) playChirp();   // "gotcha": once per catch; the guard above makes it unrepeatable
       }
       if (bfMode === 'held') { bfX = pos.x; bfY = pos.y - leap - HH * 0.6 + 6; }   // ride the rest of the leap in the paws (the flight integrator is paused while hunting)
@@ -2427,7 +2440,7 @@ function draw(t) {
       wiggle = Math.sin(t / 55) * 2.4 * coil;  // side-to-side butt-wiggle (render-only offset)
     } else if (FORCED_STATE !== 'hunt' && d < POUNCE_RANGE) {
       // the butterfly pounce telegraphs with a wind-up coil first; the cursor hunt stays snappy
-      if (bfOn && huntTarget) { windingUp = true; windupT0 = t; pounceFrom = { x: pos.x, y: pos.y }; }
+      if (bfOn && huntTarget) { windingUp = true; windupT0 = t; pounceFrom = { x: pos.x, y: pos.y }; wagBoost = Math.max(wagBoost, 0.4); }
       else { pouncing = true; pounceT0 = t; pounceFrom = { x: pos.x, y: pos.y }; pounceTarget = { x: _ht.x, y: _ht.y }; }   // leap toward the zone-clamped target (stays in the play area)
     } else if (FORCED_STATE !== 'hunt') {
       const mv = Math.min(Math.max(0, d - STANDOFF), HUNT_SPEED * step);
@@ -2616,6 +2629,9 @@ function draw(t) {
     const joyOn = bfJoyT0 >= 0 && t < bfJoyUntil && !grabbing;
     const bfHeld = bfOn && bfMode === 'held';   // peering at the bug cupped in its paws
     if (joyOn && !hopActive) { hop = bfJoyHop(t); hopActive = true; }
+    // "oh! a butterfly": a small perk when the bug is first spotted. hopActive stays
+    // false on purpose, so the eyes stay open and nothing else treats it as a bounce.
+    else if (!hopActive && bfNoticeT0 >= 0 && t - bfNoticeT0 < BF_NOTICE_MS && !((config && config.reducedMotion) || lowPower)) hop = Math.sin((t - bfNoticeT0) / BF_NOTICE_MS * Math.PI) * 6;
 
     // The painted scene is a whole picture (cat + rope + ball) and replaces the
     // sprite rather than drawing over it, so it gets its own branch. Computed here
@@ -2635,7 +2651,11 @@ function draw(t) {
     } else if (batting || swatting) {
       // Rear up on the haunches and swipe overhead with both paws: at the butterfly
       // when it visits, at the streaking leaf while you scroll.
-      const aim = swatting ? { tgtX: swatLeaf.x, tgtY: swatLeaf.y, swingT0: swatT0 } : null;
+      // The butterfly swat gets a haunch lift and a whoosh scaled by mood (calm 0.73,
+      // playful 0.85, zoomies 1.0); both were fixed before. Only the cadence is sacred.
+      const motionOK = !((config && config.reducedMotion) || lowPower);
+      const aim = swatting ? { tgtX: swatLeaf.x, tgtY: swatLeaf.y, swingT0: swatT0 }
+        : { lift: motionOK ? 4 * intensity : 0, strength: clamp(0.55 + 0.3 * intensity, 0, 1) };
       const ph = renderRearBat(t, palRGB, blinking, aim);
       if (swatting) {
         // Connect: a paw at full stretch near the leaf sends it spinning off. Once
@@ -2687,7 +2707,7 @@ function draw(t) {
       if (!stretching && !thinking && !working && !loafing) {
         // loaf/curl has a baked, wrapped tail of its own
         if (isDog()) drawDogTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting, energy / 100 + (ball && ball.phase === 'carry' ? 0.5 : 0));
-        else drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting);
+        else drawTail(pos.x + wig, pos.y, t, pal, tailFlickT0, petting, clamp(wagBoost + (bfOn && bfMode !== 'out' && cursorIdleNow ? 0.5 : 0), 0, 1));
       }
       if (!lowPower && restIdle && band === 'calm' && !paperActive && t > nextIdleSparkle) {   // ambient sparkles off in low power (they pin the loop at 60fps)
         idleSparkles.push({ x: pos.x + (Math.random() - 0.5) * 8, y: oy, t0: t });
@@ -2784,6 +2804,11 @@ function draw(t) {
     ctx.globalAlpha = 1;
     drawButterfly(ctx, bfX, bfY, BF_SCALE, BFLY_STYLES[bfPal], bfFlap, t, clamp(bfVx / 44, -0.22, 0.22));
   }
+  // the "!" over the head for half a second when the bug is first spotted (outside the
+  // pose branches so it shows whatever the cat was doing; silent by construction)
+  // Above whichever body is drawn: the bug arrives inside swat range often enough that
+  // the cat can already be reared up, and the bat sprite is a head taller than the sit.
+  if (bfOn && bfNoticeT0 >= 0 && t - bfNoticeT0 < BF_NOTICE_MS && !grabbing && !typing) drawDoneSpark(pos.x + 2, pos.y - (batting ? BAT_H : SH) - 4, t);
   drawTreat();   // the fish sits on the floor line, under the hearts
   drawBall(t);   // the tennis ball rides above the floor line (and the muzzle when carried)
   // floating hearts (update + draw; persist after petting ends)

@@ -110,8 +110,13 @@ The butterfly has two flags of its own. `--bfly` forces a visit from the first
 frame, so `npx electron . --shot --bfly --state=rearup --at=1021` frames the
 rear-up swat with the bug in shot. The catch itself cannot happen in a shot (both
 pounce triggers stand down under `--shot`), so `--joy` pins the victory beat that
-follows one: `npx electron . --shot --joy --at=350` is the first bounce, `--at=1050`
-the smaller second one, and anything past `--at=1400` is the face alone.
+follows one: happy eyes and a blush the whole time, and the double bounce looping
+every two seconds (1.4 s of bounce, 0.6 s still), the way `--state=done` loops its
+hop. It loops because `--at` counts from page load while the renderer's clock
+started earlier, so no single `--at` lands on a known phase: take two or three
+captures a few hundred milliseconds apart and one of them is mid-bounce. The
+"oh!" beat when the bug is first spotted opens on the very first frame, before
+the capture timer starts, so it is covered by a test rather than a shot.
 
 ## Painting a pose by hand
 
