@@ -236,8 +236,11 @@ test('"Send a butterfly" in work mode gets a visit that stays; an unsolicited on
   h.run('draw(1000)');
   h.ipc('onAction', 'companion');
   assert.ok(h.run('bfOn'), 'the button should still summon a butterfly in work mode');
+  let caught = false;
   for (let t = 1000 + STEP; t <= 6000; t += STEP) {
     step(h, t);
+    caught = caught || h.run("bfMode === 'held'");
+    if (caught) break;   // a catch ends a visit on purpose: that is the play working, not work mode
     assert.ok(h.run('bfOn'), `the summoned butterfly despawned at ${t}ms`);
     assert.notStrictEqual(h.run('bfMode'), 'out', `work mode sent the butterfly you asked for home at ${t}ms`);
   }
