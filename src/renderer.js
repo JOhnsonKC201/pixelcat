@@ -952,7 +952,7 @@ function renderRearBat(t, palRGB, blinking, o) {
   ctx.drawImage(oc, 0, 0, SW, BAT_H, -SW / 2, -BAT_H, SW, BAT_H);
   ctx.restore();
   // near-miss: when a paw strikes up near the bug it startles and darts off (hit-cooldown)
-  if (!aimed && hasBug && topPh > 0.7 && Math.hypot(bfX - pos.x, bfY - (oy - 2)) < 50 && t > bfBatHit && bfMode !== 'dodge') {
+  if (!aimed && hasBug && topPh > 0.7 && Math.hypot(bfX - pos.x, bfY - (oy - 2)) < 50 && t > bfBatHit && bfMode !== 'dodge' && bfMode !== 'held') {
     bfBatHit = t + 220; bfMode = 'dodge'; bfDodgeUntil = t + 360;
     const aw = Math.atan2(bfY - pos.y, bfX - pos.x) + (Math.random() - 0.5); bfVx = Math.cos(aw) * 9; bfVy = Math.sin(aw) * 9;
     if (!lowPower) idleSparkles.push({ x: bfX, y: bfY, t0: t });
@@ -1033,9 +1033,11 @@ let bfNudgeSince = 0;     // when the mouse first stirred during a visit (grace 
 let bfOn = false, bfX = 0, bfY = 0, bfVx = 0, bfVy = 0, bfFlap = 0, bfMode = 'in', bfUntil = 0, bfNextVisit = 35000, bfPal = 0, bfNextPal = 0, bfWpX = 0, bfWpY = 0, bfNextDive = 0, bfDiveUntil = 0, bfDodgeUntil = 0, bfSwatCool = 0, bfEdgeSince = 0, bfIdleNextVisit = 0;
 // paw-swat at the butterfly (a gentle reach that doesn't need a full pounce)
 let bfSwatT0 = 0, bfSwatUntil = 0, bfBatHit = 0;
-// the catch is a beat, not a frame: a short victory window the idle branch turns into
-// a double bounce with happy eyes and a blush. Render-only: none of this moves pos.
-let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0;
+// the catch is a beat, not a frame: the bug is held between the paws for a moment
+// (bfMode 'held'), then slips out, and a short victory window opens that the idle
+// branch turns into a double bounce with happy eyes and a blush. Render-only: none
+// of this moves pos.
+let bfJoyT0 = -1, bfJoyUntil = 0, bfJoyAmp = 0, bfHeldUntil = 0;
 // a short fading sparkle trail behind the butterfly
 let bfNextTrail = 0, bfTrail = [];
 // "air currents" glider state (mirrors site/cat-live.js): a drifting figure-eight center + phase
@@ -1827,7 +1829,7 @@ const BF_ZONE_X = 150, BF_ZONE_TOP = 130, BF_ZONE_BOT = 40;
 const BF_LISSA_AX = 70, BF_LISSA_AY = 44;
 // Gentle paw-swat at a butterfly that's near the head but just out of full-pounce range.
 const BF_SWAT_RANGE = 150, BF_SWAT_MS = 600;
-const BF_JOY_MS = 1400;   // the victory beat after a catch
+const BF_JOY_MS = 1400, BF_HELD_MS = 550;   // the victory beat after a catch, and how long the bug is held first
 
 // mood/energy tuning (all tunable). Decay is per-ms; ~1.8/s gives a gentle drift
 // back to calm when nothing is happening.
@@ -1968,6 +1970,10 @@ function updateButterflyDesk(t, dt, step, f) {
   const cursorIdle = (t - lastCursorMove) > BF_PLAY_IDLE;
   if (t > bfUntil && bfMode !== 'out') bfMode = 'out';
   if (bfMode === 'dodge' && t > bfDodgeUntil) bfMode = 'wander';
+  if (bfMode === 'held' && t > bfHeldUntil) {   // slips out of the paws and climbs away; the cat bounces after it
+    bfMode = 'out'; bfVy = -11; bfVx = (bfX < pos.x ? -1 : 1) * 4; bfFlap += 3;
+    bfJoyT0 = t; bfJoyUntil = t + BF_JOY_MS;
+  }
   if (bfMode !== 'out') {
     if (bfMode === 'in' && (Math.hypot(bfX - headX, bfY - headY) < 160 || t > bfNextDive)) bfMode = 'wander';
     if (bfMode === 'wander' && t > bfNextDive) {
@@ -1987,6 +1993,7 @@ function updateButterflyDesk(t, dt, step, f) {
   if (bfMode === 'out') { tx = bfX < headX ? -40 : viewW + 40; ty = bfY; }
   else if (bfMode === 'dive') { tx = headX + Math.sin(t / 200) * 26; ty = headY - 6 + Math.cos(t / 170) * 12; }
   else if (bfMode === 'dodge') { tx = bfWpX; ty = bfWpY; }
+  else if (bfMode === 'held') { tx = bfX; ty = bfY; }   // pinned below; skips the glider (and its drift repick)
   else {
     // air-current glider CONFINED to a zone around the cat's head (the zone follows the cat),
     // so the butterfly plays near the cat instead of roaming the screen. Flap-bursts still
@@ -2026,7 +2033,8 @@ function updateButterflyDesk(t, dt, step, f) {
   const sp = Math.hypot(bfVx, bfVy), maxv = bfMode === 'dodge' ? 10 : (bfMode === 'out' ? 4.2 : 5.5);
   if (sp > maxv) { bfVx *= maxv / sp; bfVy *= maxv / sp; }
   bfX += bfVx * dtf; bfY += bfVy * dtf;
-  bfFlap += (0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
+  if (bfMode === 'held') { bfVx = 0; bfVy = 0; bfX = pos.x + Math.sin(t / 70) * 1.5; bfY = pos.y - SH * 0.30 + Math.sin(t / 55); }   // cupped in the front paws
+  bfFlap += (bfMode === 'held' ? 0.05 : 0.18 + sp * 0.03) * dtf * (burst ? FLAP_BURST_MULT : 1);   // wings beat harder during a climb-burst
   // despawn once it has flown off-screen - or, as a failsafe, if it has been leaving too long
   // (can't reach the edge for any reason), so it can never get trapped on-screen forever.
   if (bfMode === 'out' && (bfX < -30 || bfX > viewW + 30 || t > bfUntil + 6000)) { bfOn = false; huntTarget = null; bfNextVisit = t + 50000 + Math.random() * 50000; bfIdleNextVisit = t + 14000 + Math.random() * 10000; return; }
@@ -2071,7 +2079,10 @@ function updateButterflyDesk(t, dt, step, f) {
     // rather than a machine keeping time.
     bfSwatT0 = t; bfSwatUntil = t + BF_SWAT_MS; bfSwatCool = t + 2600 + Math.random() * 1400; tailFlickT0 = t;
   }
-  if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting && t >= huntUntil) {
+  // Not while it is leaving and not while it is held: a bug climbing out of the paws
+  // passes right under the head, and this used to startle it straight back into a
+  // dodge, so the catch that "ended the visit" never actually did.
+  if (dh < 60 && t > bfDodgeUntil + 200 && !f.hunting && t >= huntUntil && bfMode !== 'out' && bfMode !== 'held') {
     if (cursorIdle && t > bfSwatCool) { bfSwatCool = t + 900; tailFlickT0 = t; leanTarget = clamp((bfX - pos.x) / 120, -0.12, 0.12); leanUntil = t + 260; }
     bfMode = 'dodge'; bfDodgeUntil = t + 460;
     const aw = Math.atan2(bfY - headY, bfX - headX) + (Math.random() - 0.5);
@@ -2383,25 +2394,27 @@ function draw(t) {
       pos.y = pounceFrom.y + (tgt.y - pounceFrom.y) * ease;
       leap = Math.sin(e * Math.PI) * 32; stretchY = 1 + Math.sin(e * Math.PI) * 0.26;   // a big, paws-up leap
       // the catch: if the leap reaches a real butterfly, the cat bats it between its paws.
-      // A fan of pink sparkles and a heart at the paws, one pleased trill, and a victory
-      // window the idle branch turns into a double bounce with happy eyes; the bug
-      // flutters up and away (escapes the paws).
-      if (bfOn && huntTarget && bfMode !== 'out' && e > 0.4 && Math.hypot(bfX - pos.x, bfY - (pos.y - leap - HH * 0.55)) < 44) {
+      // A fan of pink sparkles and a heart at the paws and one pleased trill; the bug is
+      // held there for a moment ('held' in updateButterflyDesk), then slips out and climbs
+      // away, and the victory window opens as it goes. The 'held' guard is load-bearing:
+      // without it this block re-enters on every remaining frame of the leap.
+      if (bfOn && huntTarget && bfMode !== 'out' && bfMode !== 'held' && e > 0.4 && Math.hypot(bfX - pos.x, bfY - (pos.y - leap - HH * 0.55)) < 44) {
         const cx = pos.x, cy = pos.y - leap - HH * 0.6;
         // runAction('companion') skips the low-power gate, so a low-power visit is reachable
         // from the settings button: calm the beat down here rather than assume it cannot happen.
         const motionOK = !((config && config.reducedMotion) || lowPower);
         popSparks(t, cx, cy - 4, motionOK ? Math.round(3 + 2 * intensity) : 1);   // 4 / 5 / 6 by mood band; 1 when calm
         popLove(t, cx, cy - 6, 1.4, 10);
-        bfMode = 'out'; bfVy = -11; bfVx = (bfX < cx ? -1 : 1) * 4; bfFlap += 3;
-        bfJoyT0 = t; bfJoyUntil = t + BF_JOY_MS; bfJoyAmp = motionOK ? 14 * intensity : 0;
+        bfMode = 'held'; bfHeldUntil = t + BF_HELD_MS; bfJoyAmp = motionOK ? 14 * intensity : 0;
+        bfVx = 0; bfVy = 0; bfX = cx; bfY = cy + 6;
         addEnergy(22); tailFlickT0 = t;
-        if (config && config.soundOn) playChirp();   // "gotcha": once per catch, and the catch ends the visit, so it cannot repeat
+        if (config && config.soundOn) playChirp();   // "gotcha": once per catch; the guard above makes it unrepeatable
       }
+      if (bfMode === 'held') { bfX = pos.x; bfY = pos.y - leap - HH * 0.6 + 6; }   // ride the rest of the leap in the paws (the flight integrator is paused while hunting)
       if (e >= 1) {
         // Landing. A cursor pounce and a real catch get the "got it!" sparkle; a whiff at
         // the butterfly gets none, and the cat watches it get away instead.
-        const bfPounce = bfOn && !!huntTarget, caught = t < bfJoyUntil;
+        const bfPounce = bfOn && !!huntTarget, caught = bfMode === 'held';
         pouncing = false; huntUntil = 0; huntTarget = null; persistPos(); tailFlickT0 = t;
         if (!bfPounce || caught) idleSparkles.push({ x: pos.x, y: pos.y - HH * 0.7, t0: t });
         else { lookTarget = { x: clamp((bfX - pos.x) / 200, -1, 1), y: -0.8 }; lookTargetUntil = t + 400; leanTarget = clamp((bfX - pos.x) / 200, -0.08, 0.08); leanUntil = t + 400; }
@@ -2601,6 +2614,7 @@ function draw(t) {
     // happy eyes, the idle exclusions and the branch below, and the offset stays
     // render-only, so a stay-put pet stays exactly put
     const joyOn = bfJoyT0 >= 0 && t < bfJoyUntil && !grabbing;
+    const bfHeld = bfOn && bfMode === 'held';   // peering at the bug cupped in its paws
     if (joyOn && !hopActive) { hop = bfJoyHop(t); hopActive = true; }
 
     // The painted scene is a whole picture (cat + rope + ball) and replaces the
@@ -2684,7 +2698,7 @@ function draw(t) {
         nextLoafZ = t + 1800 + Math.random() * 1600;
       }
       octx.clearRect(0, 0, oc.width, oc.height);
-      const stareDilate = (staring && t - staringT0 < 1800) ? 1.12 : 1;   // subtle wide-eyed fixate
+      const stareDilate = bfHeld ? 1.4 : (staring && t - staringT0 < 1800) ? 1.12 : 1;   // subtle wide-eyed fixate
       // Washing, pondering, tapping and batting all raise one front paw. They share
       // one composed pose and differ only in how high it goes and how far it reaches,
       // which replaces four separate limbs-drawn-as-rectangles over the sprite.
@@ -2700,7 +2714,7 @@ function draw(t) {
         : working ? { lift: 0.52 + Math.abs(Math.sin(t / 150)) * 0.26, out: 0.16 }
         : null;
       const bodySprite = (pawPose ? pawSpriteFor(patternIndex, pawPose.lift, pawPose.out) : (loafing ? loafSprite : catSprite));
-      drawCat(octx, bodySprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet || joyOn, dilate: stareDilate, panting: isDog() && t < pantUntil && !loafing });
+      drawCat(octx, bodySprite, t, palRGB, { bob, blinking, look: eLook, eyeMode: emode, blush: petting || bodyPet || joyOn || bfHeld, dilate: stareDilate, panting: isDog() && t < pantUntil && !loafing });
       if (groom) drawLick(octx, bodySprite, bob, groom);   // tongue rides the sprite buffer, so it scales with the cat
       if (yawning || stretching) {   // open mouth + tongue, drawn into the sprite buffer so it scales/leans with the cat (cats yawn as they stretch)
         const sprog = FORCED_STATE === 'stretch' ? (t % STRETCH_MS) / STRETCH_MS : clamp((t - stretchT0) / STRETCH_MS, 0, 1);
