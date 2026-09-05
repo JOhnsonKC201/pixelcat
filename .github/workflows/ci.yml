@@ -25,7 +25,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-      - run: npm test
+      # Piped through tee so the PR bot (pull-request-bot.yml) can read the totals
+      # back out of the artifact below. `shell: bash` matters: only the explicit
+      # form turns on pipefail, and without it a red `npm test` would hide behind
+      # tee's exit code and the job would go green.
+      - run: npm test 2>&1 | tee test-output.txt
+        shell: bash
+      # Uploaded even when the tests fail, because a red run is exactly when the
+      # numbers are wanted. The bot treats this file as untrusted text.
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-output
+          path: test-output.txt
+          retention-days: 7
 
   boot:
     # bootcheck.js resolves the electron binary through require('electron') and is

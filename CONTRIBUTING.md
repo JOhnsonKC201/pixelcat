@@ -28,6 +28,13 @@ The [development guide](docs/development.md) covers the day-to-day commands. The
 4. **Respect line endings.** Files in this repo are a mix of LF and CRLF for historical reasons. Do not normalize files you are not otherwise changing; keep each file's existing endings.
 5. **Commit style:** conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), imperative mood, like the existing history.
 
+## After you open a PR
+
+- **CI runs on every push:** the tests on Linux, and a real boot of the app on Windows and on macOS. If this is your first pull request here, GitHub holds the run until a maintainer approves it, so a "workflow awaiting approval" notice is normal.
+- **A bot comments the results** (each job, plus the test totals) and edits that same comment on every push, so the thread does not fill up with status noise. First-time contributors also get a short welcome from it.
+- **The maintainer is requested as a reviewer automatically** through `CODEOWNERS`.
+- **`main` only takes green pull requests.** The branch is ruleset-protected: no direct pushes, and the three CI jobs must pass before the merge button works.
+
 ## Good places to start
 
 - **Own a Mac?** The macOS port is code-complete but untested on real hardware. Running the [beta checklist](docs/development.md#macos-beta-checklist) and reporting what happened is the single most useful contribution right now.
