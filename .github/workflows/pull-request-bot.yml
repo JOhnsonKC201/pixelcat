@@ -1,0 +1,80 @@
+name: PR bot
+
+# The repo's own pull request bot. Two jobs, and both run the DEFAULT branch's copy
+# of this file with a token that can write comments. That is what lets them speak
+# on pull requests from forks, whose own CI run only ever holds a read-only token.
+#
+# The trade for holding that token is one hard rule: neither job checks out or
+# executes anything from the pull request. `actions/checkout` below lands on main
+# in both triggers, there is no npm step of any kind, and the single artifact that
+# is read (the raw test output) is treated as untrusted text that four integers are
+# picked out of. tests/pr-bot.test.js pins each of these properties, so loosening
+# one is a deliberate act that fails a test first. Read the pull_request_target
+# section of the GitHub Actions security docs before doing that.
+
+on:
+  # Fires when a PR is opened. Uses the base branch's workflow and a write token
+  # regardless of the PR's origin, which is what the welcome job needs.
+  pull_request_target:
+    types: [opened]
+  # Fires after the CI workflow finishes, for any ref, with a write token.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  # A dry run of the results job against an existing CI run, for checking the
+  # comment format without waiting for a real pull request.
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: CI run id to post results for
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  welcome:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      # No `ref:` on purpose: under pull_request_target the default is the base
+      # branch, so this checks out main's copy of scripts/pr-bot, not the PR's.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const bot = require('./scripts/pr-bot/welcome.js');
+            await bot.run({ github, context, core });
+
+  results:
+    # A cancelled CI run means a newer push superseded it and its own run is on
+    # the way, so there is nothing worth saying about the old one.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion != 'cancelled')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pr-bot-results-${{ inputs.run_id || github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The test job uploads its raw output even when it fails. Missing is fine
+      # (CI was cancelled, or fell over before the tests ran) and the comment says
+      # so instead of the job failing here.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          name: test-output
+          path: .pr-bot
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+        with:
+          script: |
+            const bot = require('./scripts/pr-bot/results.js');
+            await bot.run({ github, context, core, runId: process.env.RUN_ID, artifactDir: '.pr-bot' });

@@ -21,6 +21,17 @@ These paths appear in other people's config files and shortcuts.
 | `bootcheck.js` | `npm run test:boot` | Launches the real app and asserts it renders a frame. Runs in CI on Windows and macOS. |
 | `hook-check.js` | `npm run check:hook` | Answers whether the global input hook loads on this Electron build. |
 
+## Repository bot
+
+Driven by `.github/workflows/pull-request-bot.yml`, never by hand. Both files run
+from main's copy with a token that can write comments, which is why neither may
+read anything from the pull request beyond what the API hands them.
+
+| Script | Runs on | What it does |
+|---|---|---|
+| `pr-bot/welcome.js` | a contributor's first pull request | Posts one comment saying what happens next: CI approval, the results comment, the automatic review request. Skips bots and repo members. |
+| `pr-bot/results.js` | every finished CI run for a pull request | Posts one comment with each job's result and the test totals, and edits that same comment on every push. Also runnable by hand from the Actions tab with a CI run id. |
+
 ## Art and media generators
 
 All of these render from the same sprite geometry the app draws with, in pure
